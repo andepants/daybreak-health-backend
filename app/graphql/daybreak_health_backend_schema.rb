@@ -43,24 +43,24 @@ class DaybreakHealthBackendSchema < GraphQL::Schema
       error
     when ActiveRecord::RecordNotFound
       # Convert ActiveRecord not found to GraphQL error
-      Errors::NotFoundError.new(
+      GraphqlErrors::NotFoundError.new(
         'Resource not found',
         resource_type: error.model
       )
     when ActiveRecord::RecordInvalid
       # Convert validation errors
-      Errors::ValidationError.new(
+      GraphqlErrors::ValidationError.new(
         'Validation failed',
         errors: error.record.errors.to_hash
       )
     when Pundit::NotAuthorizedError
       # Convert authorization errors
-      Errors::ForbiddenError.new(
+      GraphqlErrors::ForbiddenError.new(
         'You do not have permission to perform this action'
       )
     else
       # Generic internal error (don't expose details)
-      Errors::InternalError.new
+      GraphqlErrors::InternalError.new
     end
   end
 
