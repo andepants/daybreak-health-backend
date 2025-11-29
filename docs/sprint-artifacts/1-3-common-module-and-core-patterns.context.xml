@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="bmm/workflows/4-implementation/story-context/1-3" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.3</storyId>
+    <title>Common Concerns & Core Patterns</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-3-common-module-and-core-patterns.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>reusable concerns, policies, and error handling</iWant>
+    <soThat>all modules follow consistent patterns for auth, logging, and error handling</soThat>
+    <tasks>
+      <task id="1" ac="1.3.4">
+        <title>Create Encryptable concern with encrypts_phi method</title>
+        <subtasks>
+          <subtask id="1.1">Define Encryptable module in app/models/concerns/encryptable.rb</subtask>
+          <subtask id="1.2">Implement encrypts_phi class method for field encryption</subtask>
+          <subtask id="1.3">Add PHI-safe logging (log existence flags only, never actual values)</subtask>
+          <subtask id="1.4">Write RSpec tests for encryption/decryption</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="1.3.5">
+        <title>Create Auditable concern for automatic audit logging</title>
+        <subtasks>
+          <subtask id="2.1">Define Auditable module in app/models/concerns/auditable.rb</subtask>
+          <subtask id="2.2">Implement after_create, after_update, after_destroy callbacks</subtask>
+          <subtask id="2.3">Create audit log entries with actor, action, and timestamp</subtask>
+          <subtask id="2.4">Ensure PHI-safe logging (redact sensitive fields)</subtask>
+          <subtask id="2.5">Write RSpec tests for audit trail creation</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="1.3.3">
+        <title>Implement Auth::JwtService for JWT encoding/decoding</title>
+        <subtasks>
+          <subtask id="3.1">Create app/services/auth/jwt_service.rb</subtask>
+          <subtask id="3.2">Implement encode method with HS256 algorithm, 1-hour expiration</subtask>
+          <subtask id="3.3">Implement decode method with error handling</subtask>
+          <subtask id="3.4">Add iat (issued at) and exp (expiration) claims</subtask>
+          <subtask id="3.5">Configure JWT secret from Rails credentials</subtask>
+          <subtask id="3.6">Write RSpec tests for encoding, decoding, and expiration</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="1.3.3">
+        <title>Implement Auth::TokenService for refresh token management</title>
+        <subtasks>
+          <subtask id="4.1">Create app/services/auth/token_service.rb</subtask>
+          <subtask id="4.2">Implement generate_refresh_token method</subtask>
+          <subtask id="4.3">Implement validate_refresh_token method</subtask>
+          <subtask id="4.4">Add token rotation logic (invalidate old tokens on refresh)</subtask>
+          <subtask id="4.5">Write RSpec tests for token lifecycle</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="1.3.2">
+        <title>Create ApplicationPolicy with default deny</title>
+        <subtasks>
+          <subtask id="5.1">Create app/policies/application_policy.rb</subtask>
+          <subtask id="5.2">Set all default permissions to false (deny by default)</subtask>
+          <subtask id="5.3">Define standard policy methods: index?, show?, create?, update?, destroy?</subtask>
+          <subtask id="5.4">Add user and record accessor methods</subtask>
+          <subtask id="5.5">Write RSpec tests for default deny behavior</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="1.3.2">
+        <title>Create OnboardingSessionPolicy</title>
+        <subtasks>
+          <subtask id="6.1">Create app/policies/onboarding_session_policy.rb</subtask>
+          <subtask id="6.2">Implement create? (allow anonymous users)</subtask>
+          <subtask id="6.3">Implement show? (allow session owner only)</subtask>
+          <subtask id="6.4">Implement update? (allow session owner only)</subtask>
+          <subtask id="6.5">Ensure policy respects session ownership rules</subtask>
+          <subtask id="6.6">Write RSpec tests for all policy methods</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="1.3.1">
+        <title>Add current_session helper to GraphQL context</title>
+        <subtasks>
+          <subtask id="7.1">Create app/graphql/concerns/current_session.rb</subtask>
+          <subtask id="7.2">Implement current_session method to extract from context</subtask>
+          <subtask id="7.3">Handle missing or invalid session gracefully</subtask>
+          <subtask id="7.4">Add method to GraphQL base mutation and query classes</subtask>
+          <subtask id="7.5">Write RSpec tests for session extraction</subtask>
+        </subtasks>
+      </task>
+      <task id="8" ac="1.3.6">
+        <title>Implement custom GraphQL error handling</title>
+        <subtasks>
+          <subtask id="8.1">Create app/graphql/errors/ directory</subtask>
+          <subtask id="8.2">Define base error class with message and extensions</subtask>
+          <subtask id="8.3">Implement error formatter in GraphQL schema</subtask>
+          <subtask id="8.4">Add timestamp and path to error extensions</subtask>
+          <subtask id="8.5">Ensure PHI-safe error messages (no sensitive data in errors)</subtask>
+          <subtask id="8.6">Write RSpec tests for error formatting</subtask>
+        </subtasks>
+      </task>
+      <task id="9" ac="1.3.7">
+        <title>Define error codes as constants</title>
+        <subtasks>
+          <subtask id="9.1">Create app/graphql/errors/error_codes.rb</subtask>
+          <subtask id="9.2">Define UNAUTHENTICATED constant</subtask>
+          <subtask id="9.3">Define FORBIDDEN constant</subtask>
+          <subtask id="9.4">Define NOT_FOUND constant</subtask>
+          <subtask id="9.5">Define VALIDATION_ERROR constant</subtask>
+          <subtask id="9.6">Define INTERNAL_ERROR constant</subtask>
+          <subtask id="9.7">Document each error code with usage examples</subtask>
+        </subtasks>
+      </task>
+      <task id="10" ac="all">
+        <title>Write RSpec tests for all services and concerns</title>
+        <subtasks>
+          <subtask id="10.1">Create spec/models/concerns/encryptable_spec.rb</subtask>
+          <subtask id="10.2">Create spec/models/concerns/auditable_spec.rb</subtask>
+          <subtask id="10.3">Create spec/services/auth/jwt_service_spec.rb</subtask>
+          <subtask id="10.4">Create spec/services/auth/token_service_spec.rb</subtask>
+          <subtask id="10.5">Create spec/policies/application_policy_spec.rb</subtask>
+          <subtask id="10.6">Create spec/policies/onboarding_session_policy_spec.rb</subtask>
+          <subtask id="10.7">Create spec/graphql/errors/error_handling_spec.rb</subtask>
+          <subtask id="10.8">Ensure all tests pass and achieve &gt;90% coverage</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1.3.1">current_session helper extracts session from GraphQL context</criterion>
+    <criterion id="1.3.2">Pundit policies for role-based access control</criterion>
+    <criterion id="1.3.3">JWT authentication via Auth::JwtService</criterion>
+    <criterion id="1.3.4">Encryptable concern for PHI field encryption</criterion>
+    <criterion id="1.3.5">Auditable concern for automatic audit logging</criterion>
+    <criterion id="1.3.6">Custom GraphQL error handling with standard codes</criterion>
+    <criterion id="1.3.7">Error codes match Architecture doc: UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, etc.</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Security Architecture, Error Handling" snippet="JWT authentication, PHI-safe logging, error response format"/>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="Story 1.3 - Common Concerns &amp; Core Patterns" snippet="Auth::JwtService, Encryptable, Auditable patterns, Pundit policies"/>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Epic 1: Foundation &amp; Core Services" snippet="Story 1.3 requirements and technical notes"/>
+    </docs>
+    <code>
+      <!-- Files will be created during implementation -->
+      <file path="app/models/concerns/encryptable.rb" purpose="PHI encryption concern"/>
+      <file path="app/models/concerns/auditable.rb" purpose="Audit logging concern"/>
+      <file path="app/services/auth/jwt_service.rb" purpose="JWT encode/decode service"/>
+      <file path="app/services/auth/token_service.rb" purpose="Refresh token management service"/>
+      <file path="app/policies/application_policy.rb" purpose="Base Pundit policy with default deny"/>
+      <file path="app/policies/onboarding_session_policy.rb" purpose="Session-specific authorization policy"/>
+      <file path="app/graphql/concerns/current_session.rb" purpose="GraphQL context session extraction helper"/>
+      <file path="app/graphql/errors/error_codes.rb" purpose="Standard error code constants"/>
+      <file path="app/graphql/errors/base_error.rb" purpose="Base error class for GraphQL"/>
+    </code>
+    <dependencies>
+      <gems>
+        <gem name="jwt" version="~&gt; 2.7" purpose="JWT token encoding and decoding"/>
+        <gem name="pundit" version="~&gt; 2.3" purpose="Authorization policies"/>
+      </gems>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="security">JWT uses HS256 algorithm with 1-hour expiration</constraint>
+    <constraint type="encryption">PHI fields use Rails 7 encrypts macro via Encryptable concern</constraint>
+    <constraint type="logging">PHI-safe logging - never log actual PHI values, only existence flags</constraint>
+    <constraint type="authorization">Pundit policies with default deny (all methods return false by default)</constraint>
+    <constraint type="errors">Standard error format: { message, extensions: { code, timestamp, path } }</constraint>
+    <constraint type="testing">Minimum 90% code coverage for all new code</constraint>
+    <constraint type="jwt">JWT tokens include iat (issued at) and exp (expiration) claims</constraint>
+    <constraint type="token-rotation">Refresh tokens must be invalidated on use (one-time use tokens)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="Auth::JwtService" kind="service" path="app/services/auth/jwt_service.rb">
+      <method signature="encode(payload, exp: 1.hour.from_now)" returns="String (JWT token)"/>
+      <method signature="decode(token)" returns="HashWithIndifferentAccess or nil"/>
+    </interface>
+    <interface name="Auth::TokenService" kind="service" path="app/services/auth/token_service.rb">
+      <method signature="generate_refresh_token(user)" returns="String (refresh token)"/>
+      <method signature="validate_refresh_token(token)" returns="User or nil"/>
+    </interface>
+    <interface name="Encryptable" kind="concern" path="app/models/concerns/encryptable.rb">
+      <method signature="encrypts_phi(*attributes)" returns="void" description="Class method to encrypt specified PHI fields"/>
+    </interface>
+    <interface name="Auditable" kind="concern" path="app/models/concerns/auditable.rb">
+      <callback signature="after_create :log_creation" description="Automatically log creation events"/>
+      <callback signature="after_update :log_update" description="Automatically log update events"/>
+      <callback signature="after_destroy :log_deletion" description="Automatically log deletion events"/>
+    </interface>
+    <interface name="ApplicationPolicy" kind="policy" path="app/policies/application_policy.rb">
+      <method signature="index?" returns="Boolean (default: false)"/>
+      <method signature="show?" returns="Boolean (default: false)"/>
+      <method signature="create?" returns="Boolean (default: false)"/>
+      <method signature="update?" returns="Boolean (default: false)"/>
+      <method signature="destroy?" returns="Boolean (default: false)"/>
+    </interface>
+    <interface name="OnboardingSessionPolicy" kind="policy" path="app/policies/onboarding_session_policy.rb">
+      <method signature="create?" returns="Boolean (true for anonymous users)"/>
+      <method signature="show?" returns="Boolean (true if session owner)"/>
+      <method signature="update?" returns="Boolean (true if session owner)"/>
+    </interface>
+    <interface name="CurrentSession" kind="concern" path="app/graphql/concerns/current_session.rb">
+      <method signature="current_session" returns="OnboardingSession or nil" description="Extract session from GraphQL context"/>
+    </interface>
+    <interface name="GraphQL::Errors::ErrorCodes" kind="module" path="app/graphql/errors/error_codes.rb">
+      <constant name="UNAUTHENTICATED" value="UNAUTHENTICATED"/>
+      <constant name="FORBIDDEN" value="FORBIDDEN"/>
+      <constant name="NOT_FOUND" value="NOT_FOUND"/>
+      <constant name="VALIDATION_ERROR" value="VALIDATION_ERROR"/>
+      <constant name="INTERNAL_ERROR" value="INTERNAL_ERROR"/>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>RSpec unit tests for all services, concerns, and policies. Minimum 90% code coverage. Test JWT encode/decode, encryption, audit logging, authorization policies, error formatting.</standards>
+    <locations>
+      <location>spec/models/concerns/</location>
+      <location>spec/services/auth/</location>
+      <location>spec/policies/</location>
+      <location>spec/graphql/errors/</location>
+      <location>spec/graphql/concerns/</location>
+    </locations>
+    <ideas>
+      <idea ac="1.3.1">Test current_session helper extracts session from context</idea>
+      <idea ac="1.3.1">Test current_session handles missing context gracefully</idea>
+      <idea ac="1.3.2">Test ApplicationPolicy denies all actions by default</idea>
+      <idea ac="1.3.2">Test OnboardingSessionPolicy allows create for anonymous users</idea>
+      <idea ac="1.3.2">Test OnboardingSessionPolicy enforces session ownership</idea>
+      <idea ac="1.3.3">Test JWT encode produces valid token with exp and iat claims</idea>
+      <idea ac="1.3.3">Test JWT decode extracts payload correctly</idea>
+      <idea ac="1.3.3">Test JWT decode handles expired tokens gracefully</idea>
+      <idea ac="1.3.3">Test JWT decode handles invalid tokens gracefully</idea>
+      <idea ac="1.3.3">Test refresh token generation creates unique tokens</idea>
+      <idea ac="1.3.3">Test refresh token validation succeeds for valid tokens</idea>
+      <idea ac="1.3.3">Test refresh token rotation invalidates old tokens</idea>
+      <idea ac="1.3.4">Test PHI fields are encrypted in database</idea>
+      <idea ac="1.3.4">Test PHI fields are decrypted when accessed</idea>
+      <idea ac="1.3.4">Test encrypts_phi method accepts multiple attributes</idea>
+      <idea ac="1.3.5">Test Auditable creates audit log on create</idea>
+      <idea ac="1.3.5">Test Auditable creates audit log on update</idea>
+      <idea ac="1.3.5">Test Auditable creates audit log on destroy</idea>
+      <idea ac="1.3.5">Test audit logs redact PHI fields</idea>
+      <idea ac="1.3.6">Test error responses have correct format</idea>
+      <idea ac="1.3.6">Test error responses include message and extensions</idea>
+      <idea ac="1.3.6">Test error responses include timestamp</idea>
+      <idea ac="1.3.6">Test error responses include path</idea>
+      <idea ac="1.3.6">Test error messages never contain PHI</idea>
+      <idea ac="1.3.7">Test all error codes are implemented as constants</idea>
+      <idea ac="1.3.7">Test error codes match Architecture doc specifications</idea>
+    </ideas>
+  </tests>
+
+  <patterns>
+    <pattern name="JWT Encoding/Decoding">
+      <description>Use Auth::JwtService for all JWT operations with HS256 algorithm</description>
+      <example>
+        <![CDATA[
+module Auth
+  class JwtService
+    SECRET = Rails.application.credentials.jwt_secret!
+    ALGORITHM = 'HS256'
+
+    def self.encode(payload, exp: 1.hour.from_now)
+      payload[:exp] = exp.to_i
+      payload[:iat] = Time.current.to_i
+      JWT.encode(payload, SECRET, ALGORITHM)
+    end
+
+    def self.decode(token)
+      decoded = JWT.decode(token, SECRET, true, algorithm: ALGORITHM)
+      HashWithIndifferentAccess.new(decoded.first)
+    rescue JWT::DecodeError => e
+      Rails.logger.warn("JWT decode failed: #{e.message}")
+      nil
+    end
+  end
+end
+        ]]>
+      </example>
+    </pattern>
+    <pattern name="PHI-Safe Logging">
+      <description>Never log actual PHI values, only existence flags or redacted placeholders</description>
+      <example>
+        <![CDATA[
+# GOOD - Log existence flags only
+Rails.logger.info("User #{user_id} has PHI: #{user.phi_fields.present?}")
+
+# BAD - Never log actual PHI values
+Rails.logger.info("User #{user_id} SSN: #{user.ssn}")  # NEVER DO THIS
+        ]]>
+      </example>
+    </pattern>
+    <pattern name="Error Response Format">
+      <description>All GraphQL errors follow standard format with message and extensions</description>
+      <example>
+        <![CDATA[
+{
+  "errors": [
+    {
+      "message": "Session not found",
+      "extensions": {
+        "code": "NOT_FOUND",
+        "timestamp": "2025-11-29T10:30:00Z",
+        "path": ["mutation", "updateOnboardingSession"]
+      }
+    }
+  ]
+}
+        ]]>
+      </example>
+    </pattern>
+    <pattern name="Default Deny Policy">
+      <description>All Pundit policies deny by default, explicit allow required</description>
+      <example>
+        <![CDATA[
+class ApplicationPolicy
+  attr_reader :user, :record
+
+  def initialize(user, record)
+    @user = user
+    @record = record
+  end
+
+  def index?
+    false
+  end
+
+  def show?
+    false
+  end
+
+  def create?
+    false
+  end
+
+  def update?
+    false
+  end
+
+  def destroy?
+    false
+  end
+end
+        ]]>
+      </example>
+    </pattern>
+  </patterns>
+
+  <edgeCases>
+    <edgeCase id="ec1" area="JWT">Expired JWT tokens must be rejected gracefully without throwing exceptions</edgeCase>
+    <edgeCase id="ec2" area="JWT">Malformed JWT tokens must be handled without exposing internal errors</edgeCase>
+    <edgeCase id="ec3" area="Session">Missing session in GraphQL context should not crash queries/mutations</edgeCase>
+    <edgeCase id="ec4" area="Encryption">Unencrypted legacy data must be handled during migration</edgeCase>
+    <edgeCase id="ec5" area="Audit">Audit logging must succeed even if PHI redaction fails</edgeCase>
+    <edgeCase id="ec6" area="Policy">Anonymous users (nil user) must be handled in all policies</edgeCase>
+    <edgeCase id="ec7" area="Token">Refresh token rotation must prevent token reuse attacks</edgeCase>
+    <edgeCase id="ec8" area="Error">Error messages must never leak sensitive information (stack traces, PHI)</edgeCase>
+  </edgeCases>
+
+  <securityConsiderations>
+    <consideration priority="critical">JWT secret must be stored in Rails credentials, never in code</consideration>
+    <consideration priority="critical">PHI fields must use Rails 7 encryption at rest</consideration>
+    <consideration priority="critical">Audit logs must never contain actual PHI values</consideration>
+    <consideration priority="critical">Error messages must never expose PHI or internal system details</consideration>
+    <consideration priority="high">Refresh tokens must be one-time use (invalidated on refresh)</consideration>
+    <consideration priority="high">JWT tokens must expire after 1 hour maximum</consideration>
+    <consideration priority="high">All authorization must default to deny</consideration>
+    <consideration priority="medium">JWT decode errors should be logged but not exposed to users</consideration>
+  </securityConsiderations>
+</story-context>

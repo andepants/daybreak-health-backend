@@ -1,0 +1,104 @@
+# Message fixtures for RSpec tests
+# AI conversation history for onboarding sessions
+
+# Session one conversation
+message_one_system:
+  id: "msg-001-system"
+  onboarding_session: session_one
+  role: "system"
+  content: "You are a helpful assistant guiding a parent through the Daybreak Health onboarding process."
+  metadata:
+    phase: "intake"
+  created_at: <%= 1.hour.ago %>
+
+message_one_ai_greeting:
+  id: "msg-001-ai-1"
+  onboarding_session: session_one
+  role: "assistant"
+  content: "Hello! Welcome to Daybreak Health. I'm here to help you get started with mental health support for your child. Can you tell me a bit about what's bringing you here today?"
+  metadata:
+    phase: "intake"
+    intent: "greeting"
+  created_at: <%= 59.minutes.ago %>
+
+message_one_user_response:
+  id: "msg-001-user-1"
+  onboarding_session: session_one
+  role: "user"
+  content: "My child has been struggling with anxiety at school."
+  metadata:
+    phase: "intake"
+  created_at: <%= 58.minutes.ago %>
+
+message_one_ai_followup:
+  id: "msg-001-ai-2"
+  onboarding_session: session_one
+  role: "assistant"
+  content: "Thank you for sharing that. Anxiety at school is something we help many families with. Can you tell me more about when you first noticed these symptoms?"
+  metadata:
+    phase: "intake"
+    intent: "gather_context"
+  created_at: <%= 57.minutes.ago %>
+
+# Session two conversation (insurance phase)
+message_two_ai_insurance:
+  id: "msg-002-ai-1"
+  onboarding_session: session_two
+  role: "assistant"
+  content: "Great progress so far! Now let's get your insurance information so we can provide you with accurate cost estimates. Do you have your insurance card handy?"
+  metadata:
+    phase: "insurance"
+    intent: "request_insurance"
+  created_at: <%= 30.minutes.ago %>
+
+message_two_user_insurance:
+  id: "msg-002-user-1"
+  onboarding_session: session_two
+  role: "user"
+  content: "Yes, I have Anthem Blue Cross. Let me upload a photo."
+  metadata:
+    phase: "insurance"
+  created_at: <%= 29.minutes.ago %>
+
+message_two_ai_confirm:
+  id: "msg-002-ai-2"
+  onboarding_session: session_two
+  role: "assistant"
+  content: "Perfect! I can see you've uploaded your Anthem Blue Cross card. I'm verifying your coverage now - this usually takes just a moment."
+  metadata:
+    phase: "insurance"
+    intent: "confirm_upload"
+    insurance_id: "991de33e-5c95-4845-9740-b9bf08d4d434"
+  created_at: <%= 28.minutes.ago %>
+
+# Assessment conversation
+message_assessment_start:
+  id: "msg-003-ai-1"
+  onboarding_session: session_completed
+  role: "assistant"
+  content: "Now I'd like to ask a few questions to help us understand how best to support your child. These questions are standard and help us match your child with the right therapist."
+  metadata:
+    phase: "assessment"
+    intent: "start_assessment"
+  created_at: <%= 2.hours.ago %>
+
+message_assessment_question:
+  id: "msg-003-ai-2"
+  onboarding_session: session_completed
+  role: "assistant"
+  content: "Over the past two weeks, how often has your child been bothered by feeling nervous, anxious, or on edge?"
+  metadata:
+    phase: "assessment"
+    question_id: 1
+  created_at: <%= 1.hour.ago + 55.minutes %>
+
+message_assessment_answer:
+  id: "msg-003-user-1"
+  onboarding_session: session_completed
+  role: "user"
+  content: "Several days"
+  metadata:
+    phase: "assessment"
+    question_id: 1
+    score: 1
+  created_at: <%= 1.hour.ago + 54.minutes %>

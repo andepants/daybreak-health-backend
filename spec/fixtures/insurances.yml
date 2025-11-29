@@ -1,0 +1,73 @@
+# Insurance fixtures for RSpec tests
+# Generated from insurance_coverages.csv
+
+insurance_anthem:
+  id: "991de33e-5c95-4845-9740-b9bf08d4d434"
+  onboarding_session: session_two
+  payer_name: "Anthem BCBS CA"
+  member_id: "MCA84103067D"
+  group_number: "W3001103"
+  card_image_front: ~
+  card_image_back: ~
+  verification_status: "verified"
+  verification_result:
+    in_network: true
+    copay: 25
+    deductible_remaining: 500
+  created_at: <%= Time.zone.parse("2025-09-17T16:08:04Z") %>
+  updated_at: <%= Time.zone.parse("2025-10-14T20:25:07Z") %>
+
+insurance_pending:
+  id: "188a3377-a487-4b1e-8b83-eeb296889a12"
+  onboarding_session: session_active
+  payer_name: ~
+  member_id: ~
+  group_number: ~
+  card_image_front: "daybreak-api/production/f5160dba-97bd-4dcd-a9a8-22d2d71f3ab7-front.png"
+  card_image_back: "daybreak-api/production/a1ca9aba-681f-43d0-b440-6449e8d52420-back.png"
+  verification_status: "pending"
+  verification_result: {}
+  created_at: <%= Time.zone.parse("2025-07-16T10:44:36Z") %>
+  updated_at: <%= Time.zone.parse("2025-07-16T10:45:03Z") %>
+
+insurance_self_pay:
+  id: "755fe242-38e1-4dfa-b609-c8795130033a"
+  onboarding_session: session_three
+  payer_name: ~
+  member_id: ~
+  group_number: ~
+  card_image_front: ~
+  card_image_back: ~
+  verification_status: "self_pay"
+  verification_result: {}
+  created_at: <%= Time.zone.parse("2025-07-26T05:56:33Z") %>
+  updated_at: <%= Time.zone.parse("2025-07-26T05:56:33Z") %>
+
+insurance_in_progress:
+  id: "e191b6dd-840b-45e2-b114-037a1f1649fe"
+  onboarding_session: session_one
+  payer_name: ~
+  member_id: ~
+  group_number: ~
+  card_image_front: "daybreak-api/production/689b186f-9ff3-4fe8-9976-3077192f09ab-front.png"
+  card_image_back: "daybreak-api/production/03753307-38be-42ec-9559-40bc9a605817-back.jpg"
+  verification_status: "in_progress"
+  verification_result: {}
+  created_at: <%= Time.zone.parse("2025-08-20T16:49:21Z") %>
+  updated_at: <%= Time.zone.parse("2025-08-20T17:17:17Z") %>
+
+# Failed verification (edge case)
+insurance_failed:
+  id: "12345678-1234-1234-1234-123456789abc"
+  onboarding_session: session_incomplete
+  payer_name: "Unknown Insurance"
+  member_id: "INVALID123"
+  group_number: "BAD456"
+  card_image_front: ~
+  card_image_back: ~
+  verification_status: "failed"
+  verification_result:
+    error: "Unable to verify member"
+    code: "MEMBER_NOT_FOUND"
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>

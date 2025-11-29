@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="bmm/workflows/4-implementation/story-context/1-1" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.1</storyId>
+    <title>Project Scaffolding & Core Setup</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-1-project-scaffolding-and-core-setup.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>a properly configured Rails 7 API project with GraphQL</iWant>
+    <soThat>I have a consistent foundation for building all features</soThat>
+    <tasks>
+      <task id="1" ac="1.1.1">
+        <title>Initialize Rails 7 API project</title>
+        <subtasks>
+          <subtask id="1.1">Execute `rails new daybreak-health-backend --api --database=postgresql --skip-test`</subtask>
+          <subtask id="1.2">Verify Rails 7.x version in Gemfile</subtask>
+          <subtask id="1.3">Configure database.yml for PostgreSQL</subtask>
+          <subtask id="1.4">Run `bundle install`</subtask>
+        </subtasks>
+      </task>
+
+      <task id="2" ac="1.1.2, 1.1.5">
+        <title>Add required gems</title>
+        <subtasks>
+          <subtask id="2.1">Add graphql gem to Gemfile</subtask>
+          <subtask id="2.2">Add sidekiq gem for background jobs</subtask>
+          <subtask id="2.3">Add redis gem for caching/sessions</subtask>
+          <subtask id="2.4">Add jwt gem for authentication tokens</subtask>
+          <subtask id="2.5">Add bcrypt gem for password hashing</subtask>
+          <subtask id="2.6">Add pundit gem for authorization</subtask>
+          <subtask id="2.7">Add rspec-rails to development/test group</subtask>
+          <subtask id="2.8">Add rubocop and rubocop-rails to development group</subtask>
+          <subtask id="2.9">Run `bundle install`</subtask>
+        </subtasks>
+      </task>
+
+      <task id="3" ac="1.1.2">
+        <title>Run GraphQL generator</title>
+        <subtasks>
+          <subtask id="3.1">Execute `rails generate graphql:install`</subtask>
+          <subtask id="3.2">Verify app/graphql/ directory structure created</subtask>
+          <subtask id="3.3">Verify GraphQL route added to routes.rb</subtask>
+          <subtask id="3.4">Configure GraphiQL for development environment</subtask>
+        </subtasks>
+      </task>
+
+      <task id="4" ac="1.1.3">
+        <title>Create project directory structure per architecture</title>
+        <subtasks>
+          <subtask id="4.1">Create app/services/ directory</subtask>
+          <subtask id="4.2">Create app/services/base_service.rb template</subtask>
+          <subtask id="4.3">Create app/policies/ directory</subtask>
+          <subtask id="4.4">Create app/policies/application_policy.rb</subtask>
+          <subtask id="4.5">Create app/jobs/ directory (if not exists)</subtask>
+          <subtask id="4.6">Create lib/encryption/ directory</subtask>
+          <subtask id="4.7">Create lib/ai_providers/ directory</subtask>
+          <subtask id="4.8">Verify app/graphql/ structure matches architecture</subtask>
+        </subtasks>
+      </task>
+
+      <task id="5" ac="1.1.4">
+        <title>Configure RuboCop</title>
+        <subtasks>
+          <subtask id="5.1">Create .rubocop.yml with project conventions</subtask>
+          <subtask id="5.2">Configure snake_case for files</subtask>
+          <subtask id="5.3">Configure PascalCase for classes</subtask>
+          <subtask id="5.4">Set up Rails-specific cops</subtask>
+          <subtask id="5.5">Run `rubocop --auto-gen-config`</subtask>
+          <subtask id="5.6">Run `rubocop -a` to auto-correct issues</subtask>
+        </subtasks>
+      </task>
+
+      <task id="6" ac="1.1.5">
+        <title>Create .env.example</title>
+        <subtasks>
+          <subtask id="6.1">Create .env.example file</subtask>
+          <subtask id="6.2">Add DATABASE_URL template</subtask>
+          <subtask id="6.3">Add REDIS_URL template</subtask>
+          <subtask id="6.4">Add JWT_SECRET_KEY placeholder</subtask>
+          <subtask id="6.5">Add OPENAI_API_KEY placeholder</subtask>
+          <subtask id="6.6">Add ANTHROPIC_API_KEY placeholder</subtask>
+          <subtask id="6.7">Add ENCRYPTION_KEY placeholder</subtask>
+          <subtask id="6.8">Add RAILS_ENV and PORT variables</subtask>
+          <subtask id="6.9">Add .env to .gitignore</subtask>
+        </subtasks>
+      </task>
+
+      <task id="7">
+        <title>Configure CORS</title>
+        <subtasks>
+          <subtask id="7.1">Uncomment rack-cors gem in Gemfile</subtask>
+          <subtask id="7.2">Configure CORS in config/initializers/cors.rb</subtask>
+          <subtask id="7.3">Set appropriate origins for development/production</subtask>
+          <subtask id="7.4">Run `bundle install`</subtask>
+        </subtasks>
+      </task>
+
+      <task id="8" ac="1.1.6">
+        <title>Add health check endpoint</title>
+        <subtasks>
+          <subtask id="8.1">Create app/controllers/health_controller.rb</subtask>
+          <subtask id="8.2">Add health#check action</subtask>
+          <subtask id="8.3">Add route GET /health to routes.rb</subtask>
+          <subtask id="8.4">Test health endpoint responds with 200 OK</subtask>
+        </subtasks>
+      </task>
+
+      <task id="9">
+        <title>Configure initializers</title>
+        <subtasks>
+          <subtask id="9.1">Create config/initializers/encryption.rb stub</subtask>
+          <subtask id="9.2">Create config/initializers/ai_providers.rb stub</subtask>
+          <subtask id="9.3">Create config/initializers/sidekiq.rb</subtask>
+          <subtask id="9.4">Create config/initializers/redis.rb</subtask>
+        </subtasks>
+      </task>
+
+      <task id="10">
+        <title>Write RSpec tests for setup verification</title>
+        <subtasks>
+          <subtask id="10.1">Initialize RSpec with `rails generate rspec:install`</subtask>
+          <subtask id="10.2">Create spec/requests/health_spec.rb</subtask>
+          <subtask id="10.3">Create spec/graphql/schema_spec.rb</subtask>
+          <subtask id="10.4">Test GraphQL schema loads without errors</subtask>
+          <subtask id="10.5">Test all required directories exist</subtask>
+          <subtask id="10.6">Run `bundle exec rspec` and verify all tests pass</subtask>
+        </subtasks>
+      </task>
+
+      <task id="11" ac="1.1.6, 1.1.7">
+        <title>Final verification</title>
+        <subtasks>
+          <subtask id="11.1">Create development database with `rails db:create`</subtask>
+          <subtask id="11.2">Start Rails server with `rails server`</subtask>
+          <subtask id="11.3">Verify server starts on port 3000</subtask>
+          <subtask id="11.4">Access http://localhost:3000/health</subtask>
+          <subtask id="11.5">Access http://localhost:3000/graphiql</subtask>
+          <subtask id="11.6">Verify GraphiQL interface loads</subtask>
+          <subtask id="11.7">Run introspection query in GraphiQL</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1.1.1">Rails 7.x project created in API-only mode with PostgreSQL</criterion>
+    <criterion id="1.1.2">GraphQL configured via graphql-ruby gem</criterion>
+    <criterion id="1.1.3">Project structure matches Architecture document (app/graphql/, app/services/, app/policies/, app/jobs/)</criterion>
+    <criterion id="1.1.4">RuboCop configured with project conventions</criterion>
+    <criterion id="1.1.5">.env.example created with all required environment variables</criterion>
+    <criterion id="1.1.6">rails server starts on port 3000</criterion>
+    <criterion id="1.1.7">GraphiQL accessible at /graphiql in development</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Project Structure" snippet="Rails 7 API-only with GraphQL, PostgreSQL, Sidekiq, Redis"/>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Technology Stack" snippet="Core technologies and infrastructure components"/>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Development Standards" snippet="Naming conventions, testing standards, code organization"/>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="Story 1.1 AC" snippet="Project initialization requirements and acceptance criteria"/>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Epic 1: Core Infrastructure & Authentication" snippet="Story 1.1 - Project scaffolding user story and technical notes"/>
+    </docs>
+    <code>
+      <!-- This is greenfield - no existing code yet -->
+      <note>This story initializes the project from scratch. No existing code to reference.</note>
+    </code>
+    <dependencies>
+      <ruby version="3.3.x"/>
+      <rails version="~> 7.1"/>
+      <gems>
+        <gem name="graphql" version="~> 2.2"/>
+        <gem name="graphiql-rails" version="~> 1.9"/>
+        <gem name="sidekiq" version="~> 7.2"/>
+        <gem name="redis" version="~> 5.0"/>
+        <gem name="jwt" version="~> 2.7"/>
+        <gem name="bcrypt" version="~> 3.1"/>
+        <gem name="pundit" version="~> 2.3"/>
+        <gem name="rack-cors" version="~> 2.0"/>
+        <gem name="puma" version="~> 6.4"/>
+        <gem name="bootsnap" version="~> 1.17"/>
+        <gem name="rspec-rails" version="~> 6.1" group="development, test"/>
+        <gem name="factory_bot_rails" version="~> 6.4" group="development, test"/>
+        <gem name="rubocop" version="~> 1.60" group="development"/>
+        <gem name="rubocop-rails" version="~> 2.23" group="development"/>
+      </gems>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="naming">Files: snake_case, Classes: PascalCase</constraint>
+    <constraint type="structure">Follow Architecture doc project structure exactly</constraint>
+    <constraint type="api">API-only mode, no views, helpers, or assets</constraint>
+    <constraint type="graphql">GraphQL fields in camelCase</constraint>
+    <constraint type="security">Never log PHI values</constraint>
+    <constraint type="testing">RSpec with factory_bot_rails, 90%+ coverage target</constraint>
+    <constraint type="ci">Include RuboCop and Brakeman in CI pipeline</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- New interfaces to create -->
+    <interface name="GraphQL Schema" kind="schema" signature="DaybreakHealthBackendSchema" path="app/graphql/daybreak_health_backend_schema.rb">
+      <description>Main GraphQL schema entry point for all queries and mutations</description>
+    </interface>
+    <interface name="Health Check" kind="REST endpoint" signature="GET /health" path="config/routes.rb">
+      <description>Health check endpoint for monitoring and load balancer probes</description>
+    </interface>
+    <interface name="GraphiQL" kind="development tool" signature="GET /graphiql" path="config/routes.rb">
+      <description>GraphQL IDE for development and testing (development environment only)</description>
+    </interface>
+    <interface name="Base Service" kind="class" signature="BaseService" path="app/services/base_service.rb">
+      <description>Template for service objects following standardized pattern</description>
+    </interface>
+    <interface name="Application Policy" kind="class" signature="ApplicationPolicy" path="app/policies/application_policy.rb">
+      <description>Base Pundit policy for authorization rules</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>RSpec with factory_bot_rails. 90%+ coverage target. Include RuboCop and Brakeman in CI.</standards>
+    <locations>
+      <location>spec/</location>
+      <location>spec/requests/</location>
+      <location>spec/graphql/</location>
+      <location>spec/services/</location>
+      <location>spec/policies/</location>
+      <location>spec/support/</location>
+    </locations>
+    <ideas>
+      <idea ac="1.1.1">Test Rails version is 7.x and API-only mode is configured</idea>
+      <idea ac="1.1.2">Test GraphQL schema loads without errors</idea>
+      <idea ac="1.1.3">Verify all required directories exist (app/graphql/, app/services/, app/policies/, app/jobs/, lib/encryption/, lib/ai_providers/)</idea>
+      <idea ac="1.1.4">Test RuboCop configuration is valid and can run</idea>
+      <idea ac="1.1.5">Verify .env.example contains all required environment variables</idea>
+      <idea ac="1.1.6">Integration test that server starts and responds to requests</idea>
+      <idea ac="1.1.6">Test health endpoint returns 200 OK with expected JSON</idea>
+      <idea ac="1.1.7">Test GraphiQL route is accessible in development environment</idea>
+      <idea ac="1.1.7">Test GraphiQL route is not accessible in production environment</idea>
+      <idea>Test CORS configuration allows expected origins</idea>
+      <idea>Verify database connection can be established</idea>
+      <idea>Test Redis connection is configured correctly</idea>
+    </ideas>
+  </tests>
+
+  <architecturePatterns>
+    <pattern name="API-Only Mode">
+      <description>Rails configured without views, helpers, or assets. All responses via API (GraphQL or REST).</description>
+      <rationale>Backend serves only as API for frontend clients, reducing unnecessary dependencies.</rationale>
+    </pattern>
+    <pattern name="GraphQL First">
+      <description>All client interactions through GraphQL API, not REST.</description>
+      <rationale>Provides flexible, efficient data fetching with strong typing and introspection.</rationale>
+    </pattern>
+    <pattern name="Service Objects">
+      <description>Business logic encapsulated in service classes in app/services/.</description>
+      <rationale>Keeps controllers thin, promotes testability and reusability of business logic.</rationale>
+    </pattern>
+    <pattern name="Pundit Authorization">
+      <description>Authorization rules defined in policy objects in app/policies/.</description>
+      <rationale>Separates authorization concerns from controllers and models.</rationale>
+    </pattern>
+    <pattern name="Background Processing">
+      <description>Sidekiq for asynchronous job processing.</description>
+      <rationale>Offloads long-running tasks (AI processing, notifications) from request cycle.</rationale>
+    </pattern>
+  </architecturePatterns>
+
+  <devNotes>
+    <note type="naming">
+      Files: snake_case (e.g., user_service.rb)
+      Classes: PascalCase (e.g., UserService)
+      Modules: PascalCase (e.g., AiProviders)
+      GraphQL fields: camelCase (e.g., firstName, lastName)
+    </note>
+    <note type="structure">
+      Follow the exact directory structure from Architecture document.
+      Do not deviate from established patterns without team discussion.
+    </note>
+    <note type="security">
+      Never log PHI (Protected Health Information) values.
+      Use data masking for any logging of sensitive data.
+      Encryption configuration is stubbed in this story, implemented in later stories.
+    </note>
+    <note type="testing">
+      All code should have corresponding RSpec tests.
+      Use factory_bot for test data generation.
+      Request specs for endpoints, unit specs for services and policies.
+      GraphQL specs for schema validation and resolver testing.
+    </note>
+    <note type="ci">
+      RuboCop for code quality enforcement.
+      Brakeman for security scanning.
+      Both should be integrated into CI pipeline in later story.
+    </note>
+  </devNotes>
+
+  <filesToCreate>
+    <file path="app/controllers/health_controller.rb" purpose="Health check endpoint for monitoring"/>
+    <file path="app/services/base_service.rb" purpose="Base class template for service objects"/>
+    <file path="app/policies/application_policy.rb" purpose="Base Pundit policy for authorization"/>
+    <file path="config/initializers/cors.rb" purpose="CORS configuration for frontend integration"/>
+    <file path="config/initializers/encryption.rb" purpose="Encryption configuration stub"/>
+    <file path="config/initializers/ai_providers.rb" purpose="AI provider configuration stub"/>
+    <file path="config/initializers/sidekiq.rb" purpose="Sidekiq background job configuration"/>
+    <file path="config/initializers/redis.rb" purpose="Redis connection configuration"/>
+    <file path=".rubocop.yml" purpose="RuboCop code quality configuration"/>
+    <file path=".env.example" purpose="Environment variable template"/>
+    <file path="spec/requests/health_spec.rb" purpose="Health endpoint test"/>
+    <file path="spec/graphql/schema_spec.rb" purpose="GraphQL schema validation test"/>
+  </filesToCreate>
+
+  <filesToModify>
+    <file path="Gemfile" purpose="Add required gems for GraphQL, testing, background jobs, etc."/>
+    <file path="config/routes.rb" purpose="Add health endpoint and GraphQL routes"/>
+    <file path="config/database.yml" purpose="Verify PostgreSQL configuration"/>
+    <file path=".gitignore" purpose="Add .env to ignored files"/>
+  </filesToModify>
+
+  <directoriesToCreate>
+    <directory path="app/services/" purpose="Business logic service objects"/>
+    <directory path="app/policies/" purpose="Pundit authorization policies"/>
+    <directory path="app/jobs/" purpose="Sidekiq background jobs"/>
+    <directory path="lib/encryption/" purpose="Data encryption utilities"/>
+    <directory path="lib/ai_providers/" purpose="OpenAI and Anthropic integrations"/>
+    <directory path="spec/requests/" purpose="Request/integration tests"/>
+    <directory path="spec/graphql/" purpose="GraphQL schema and resolver tests"/>
+    <directory path="spec/services/" purpose="Service object tests"/>
+    <directory path="spec/policies/" purpose="Policy tests"/>
+  </directoriesToCreate>
+</story-context>

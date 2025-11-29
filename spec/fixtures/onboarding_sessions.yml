@@ -1,0 +1,75 @@
+# OnboardingSession fixtures for RSpec tests
+# Generated from referrals.csv
+
+session_one:
+  id: "d389138c-b9b8-4a91-ad51-f0cf5584f0ef"
+  status: "abandoned"
+  progress: {}
+  expires_at: <%= 24.hours.from_now %>
+  referral_source: "Fruit School District"
+  created_at: <%= Time.zone.parse("2025-07-11T11:17:54Z") %>
+  updated_at: <%= Time.zone.parse("2025-10-10T18:45:13Z") %>
+
+session_two:
+  id: "a3924c62-7f0f-4254-ab34-d97d63f4d3df"
+  status: "in_progress"
+  progress:
+    demographics_completed: true
+    insurance_submitted: true
+  expires_at: <%= 24.hours.from_now %>
+  referral_source: "Healthy ABC District"
+  created_at: <%= Time.zone.parse("2025-09-05T16:19:30Z") %>
+  updated_at: <%= Time.zone.parse("2025-10-21T21:24:51Z") %>
+
+session_three:
+  id: "62ae3d7f-4cb5-4aa0-baab-46ae65ef8697"
+  status: "abandoned"
+  progress: {}
+  expires_at: <%= 24.hours.from_now %>
+  referral_source: "Fruit School District"
+  created_at: <%= Time.zone.parse("2025-07-16T11:23:27Z") %>
+  updated_at: <%= Time.zone.parse("2025-10-15T18:50:47Z") %>
+
+# Active session for testing flow
+session_active:
+  id: "fe832ca4-b87e-4660-898e-c72932597be2"
+  status: "started"
+  progress: {}
+  expires_at: <%= 24.hours.from_now %>
+  referral_source: "Test School"
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+# Incomplete session for edge case testing
+session_incomplete:
+  id: "77e6aa8a-9afe-4121-9310-272843d72b1f"
+  status: "started"
+  progress: {}
+  expires_at: <%= 24.hours.from_now %>
+  referral_source: ~
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+# Expired session for testing expiration logic
+session_expired:
+  id: "f792e262-6b00-47a5-9d1c-08f0800c9cfb"
+  status: "expired"
+  progress:
+    demographics_completed: true
+  expires_at: <%= 1.hour.ago %>
+  referral_source: "Test School"
+  created_at: <%= 25.hours.ago %>
+  updated_at: <%= 1.hour.ago %>
+
+# Completed session
+session_completed:
+  id: "4077a722-e822-41f1-bb89-a52692a64e00"
+  status: "submitted"
+  progress:
+    demographics_completed: true
+    insurance_completed: true
+    assessment_completed: true
+  expires_at: <%= 24.hours.from_now %>
+  referral_source: "Fruit School District"
+  created_at: <%= 3.days.ago %>
+  updated_at: <%= 1.day.ago %>

@@ -1,0 +1,203 @@
+"""
+# GraphQL API Schema: Parent Onboarding AI
+# Version: 1.0
+# This schema defines the contract between the Next.js frontend and the Ruby on Rails backend.
+# Implementation details: See docs/architecture.md
+"""
+
+# ------------------------------------------------------------------
+# ENUMS
+# ------------------------------------------------------------------
+
+enum OnboardingStatus {
+  ASSESSMENT_STARTED
+  ASSESSMENT_COMPLETED
+  DEMOGRAPHICS_COMPLETED
+  INSURANCE_PENDING
+  INSURANCE_COMPLETED
+  SCHEDULING_PENDING
+  SCHEDULING_COMPLETED
+  ONBOARDING_COMPLETE
+}
+
+enum UserRole {
+  PARENT
+  SUPPORT_STAFF
+  ADMIN
+}
+
+enum MessageSender {
+  USER
+  AI
+  SUPPORT
+}
+
+# ------------------------------------------------------------------
+# CORE TYPES
+# ------------------------------------------------------------------
+
+type User {
+  id: ID!
+  email: String!
+  firstName: String
+  lastName: String
+  role: UserRole!
+  createdAt: String!
+  children: [Child!]
+}
+
+type Child {
+  id: ID!
+  firstName: String!
+  dateOfBirth: String!
+  pronouns: String
+  concerns: [String!]
+  createdAt: String!
+}
+
+type OnboardingSession {
+  id: ID!
+  status: OnboardingStatus!
+  parent: User!
+  child: Child!
+  assessment: Assessment
+  insuranceInfo: InsuranceInformation
+  appointment: Appointment
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Assessment {
+  id: ID!
+  conversationHistory: [ChatMessage!]!
+  summary: String
+  isFitForDaybreak: Boolean
+  suggestedNextSteps: String
+}
+
+type ChatMessage {
+  id: ID!
+  sender: MessageSender!
+  content: String!
+  timestamp: String!
+}
+
+type InsuranceInformation {
+  id: ID!
+  provider: String!
+  planName: String
+  memberId: String!
+  groupId: String
+  imageFileUrl: String # URL to the uploaded insurance card image (P1)
+}
+
+type Appointment {
+  id: ID!
+  therapistName: String!
+  startTime: String!
+  endTime: String!
+  confirmationId: String!
+}
+
+type CostEstimate {
+  copayPerSession: Float
+  deductibleRemaining: Float
+  notes: String
+}
+
+# ------------------------------------------------------------------
+# INPUT TYPES
+# ------------------------------------------------------------------
+
+input StartOnboardingInput {
+  parentEmail: String!
+  childFirstName: String!
+  childDateOfBirth: String!
+}
+
+input SubmitAssessmentMessageInput {
+  onboardingSessionId: ID!
+  messageContent: String!
+}
+
+input UpdateDemographicsInput {
+  onboardingSessionId: ID!
+  parentFirstName: String
+  parentLastName: String
+  childPronouns: String
+  childConcerns: [String!]
+}
+
+input SubmitInsuranceInfoInput {
+  onboardingSessionId: ID!
+  provider: String!
+  planName: String
+  memberId: String!
+  groupId: String
+}
+
+input SubmitInsuranceImageInput {
+  onboardingSessionId: ID!
+  # The file will be handled via a multipart request, this is a placeholder
+  # The mutation will return the extracted info.
+}
+
+input ScheduleAppointmentInput {
+  onboardingSessionId: ID!
+  therapistId: ID!
+  timeSlotId: ID!
+}
+
+# ------------------------------------------------------------------
+# QUERIES
+# ------------------------------------------------------------------
+
+type Query {
+  # Get the current state of an onboarding session
+  getOnboardingSession(id: ID!): OnboardingSession
+
+  # Get the current authenticated user
+  me: User
+
+  # Get available appointment slots for a given therapist/timeframe
+  getAvailableSlots(therapistId: ID, startDate: String, endDate: String): [Appointment!]
+
+  # Get a cost estimate based on insurance (P1)
+  getCostEstimate(onboardingSessionId: ID!): CostEstimate
+}
+
+# ------------------------------------------------------------------
+# MUTATIONS
+# ------------------------------------------------------------------
+
+type Mutation {
+  # P0: Start the onboarding process and create the initial records
+  startOnboarding(input: StartOnboardingInput!): OnboardingSession
+
+  # P0: Send a message to the AI assessment chatbot and get a response
+  submitAssessmentMessage(input: SubmitAssessmentMessageInput!): Assessment
+
+  # P0: Update parent and child demographic information
+  updateDemographics(input: UpdateDemographicsInput!): OnboardingSession
+
+  # P0: Manually submit insurance information
+  submitInsuranceInfo(input: SubmitInsuranceInfoInput!): OnboardingSession
+
+  # P0: Select a therapist and time to book an appointment
+  scheduleAppointment(input: ScheduleAppointmentInput!): Appointment
+
+  # P1: Upload an insurance card image for OCR processing
+  submitInsuranceImage(onboardingSessionId: ID!): InsuranceInformation
+
+  # P1: Send a message in the real-time support chat
+  sendSupportChatMessage(onboardingSessionId: ID!, content: String!): ChatMessage
+}
+
+# ------------------------------------------------------------------
+# SUBSCRIPTIONS (for P1 Real-time Chat)
+# ------------------------------------------------------------------
+
+type Subscription {
+  # Subscribe to new messages in a support chat session
+  supportChatMessages(onboardingSessionId: ID!): ChatMessage
+}

@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="bmm/workflows/4-implementation/story-context/1-4" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.4</storyId>
+    <title>Docker & Local Development Environment</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-4-docker-and-local-development-environment.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>Docker Compose configuration for local development</iWant>
+    <soThat>I can run PostgreSQL and Redis locally without manual setup</soThat>
+    <tasks>
+      <task id="1" status="pending">
+        <description>Create docker-compose.dev.yml with database and Redis services</description>
+        <acceptanceCriteria>1.4.1, 1.4.2, 1.4.3</acceptanceCriteria>
+        <subtasks>
+          <subtask id="1.1">Define PostgreSQL 16-alpine service with port 5432</subtask>
+          <subtask id="1.2">Configure persistent volume for PostgreSQL data</subtask>
+          <subtask id="1.3">Define Redis 7-alpine service with port 6379</subtask>
+          <subtask id="1.4">Configure volume for bundle caching</subtask>
+        </subtasks>
+      </task>
+      <task id="2" status="pending">
+        <description>Add health check configurations</description>
+        <acceptanceCriteria>1.4.4</acceptanceCriteria>
+        <subtasks>
+          <subtask id="2.1">Implement PostgreSQL health check using pg_isready</subtask>
+          <subtask id="2.2">Implement Redis health check using redis-cli ping</subtask>
+          <subtask id="2.3">Configure health check intervals and retries</subtask>
+        </subtasks>
+      </task>
+      <task id="3" status="pending">
+        <description>Create multi-stage production Dockerfile</description>
+        <acceptanceCriteria>1.4.5</acceptanceCriteria>
+        <subtasks>
+          <subtask id="3.1">Define builder stage with Ruby 3.3-alpine</subtask>
+          <subtask id="3.2">Install build dependencies and gems</subtask>
+          <subtask id="3.3">Define runtime stage with minimal dependencies</subtask>
+          <subtask id="3.4">Configure bootsnap precompilation</subtask>
+          <subtask id="3.5">Set proper working directory and user permissions</subtask>
+        </subtasks>
+      </task>
+      <task id="4" status="pending">
+        <description>Create .dockerignore file</description>
+        <acceptanceCriteria>1.4.6</acceptanceCriteria>
+        <subtasks>
+          <subtask id="4.1">Exclude vendor/bundle directory</subtask>
+          <subtask id="4.2">Exclude .env files</subtask>
+          <subtask id="4.3">Exclude tmp/ and log/ directories</subtask>
+          <subtask id="4.4">Exclude development and test artifacts</subtask>
+        </subtasks>
+      </task>
+      <task id="5" status="pending">
+        <description>Add web service to docker-compose</description>
+        <acceptanceCriteria>1.4.7, 1.4.8</acceptanceCriteria>
+        <subtasks>
+          <subtask id="5.1">Define web service using Dockerfile</subtask>
+          <subtask id="5.2">Configure environment variables for database and Redis</subtask>
+          <subtask id="5.3">Set up depends_on with service_healthy conditions</subtask>
+          <subtask id="5.4">Mount source code volume for development</subtask>
+          <subtask id="5.5">Expose port 3000 for Rails server</subtask>
+        </subtasks>
+      </task>
+      <task id="6" status="pending">
+        <description>Add Sidekiq service to docker-compose</description>
+        <acceptanceCriteria>1.4.9</acceptanceCriteria>
+        <subtasks>
+          <subtask id="6.1">Define sidekiq service using same Dockerfile as web</subtask>
+          <subtask id="6.2">Override command to run Sidekiq worker</subtask>
+          <subtask id="6.3">Configure Redis connection</subtask>
+          <subtask id="6.4">Set up depends_on for database and Redis</subtask>
+        </subtasks>
+      </task>
+      <task id="7" status="pending">
+        <description>Create Aptible deployment configuration</description>
+        <acceptanceCriteria>1.4.10</acceptanceCriteria>
+        <subtasks>
+          <subtask id="7.1">Create Procfile with web and worker processes</subtask>
+          <subtask id="7.2">Create Aptfile with PostgreSQL 16 specification</subtask>
+          <subtask id="7.3">Document Aptible deployment requirements</subtask>
+        </subtasks>
+      </task>
+      <task id="8" status="pending">
+        <description>Integration testing</description>
+        <acceptanceCriteria>1.4.7, 1.4.8</acceptanceCriteria>
+        <subtasks>
+          <subtask id="8.1">Test docker-compose up -d starts all services</subtask>
+          <subtask id="8.2">Verify PostgreSQL connection from Rails</subtask>
+          <subtask id="8.3">Verify Redis connection from Rails</subtask>
+          <subtask id="8.4">Verify Sidekiq can process jobs</subtask>
+          <subtask id="8.5">Test docker-compose down cleanup</subtask>
+        </subtasks>
+      </task>
+      <task id="9" status="pending">
+        <description>Create development setup documentation</description>
+        <acceptanceCriteria>All</acceptanceCriteria>
+        <subtasks>
+          <subtask id="9.1">Document docker-compose commands</subtask>
+          <subtask id="9.2">Document environment variable requirements</subtask>
+          <subtask id="9.3">Document troubleshooting steps</subtask>
+          <subtask id="9.4">Document Aptible deployment process</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1.4.1">docker-compose.dev.yml defines PostgreSQL 16.x and Redis 7.x services</criterion>
+    <criterion id="1.4.2">PostgreSQL exposed on port 5432 with persistent volume</criterion>
+    <criterion id="1.4.3">Redis exposed on port 6379</criterion>
+    <criterion id="1.4.4">Health checks configured for both services</criterion>
+    <criterion id="1.4.5">Dockerfile created for production builds (multi-stage, Ruby 3.3-alpine)</criterion>
+    <criterion id="1.4.6">.dockerignore excludes vendor/bundle, .env, tmp/, log/</criterion>
+    <criterion id="1.4.7">docker-compose up -d starts dependencies</criterion>
+    <criterion id="1.4.8">Application connects successfully to both services</criterion>
+    <criterion id="1.4.9">Sidekiq container configured for background job processing</criterion>
+    <criterion id="1.4.10">Aptible configuration present (Aptfile and Procfile)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Docker & Deployment" snippet="Docker Compose, multi-stage Dockerfile, Aptible configuration"/>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="Story 1.4 AC" snippet="Docker configuration requirements and acceptance criteria"/>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.4" snippet="Docker setup requirements and technical notes"/>
+    </docs>
+    <code>
+      <file path="docker/Dockerfile" purpose="Multi-stage production build for Rails application"/>
+      <file path="docker/docker-compose.dev.yml" purpose="Local development service orchestration"/>
+      <file path=".dockerignore" purpose="Exclude files from Docker build context"/>
+      <file path="Procfile" purpose="Aptible process definitions for web and worker"/>
+      <file path="Aptfile" purpose="Aptible platform dependencies"/>
+      <file path="config/database.yml" purpose="PostgreSQL connection configuration"/>
+      <file path="config/initializers/redis.rb" purpose="Redis client initialization"/>
+      <file path="config/initializers/sidekiq.rb" purpose="Sidekiq background job configuration"/>
+    </code>
+    <dependencies>
+      <docker version="latest"/>
+      <images>
+        <image name="postgres" tag="16-alpine" purpose="PostgreSQL database"/>
+        <image name="redis" tag="7-alpine" purpose="Redis cache and job queue"/>
+        <image name="ruby" tag="3.3-alpine" purpose="Ruby runtime for production"/>
+      </images>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="images">Use official alpine images for smaller size and security</constraint>
+    <constraint type="ports">PostgreSQL: 5432, Redis: 6379, Web: 3000</constraint>
+    <constraint type="health">All services must have health checks with appropriate intervals and retries</constraint>
+    <constraint type="volumes">Persistent volumes for postgres data and bundle cache</constraint>
+    <constraint type="deployment">Aptible-compatible configuration with Procfile</constraint>
+    <constraint type="security">No sensitive data in Docker images or compose files; use environment variables</constraint>
+    <constraint type="user">Production images must run as non-root user</constraint>
+    <constraint type="orchestration">Web and Sidekiq depend on healthy database and Redis services</constraint>
+    <constraint type="parity">Docker configuration should mirror Aptible production environment</constraint>
+    <constraint type="startup">Services should be healthy within 30 seconds of startup</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="docker-compose.dev.yml" kind="Docker Compose" signature="services: db, redis, web, sidekiq" path="docker/docker-compose.dev.yml">
+      <description>Development orchestration for PostgreSQL, Redis, Rails web server, and Sidekiq worker</description>
+      <services>
+        <service name="db">PostgreSQL 16-alpine with persistent volume and health checks</service>
+        <service name="redis">Redis 7-alpine with health checks</service>
+        <service name="web">Rails web server with bundle cache and source volume</service>
+        <service name="sidekiq">Background job worker using same image as web</service>
+      </services>
+    </interface>
+    <interface name="Dockerfile" kind="Docker build" signature="Multi-stage: builder, runtime" path="docker/Dockerfile">
+      <description>Multi-stage production build separating build and runtime dependencies</description>
+      <stages>
+        <stage name="builder">Ruby 3.3-alpine with build dependencies and gem installation</stage>
+        <stage name="runtime">Minimal runtime with only necessary dependencies and non-root user</stage>
+      </stages>
+    </interface>
+    <interface name="Procfile" kind="Aptible" signature="web: bundle exec puma, worker: bundle exec sidekiq" path="Procfile">
+      <description>Process definitions for Aptible deployment</description>
+      <processes>
+        <process name="web">Puma web server for HTTP requests</process>
+        <process name="worker">Sidekiq background job processor</process>
+      </processes>
+    </interface>
+    <interface name="Aptfile" kind="Aptible" signature="PostgreSQL 16 specification" path="Aptfile">
+      <description>Aptible platform dependencies and requirements</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Integration tests for Docker services. Test health checks, connectivity, service orchestration, and job processing.</standards>
+    <locations>
+      <location>docker/</location>
+      <location>config/database.yml</location>
+      <location>config/initializers/redis.rb</location>
+      <location>config/initializers/sidekiq.rb</location>
+    </locations>
+    <ideas>
+      <idea ac="1.4.1">Verify docker-compose.dev.yml has correct service definitions for PostgreSQL 16-alpine and Redis 7-alpine</idea>
+      <idea ac="1.4.2">Test PostgreSQL container starts and is accessible on port 5432 with persistent volume mounted</idea>
+      <idea ac="1.4.3">Test Redis container starts and responds to ping on port 6379</idea>
+      <idea ac="1.4.4">Verify health checks pass for all services (pg_isready for PostgreSQL, redis-cli ping for Redis)</idea>
+      <idea ac="1.4.5">Test Docker build completes successfully with multi-stage configuration and Ruby 3.3-alpine</idea>
+      <idea ac="1.4.6">Verify .dockerignore excludes vendor/bundle, .env, tmp/, log/ and other development artifacts</idea>
+      <idea ac="1.4.7">Test docker-compose up -d starts all services with proper dependency ordering</idea>
+      <idea ac="1.4.8">Test application connects to PostgreSQL and Redis successfully from Rails console</idea>
+      <idea ac="1.4.9">Verify Sidekiq service starts and can enqueue and process test jobs</idea>
+      <idea ac="1.4.10">Verify Procfile and Aptfile are present with correct process definitions</idea>
+      <idea ac="startup">Verify all services reach healthy status within 30 seconds</idea>
+      <idea ac="cleanup">Test docker-compose down cleanly stops all services without errors</idea>
+      <idea ac="volumes">Verify data persists across container restarts for PostgreSQL</idea>
+      <idea ac="security">Verify production image runs as non-root user</idea>
+    </ideas>
+  </tests>
+
+  <architecturePatterns>
+    <pattern name="Container Strategy">Use official Alpine-based images for minimal footprint and security</pattern>
+    <pattern name="Multi-stage Builds">Separate build and runtime stages to reduce production image size</pattern>
+    <pattern name="Health Checks">Required for proper service orchestration and deployment readiness</pattern>
+    <pattern name="Volume Mounting">Development mode uses bind mounts; production uses named volumes</pattern>
+    <pattern name="Service Dependencies">Web and Sidekiq services depend on healthy database and Redis</pattern>
+    <pattern name="Environment Parity">Docker configuration should mirror Aptible production environment</pattern>
+  </architecturePatterns>
+
+  <securityConsiderations>
+    <consideration>Database credentials managed via environment variables</consideration>
+    <consideration>No sensitive data in Docker images or compose files</consideration>
+    <consideration>.dockerignore prevents credential leakage</consideration>
+    <consideration>Production images run as non-root user</consideration>
+  </securityConsiderations>
+
+  <sourceTree>
+    <![CDATA[
+/Users/andre/coding/daybreak/daybreak-health-backend/
+├── docker/
+│   ├── Dockerfile                    # Multi-stage production build
+│   └── docker-compose.dev.yml        # Local development services
+├── .dockerignore                      # Docker build exclusions
+├── Procfile                          # Aptible process definitions
+├── Aptfile                           # Aptible dependencies
+└── config/
+    ├── database.yml                  # PostgreSQL configuration
+    └── initializers/
+        ├── redis.rb                  # Redis connection setup
+        └── sidekiq.rb                # Sidekiq configuration
+    ]]>
+  </sourceTree>
+
+  <references>
+    <reference source="docs/epic-1-tech-spec.md" section="Story 1.4: Docker & Local Development Environment"/>
+    <reference source="docs/epic-1-tech-spec.md" section="Implementation Notes"/>
+    <reference source="docs/epics.md" section="Story 1.4: Docker & Local Development Environment"/>
+  </references>
+</story-context>

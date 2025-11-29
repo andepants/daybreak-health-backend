@@ -1,0 +1,110 @@
+# generated: 2025-11-28
+# project: daybreak-health-backend
+# project_key: daybreak-backend
+# tracking_system: file-system
+# story_location: docs/sprint-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic exists in epic file but not contexted
+#   - contexted: Next epic tech context created by *epic-tech-context (required)
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - drafted: Story file created in stories folder by *create-story
+#   - ready-for-dev: Draft approved and story context created by *story-ready
+#   - in-progress: Developer actively working on implementation by *dev-story
+#   - review: Implementation complete, ready for review by *code-review
+#   - done: Story completed by *story-done
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - completed: Retrospective has been done by *retrospective
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epics should be 'contexted' before stories can be 'drafted'
+# - SM typically drafts next story ONLY after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
+
+generated: 2025-11-28
+project: daybreak-health-backend
+project_key: daybreak-backend
+tracking_system: file-system
+story_location: docs/sprint-artifacts
+
+development_status:
+  # Epic 1: Foundation & Infrastructure (4 stories)
+  epic-1: contexted
+  1-1-project-scaffolding-and-core-setup: ready-for-dev
+  1-2-database-schema-and-prisma-models: ready-for-dev
+  1-3-common-module-and-core-patterns: ready-for-dev
+  1-4-docker-and-local-development-environment: ready-for-dev
+  epic-1-retrospective: optional
+
+  # Epic 2: Session Lifecycle & Authentication (6 stories)
+  epic-2: backlog
+  2-1-create-anonymous-session: backlog
+  2-2-session-progress-and-state-management: backlog
+  2-3-session-recovery-and-multi-device-support: backlog
+  2-4-session-expiration-and-cleanup: backlog
+  2-5-explicit-session-abandonment: backlog
+  2-6-authentication-and-authorization-foundation: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Conversational AI Intake (7 stories)
+  epic-3: backlog
+  3-1-conversational-ai-service-integration: backlog
+  3-2-adaptive-question-flow: backlog
+  3-3-help-and-off-topic-handling: backlog
+  3-4-progress-indicators: backlog
+  3-5-human-escalation-request: backlog
+  3-6-parent-information-collection: backlog
+  3-7-child-information-collection: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Insurance Verification (6 stories)
+  epic-4: backlog
+  4-1-insurance-card-upload: backlog
+  4-2-ocr-insurance-card-extraction: backlog
+  4-3-manual-insurance-entry-and-correction: backlog
+  4-4-real-time-eligibility-verification: backlog
+  4-5-verification-status-communication: backlog
+  4-6-self-pay-option: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Clinical Assessment (5 stories)
+  epic-5: backlog
+  5-1-conversational-screening-questions: backlog
+  5-2-adaptive-assessment-depth: backlog
+  5-3-risk-indicator-detection-and-protocols: backlog
+  5-4-treatment-consent-collection: backlog
+  5-5-assessment-summary-generation: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Notifications & Alerts (5 stories)
+  epic-6: backlog
+  6-1-session-start-email: backlog
+  6-2-abandoned-session-reminder: backlog
+  6-3-completion-confirmation-email: backlog
+  6-4-care-team-notification: backlog
+  6-5-risk-alert-notification: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Admin Dashboard & Analytics (5 stories)
+  epic-7: backlog
+  7-1-real-time-pipeline-dashboard: backlog
+  7-2-session-search-and-filtering: backlog
+  7-3-session-detail-view-and-status-management: backlog
+  7-4-analytics-and-reporting: backlog
+  7-5-ai-and-assessment-configuration: backlog
+  epic-7-retrospective: optional
+
+  # Epic 8: Compliance & Data Rights (4 stories)
+  epic-8: backlog
+  8-1-comprehensive-audit-logging: backlog
+  8-2-parent-data-export: backlog
+  8-3-data-deletion-request: backlog
+  8-4-data-retention-and-archival: backlog
+  epic-8-retrospective: optional

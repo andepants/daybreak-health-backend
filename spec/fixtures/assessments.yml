@@ -1,0 +1,90 @@
+# Assessment fixtures for RSpec tests
+# Generated from questionnaires.csv
+
+# PHQ-style assessment (type 3)
+assessment_phq_complete:
+  id: "9858f8f2-273a-4c45-bff0-016dd6ce667a"
+  onboarding_session: session_completed
+  responses:
+    question_1_answer: "no"
+    question_2_answer: "Test response"
+    question_3_answer: "Test response"
+    question_4_answer: "Test response"
+    question_5_answer: "Test response"
+    question_6_answer: "Test response"
+    question_7_answer: 0
+    question_8_answer: 0
+    question_9_answer: 0
+    question_10_answer: 0
+    question_11_answer: 0
+    question_12_answer: "no"
+    question_13_answer: "no"
+    question_14_answer: 0
+  risk_flags: []
+  summary: "No significant concerns identified. Low risk."
+  consent_given: true
+  created_at: <%= Time.zone.parse("2025-06-30T22:20:14Z") %>
+  updated_at: <%= Time.zone.parse("2025-06-30T22:20:14Z") %>
+
+# Intake questionnaire (type 4)
+assessment_intake:
+  id: "69386240-9ccf-461b-8281-152e95d1e800"
+  onboarding_session: session_two
+  responses:
+    question_1_answer: 4
+    question_2_answer: "Mother\nFather\nBrother\nSister"
+    question_3_answer: "What brings you to therapy at this time?"
+    question_4_answer: "What are your goals for therapy?"
+    question_5_answer: "yes_parent_or_self"
+    question_6_answer: "Family history details"
+    question_7_answer: "yes"
+    question_8_answer: "Father"
+    question_9_answer: "Additional notes"
+  risk_flags: []
+  summary: ~
+  consent_given: true
+  created_at: <%= Time.zone.parse("2025-07-10T16:44:46Z") %>
+  updated_at: <%= Time.zone.parse("2025-07-10T16:44:46Z") %>
+
+# Assessment with risk flags
+assessment_with_risks:
+  id: "4dd3aba1-c442-4e1d-a92e-5683fda09904"
+  onboarding_session: session_one
+  responses:
+    question_1_answer: "yes"
+    question_7_answer: 3
+    question_8_answer: 3
+    question_9_answer: 2
+    question_10_answer: 2
+    question_11_answer: 1
+  risk_flags:
+    - "elevated_phq_score"
+    - "self_harm_indicator"
+  summary: "Elevated symptoms detected. Clinical review recommended."
+  consent_given: true
+  created_at: <%= Time.zone.parse("2025-06-25T20:33:06Z") %>
+  updated_at: <%= Time.zone.parse("2025-06-25T20:33:06Z") %>
+
+# Incomplete assessment
+assessment_incomplete:
+  id: "1d5a1b55-420f-4459-a817-857c0f1d48a5"
+  onboarding_session: session_active
+  responses:
+    question_1_answer: "no"
+    question_2_answer: "Started but not finished"
+  risk_flags: []
+  summary: ~
+  consent_given: false
+  created_at: <%= Time.zone.parse("2025-06-27T20:07:38Z") %>
+  updated_at: <%= Time.zone.parse("2025-06-27T20:07:38Z") %>
+
+# Empty assessment (edge case)
+assessment_empty:
+  id: "00000000-0000-0000-0000-000000000001"
+  onboarding_session: session_incomplete
+  responses: {}
+  risk_flags: []
+  summary: ~
+  consent_given: false
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>

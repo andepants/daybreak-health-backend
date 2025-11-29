@@ -1,0 +1,51 @@
+# Child fixtures for RSpec tests
+# Generated from patients_and_guardians_anonymized.csv (dependent/student records)
+
+child_one:
+  id: "bde9e7c9-63d8-4c64-8c10-dcae5da258f1"
+  onboarding_session: session_one
+  first_name: "Shanti"
+  last_name: "Lehner"
+  date_of_birth: "2016-01-01"
+  gender: "male"
+  school_name: "Apple Elementary School"
+  grade: "3rd"
+  created_at: <%= Time.zone.parse("2025-07-10T15:28:46Z") %>
+  updated_at: <%= Time.zone.parse("2025-07-17T04:12:44Z") %>
+
+child_two:
+  id: "a8e0f1a1-5e2c-455d-98eb-ab4cf562d4dc"
+  onboarding_session: session_two
+  first_name: "Test"
+  last_name: "Child"
+  date_of_birth: "2012-05-15"
+  gender: "female"
+  school_name: "Banana High School"
+  grade: "7th"
+  created_at: <%= Time.zone.parse("2025-09-17T16:06:34Z") %>
+  updated_at: <%= Time.zone.parse("2025-09-19T22:34:38Z") %>
+
+child_three:
+  id: "0e49ba81-9fe7-4bbc-a4cd-7de8757c2558"
+  onboarding_session: session_three
+  first_name: "Gaston"
+  last_name: "Swaniawski"
+  date_of_birth: "2010-07-01"
+  gender: "male"
+  school_name: "JFK Academy"
+  grade: "9th"
+  created_at: <%= Time.zone.parse("2025-07-10T21:12:42Z") %>
+  updated_at: <%= Time.zone.parse("2025-07-17T09:52:36Z") %>
+
+# Child with minimal info (edge case)
+child_minimal:
+  id: "4f998ad3-1969-4e3c-976d-413b25e00bc8"
+  onboarding_session: session_incomplete
+  first_name: "Stewart"
+  last_name: "Sauer"
+  date_of_birth: "2015-08-15"
+  gender: "female"
+  school_name: ~
+  grade: ~
+  created_at: <%= Time.zone.parse("2025-08-15T19:06:19Z") %>
+  updated_at: <%= Time.zone.parse("2025-08-15T19:06:20Z") %>

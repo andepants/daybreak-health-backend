@@ -1,0 +1,114 @@
+# BMM Workflow Status
+# Generated: 2025-11-28
+# Track: BMad Method (Greenfield)
+
+generated: "2025-11-28"
+project: "daybreak-health-backend"
+project_type: "backend"
+selected_track: "bmad-method"
+field_type: "greenfield"
+workflow_path: "method-greenfield.yaml"
+
+# STATUS KEY:
+# - required/recommended/optional/conditional: Not yet started
+# - in_progress: Currently being worked on
+# - docs/path/to/file.md: Completed (artifact path)
+# - skipped: Deliberately skipped
+
+workflow_status:
+  # Phase 0: Discovery (Optional)
+  - phase: 0
+    name: "Discovery"
+    workflows:
+      - id: "brainstorm-project"
+        status: "skipped"
+        agent: "analyst"
+        command: "/bmad:bmm:workflows:brainstorm-project"
+
+      - id: "research"
+        status: "skipped"
+        agent: "analyst"
+        command: "/bmad:bmm:workflows:research"
+
+      - id: "product-brief"
+        status: "skipped"
+        agent: "analyst"
+        command: "/bmad:bmm:workflows:product-brief"
+
+  # Phase 1: Planning
+  - phase: 1
+    name: "Planning"
+    workflows:
+      - id: "prd"
+        status: "docs/prd.md"
+        agent: "pm"
+        command: "/bmad:bmm:workflows:prd"
+        notes: "Existing PRD imported - includes backend_prd.md and api_schema.graphql"
+
+      - id: "validate-prd"
+        status: "optional"
+        agent: "pm"
+        command: "/bmad:bmm:workflows:validate-prd"
+
+      - id: "create-design"
+        status: "skipped"
+        agent: "ux-designer"
+        command: "/bmad:bmm:workflows:create-ux-design"
+        notes: "Backend-only project - UX handled in frontend repo"
+
+  # Phase 2: Solutioning
+  - phase: 2
+    name: "Solutioning"
+    workflows:
+      - id: "create-architecture"
+        status: "docs/architecture.md"
+        agent: "architect"
+        command: "/bmad:bmm:workflows:architecture"
+
+      - id: "create-epics-and-stories"
+        status: "docs/epics.md"
+        agent: "pm"
+        command: "/bmad:bmm:workflows:create-epics-and-stories"
+
+      - id: "test-design"
+        status: "recommended"
+        agent: "tea"
+        command: "/bmad:bmm:workflows:test-design"
+
+      - id: "validate-architecture"
+        status: "optional"
+        agent: "architect"
+        command: "/bmad:bmm:workflows:validate-architecture"
+
+      - id: "implementation-readiness"
+        status: "docs/implementation-readiness-report-2025-11-28.md"
+        agent: "architect"
+        command: "/bmad:bmm:workflows:implementation-readiness"
+
+  # Phase 3: Implementation
+  - phase: 3
+    name: "Implementation"
+    workflows:
+      - id: "sprint-planning"
+        status: "docs/sprint-artifacts/sprint-status.yaml"
+        agent: "sm"
+        command: "/bmad:bmm:workflows:sprint-planning"
+        notes: "Creates sprint-status.yaml for implementation tracking"
+
+# Existing artifacts imported
+existing_artifacts:
+  - path: "docs/prd.md"
+    type: "PRD"
+    description: "Product Requirements Document for Parent Onboarding AI"
+
+  - path: "docs/backend_prd.md"
+    type: "Technical Specification"
+    description: "Backend technical specification with database schema and API design (Rails)"
+
+  - path: "docs/api_schema.graphql"
+    type: "API Schema"
+    description: "GraphQL schema defining frontend-backend contract"
+
+  - path: "docs/backend-graphql-subscriptions-guide.md"
+    type: "Implementation Guide"
+    description: "Real-time GraphQL subscriptions implementation reference"

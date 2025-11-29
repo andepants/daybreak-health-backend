@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="bmm/workflows/4-implementation/story-context/1-2" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.2</storyId>
+    <title>Database Schema & Active Record Models</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/1-2-database-schema-and-prisma-models.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>the complete database schema with all core models</iWant>
+    <soThat>I can persist onboarding data with proper relationships</soThat>
+    <tasks>
+      <task id="1" title="Create database migrations" ac="1.2.1, 1.2.3, 1.2.4, 1.2.5, 1.2.6">
+        <subtask id="1.1">Create migration for onboarding_sessions table with UUID primary key</subtask>
+        <subtask id="1.2">Create migration for parents table with encrypted PHI fields</subtask>
+        <subtask id="1.3">Create migration for children table with encrypted PHI fields</subtask>
+        <subtask id="1.4">Create migration for insurances table with encrypted PHI fields</subtask>
+        <subtask id="1.5">Create migration for assessments table</subtask>
+        <subtask id="1.6">Create migration for messages table with encrypted content</subtask>
+        <subtask id="1.7">Create migration for audit_logs table</subtask>
+        <subtask id="1.8">Add indexes for status, created_at, and onboarding_session_id fields</subtask>
+      </task>
+      <task id="2" title="Create Active Record models" ac="1.2.1, 1.2.2, 1.2.3">
+        <subtask id="2.1">Create OnboardingSession model with associations</subtask>
+        <subtask id="2.2">Create Parent model with associations</subtask>
+        <subtask id="2.3">Create Child model with associations</subtask>
+        <subtask id="2.4">Create Insurance model with associations</subtask>
+        <subtask id="2.5">Create Assessment model with associations</subtask>
+        <subtask id="2.6">Create Message model with associations</subtask>
+        <subtask id="2.7">Create AuditLog model with associations</subtask>
+      </task>
+      <task id="3" title="Define enums in models" ac="1.2.2">
+        <subtask id="3.1">Define status enum (7 values: started, parent_info, child_info, insurance, assessment, review, completed)</subtask>
+        <subtask id="3.2">Define verification_status enum (6 values: pending, verified, failed, expired, not_required, manual_review)</subtask>
+        <subtask id="3.3">Define role enum (3 values: parent, therapist, system)</subtask>
+      </task>
+      <task id="4" title="Implement PHI encryption" ac="1.2.1">
+        <subtask id="4.1">Create Encryptable concern for PHI field encryption</subtask>
+        <subtask id="4.2">Apply encryption to Parent model PHI fields (first_name, last_name, email, phone)</subtask>
+        <subtask id="4.3">Apply encryption to Child model PHI fields (first_name, last_name, date_of_birth)</subtask>
+        <subtask id="4.4">Apply encryption to Insurance model PHI fields (subscriber_name, policy_number, group_number)</subtask>
+        <subtask id="4.5">Apply encryption to Message model content field</subtask>
+      </task>
+      <task id="5" title="Add model validations" ac="1.2.1, 1.2.3">
+        <subtask id="5.1">Add validations for OnboardingSession (status presence, enum values)</subtask>
+        <subtask id="5.2">Add validations for Parent (required fields, email format, phone format)</subtask>
+        <subtask id="5.3">Add validations for Child (required fields, date_of_birth format)</subtask>
+        <subtask id="5.4">Add validations for Insurance (required fields)</subtask>
+        <subtask id="5.5">Add validations for Assessment (required fields, score ranges)</subtask>
+        <subtask id="5.6">Add validations for Message (required fields, role enum)</subtask>
+        <subtask id="5.7">Add validations for AuditLog (required fields)</subtask>
+      </task>
+      <task id="6" title="Run and verify migrations" ac="1.2.7">
+        <subtask id="6.1">Run rails db:migrate</subtask>
+        <subtask id="6.2">Verify all tables created with correct schema</subtask>
+        <subtask id="6.3">Verify all indexes created</subtask>
+        <subtask id="6.4">Verify UUIDs working as primary keys</subtask>
+      </task>
+      <task id="7" title="Write RSpec model tests" ac="all">
+        <subtask id="7.1">Write tests for OnboardingSession model (associations, validations, enums)</subtask>
+        <subtask id="7.2">Write tests for Parent model (associations, validations, encryption)</subtask>
+        <subtask id="7.3">Write tests for Child model (associations, validations, encryption)</subtask>
+        <subtask id="7.4">Write tests for Insurance model (associations, validations, encryption)</subtask>
+        <subtask id="7.5">Write tests for Assessment model (associations, validations)</subtask>
+        <subtask id="7.6">Write tests for Message model (associations, validations, encryption)</subtask>
+        <subtask id="7.7">Write tests for AuditLog model (associations, validations)</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1.2.1">All 7 models created: OnboardingSession, Parent, Child, Insurance, Assessment, Message, AuditLog</criterion>
+    <criterion id="1.2.2">All enums defined: status, verification_status, role</criterion>
+    <criterion id="1.2.3">Proper relationships with foreign keys (1:1 Session→Parent, Session→Child, etc.)</criterion>
+    <criterion id="1.2.4">Indexes on: sessions.status, sessions.created_at, audit_logs.onboarding_session_id</criterion>
+    <criterion id="1.2.5">UUID IDs used for all primary keys</criterion>
+    <criterion id="1.2.6">created_at and updated_at timestamps on all models</criterion>
+    <criterion id="1.2.7">rails db:migrate runs successfully</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Data Architecture" snippet="Database schema with migrations, UUID IDs, Rails 7 encryption for PHI"/>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Security Considerations" snippet="PHI encryption, UUID primary keys, audit trails"/>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-1.md" title="Epic 1 Tech Spec" section="Data Models" snippet="All 7 models with enums, relationships, and indexes"/>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.2" snippet="Database schema requirements and technical notes"/>
+    </docs>
+    <code>
+      <existing>
+        <!-- Depends on Story 1.1 being complete - project scaffold must exist -->
+        <file path="config/database.yml" purpose="PostgreSQL database configuration"/>
+        <file path="Gemfile" purpose="Rails dependencies including pg gem"/>
+      </existing>
+      <toCreate>
+        <file path="db/migrate/YYYYMMDDHHMMSS_create_onboarding_sessions.rb" purpose="OnboardingSession table migration"/>
+        <file path="db/migrate/YYYYMMDDHHMMSS_create_parents.rb" purpose="Parents table migration"/>
+        <file path="db/migrate/YYYYMMDDHHMMSS_create_children.rb" purpose="Children table migration"/>
+        <file path="db/migrate/YYYYMMDDHHMMSS_create_insurances.rb" purpose="Insurances table migration"/>
+        <file path="db/migrate/YYYYMMDDHHMMSS_create_assessments.rb" purpose="Assessments table migration"/>
+        <file path="db/migrate/YYYYMMDDHHMMSS_create_messages.rb" purpose="Messages table migration"/>
+        <file path="db/migrate/YYYYMMDDHHMMSS_create_audit_logs.rb" purpose="AuditLogs table migration"/>
+        <file path="app/models/concerns/encryptable.rb" purpose="PHI encryption concern"/>
+        <file path="app/models/onboarding_session.rb" purpose="OnboardingSession model"/>
+        <file path="app/models/parent.rb" purpose="Parent model"/>
+        <file path="app/models/child.rb" purpose="Child model"/>
+        <file path="app/models/insurance.rb" purpose="Insurance model"/>
+        <file path="app/models/assessment.rb" purpose="Assessment model"/>
+        <file path="app/models/message.rb" purpose="Message model"/>
+        <file path="app/models/audit_log.rb" purpose="AuditLog model"/>
+        <file path="spec/models/onboarding_session_spec.rb" purpose="OnboardingSession model tests"/>
+        <file path="spec/models/parent_spec.rb" purpose="Parent model tests"/>
+        <file path="spec/models/child_spec.rb" purpose="Child model tests"/>
+        <file path="spec/models/insurance_spec.rb" purpose="Insurance model tests"/>
+        <file path="spec/models/assessment_spec.rb" purpose="Assessment model tests"/>
+        <file path="spec/models/message_spec.rb" purpose="Message model tests"/>
+        <file path="spec/models/audit_log_spec.rb" purpose="AuditLog model tests"/>
+      </toCreate>
+    </code>
+    <dependencies>
+      <postgresql version="16.x"/>
+      <gems>
+        <gem name="pg" version="~> 1.5"/>
+        <gem name="rails" version="~> 7.1"/>
+        <gem name="rspec-rails" version="~> 6.1"/>
+        <gem name="factory_bot_rails" version="~> 6.4"/>
+        <gem name="shoulda-matchers" version="~> 6.0"/>
+        <gem name="database_cleaner" version="~> 2.0"/>
+      </gems>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="database">All tables use UUID primary keys with id: :uuid</constraint>
+    <constraint type="encryption">PHI fields use Rails 7 encrypts with AES-256-GCM</constraint>
+    <constraint type="indexes">Required indexes on status, created_at, session foreign keys</constraint>
+    <constraint type="naming">Tables: snake_case plural, Columns: snake_case</constraint>
+    <constraint type="relationships">1:1 for Session→Parent, Session→Child, Session→Insurance, Session→Assessment</constraint>
+    <constraint type="relationships">1:many for Session→Messages, Session→AuditLogs</constraint>
+    <constraint type="timestamps">All models must have created_at and updated_at timestamps</constraint>
+    <constraint type="foreignKeys">Enforce referential integrity at database level</constraint>
+    <constraint type="conventions">Follow standard Rails conventions for models and migrations</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="OnboardingSession" kind="Active Record model" signature="class OnboardingSession < ApplicationRecord" path="app/models/onboarding_session.rb">
+      <associations>
+        <has_one>parent</has_one>
+        <has_one>child</has_one>
+        <has_one>insurance</has_one>
+        <has_one>assessment</has_one>
+        <has_many>messages</has_many>
+        <has_many>audit_logs</has_many>
+      </associations>
+      <enums>
+        <enum name="status">started, parent_info, child_info, insurance, assessment, review, completed</enum>
+      </enums>
+    </interface>
+    <interface name="Parent" kind="Active Record model" signature="class Parent < ApplicationRecord" path="app/models/parent.rb">
+      <associations>
+        <belongs_to>onboarding_session</belongs_to>
+      </associations>
+      <encrypted_fields>first_name, last_name, email, phone</encrypted_fields>
+    </interface>
+    <interface name="Child" kind="Active Record model" signature="class Child < ApplicationRecord" path="app/models/child.rb">
+      <associations>
+        <belongs_to>onboarding_session</belongs_to>
+      </associations>
+      <encrypted_fields>first_name, last_name, date_of_birth</encrypted_fields>
+    </interface>
+    <interface name="Insurance" kind="Active Record model" signature="class Insurance < ApplicationRecord" path="app/models/insurance.rb">
+      <associations>
+        <belongs_to>onboarding_session</belongs_to>
+      </associations>
+      <encrypted_fields>subscriber_name, policy_number, group_number</encrypted_fields>
+      <enums>
+        <enum name="verification_status">pending, verified, failed, expired, not_required, manual_review</enum>
+      </enums>
+    </interface>
+    <interface name="Assessment" kind="Active Record model" signature="class Assessment < ApplicationRecord" path="app/models/assessment.rb">
+      <associations>
+        <belongs_to>onboarding_session</belongs_to>
+      </associations>
+    </interface>
+    <interface name="Message" kind="Active Record model" signature="class Message < ApplicationRecord" path="app/models/message.rb">
+      <associations>
+        <belongs_to>onboarding_session</belongs_to>
+      </associations>
+      <encrypted_fields>content</encrypted_fields>
+      <enums>
+        <enum name="role">parent, therapist, system</enum>
+      </enums>
+    </interface>
+    <interface name="AuditLog" kind="Active Record model" signature="class AuditLog < ApplicationRecord" path="app/models/audit_log.rb">
+      <associations>
+        <belongs_to>onboarding_session</belongs_to>
+      </associations>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>RSpec model tests. Test associations, validations, enums. Verify UUID generation and encryption. Use FactoryBot for test data. Use shoulda-matchers for cleaner tests. Minimum 90% code coverage.</standards>
+    <locations>
+      <location>spec/models/</location>
+    </locations>
+    <ideas>
+      <idea ac="1.2.1">Test each model can be created with valid attributes</idea>
+      <idea ac="1.2.1">Test all 7 models exist and inherit from ApplicationRecord</idea>
+      <idea ac="1.2.2">Test enum values return expected hashes</idea>
+      <idea ac="1.2.2">Test status enum has all 7 values (started, parent_info, child_info, insurance, assessment, review, completed)</idea>
+      <idea ac="1.2.2">Test verification_status enum has all 6 values (pending, verified, failed, expired, not_required, manual_review)</idea>
+      <idea ac="1.2.2">Test role enum has all 3 values (parent, therapist, system)</idea>
+      <idea ac="1.2.3">Test associations work correctly (session.parent, session.child, etc.)</idea>
+      <idea ac="1.2.3">Test belongs_to associations require presence of foreign key</idea>
+      <idea ac="1.2.3">Test 1:1 relationships (Session has_one Parent, Parent belongs_to Session)</idea>
+      <idea ac="1.2.3">Test 1:many relationships (Session has_many Messages)</idea>
+      <idea ac="1.2.4">Verify indexes exist in schema (sessions.status, sessions.created_at, audit_logs.onboarding_session_id)</idea>
+      <idea ac="1.2.5">Test UUID IDs are generated correctly</idea>
+      <idea ac="1.2.5">Test UUID format matches expected pattern</idea>
+      <idea ac="1.2.6">Verify timestamps are set on create/update</idea>
+      <idea ac="1.2.6">Test created_at and updated_at exist on all models</idea>
+      <idea ac="1.2.7">Test migrations run without errors</idea>
+      <idea>Test PHI field encryption (verify data encrypted at rest)</idea>
+      <idea>Test validations (presence, format, ranges)</idea>
+      <idea>Test email format validation on Parent model</idea>
+      <idea>Test phone format validation on Parent model</idea>
+      <idea>Test date_of_birth format on Child model</idea>
+      <idea>Test score ranges on Assessment model</idea>
+      <idea>Test factory creates valid objects for all models</idea>
+      <idea>Test database constraints (foreign keys, not null)</idea>
+    </ideas>
+  </tests>
+
+  <patterns>
+    <pattern name="Rails Active Record">Use standard Rails conventions for models, migrations, and associations</pattern>
+    <pattern name="Concerns">Extract shared behavior (like PHI encryption) into concerns</pattern>
+    <pattern name="Enums">Use Rails enum for status fields with symbolic values</pattern>
+    <pattern name="Validations">Add model-level validations for data integrity</pattern>
+    <pattern name="Encryption">Use Rails 7 ActiveRecord::Encryption for PHI fields</pattern>
+    <pattern name="UUID Primary Keys">Enable UUID extension and use id: :uuid in migrations</pattern>
+    <pattern name="Foreign Keys">Add foreign key constraints for referential integrity</pattern>
+    <pattern name="Indexes">Create indexes on frequently queried columns</pattern>
+    <pattern name="Timestamps">Include timestamps on all models for audit trail</pattern>
+  </patterns>
+
+  <edgeCases>
+    <case>Ensure UUID extension is enabled before creating tables</case>
+    <case>Handle encryption key generation and storage securely</case>
+    <case>Verify encrypted fields can be queried (though not with exact match)</case>
+    <case>Test migration rollback works correctly</case>
+    <case>Ensure foreign key cascades are set appropriately (or not set if we want explicit deletion)</case>
+    <case>Handle enum value changes gracefully in production</case>
+    <case>Verify timestamps are automatically maintained by Rails</case>
+    <case>Test behavior when optional associations are nil (insurance, assessment)</case>
+    <case>Ensure parent/child deletion doesn't orphan sessions (consider dependent: :destroy)</case>
+  </edgeCases>
+
+  <architectureNotes>
+    <note>This story creates the foundational data layer following Rails conventions</note>
+    <note>Models layer (app/models/) contains 7 core Active Record models plus Encryptable concern</note>
+    <note>Database layer (db/) uses migrations with UUID primary keys and foreign key constraints</note>
+    <note>Testing layer (spec/models/) uses RSpec with FactoryBot and shoulda-matchers</note>
+    <note>Matches "Data Architecture" section in architecture.md</note>
+    <note>Implements 1:1 relationships (Session→Parent, Session→Child, Session→Insurance, Session→Assessment)</note>
+    <note>Implements 1:many relationships (Session→Messages, Session→AuditLogs)</note>
+    <note>PHI fields encrypted using Rails 7 ActiveRecord::Encryption for HIPAA compliance</note>
+    <note>UUID primary keys prevent enumeration attacks</note>
+    <note>Audit trail supports HIPAA compliance requirements</note>
+  </architectureNotes>
+
+  <references>
+    <ref source="docs/architecture.md" section="Data Architecture" relevance="Defines all 7 core models and their relationships"/>
+    <ref source="docs/architecture.md" section="Security Considerations" relevance="PHI encryption, UUID primary keys, audit requirements"/>
+    <ref source="docs/sprint-artifacts/tech-spec-epic-1.md" section="Epic 1: Core Onboarding Infrastructure" relevance="Technical specifications for data models"/>
+    <ref source="docs/epics.md" section="Story 1.2" relevance="Story requirements and acceptance criteria"/>
+  </references>
+</story-context>

@@ -1,0 +1,51 @@
+# Parent fixtures for RSpec tests
+# Generated from patients_and_guardians_anonymized.csv (guardian records)
+
+parent_one:
+  id: "1aae35f6-8fc9-4651-9f4d-cf0273599ec9"
+  onboarding_session: session_one
+  email: "laurena_douglas@johnson.test"
+  phone: "318.373.0213"
+  first_name: "Dinorah"
+  last_name: "Murray"
+  relationship: "parent"
+  is_guardian: true
+  created_at: <%= Time.zone.parse("2025-07-16T13:13:18Z") %>
+  updated_at: <%= Time.zone.parse("2025-07-16T14:13:14Z") %>
+
+parent_two:
+  id: "6ee23f78-001a-4587-b879-08da5eaf7ada"
+  onboarding_session: session_two
+  email: "parent_two@example.test"
+  phone: "555-123-4567"
+  first_name: "David"
+  last_name: "Wirth"
+  relationship: "parent"
+  is_guardian: true
+  created_at: <%= Time.zone.parse("2025-09-17T16:06:34Z") %>
+  updated_at: <%= Time.zone.parse("2025-09-19T22:34:38Z") %>
+
+parent_three:
+  id: "df7a8118-fd3d-4044-bc57-16c97927875b"
+  onboarding_session: session_three
+  email: "parent_three@example.test"
+  phone: "555-987-6543"
+  first_name: "Test"
+  last_name: "Guardian"
+  relationship: "parent"
+  is_guardian: true
+  created_at: <%= Time.zone.parse("2025-07-10T21:12:42Z") %>
+  updated_at: <%= Time.zone.parse("2025-07-17T09:52:36Z") %>
+
+# Parent with incomplete profile (edge case)
+parent_incomplete:
+  id: "56a7ba83-9ac5-411c-9011-598aa65e69f7"
+  onboarding_session: session_incomplete
+  email: "incomplete@example.test"
+  phone: ~
+  first_name: "Incomplete"
+  last_name: ~
+  relationship: "parent"
+  is_guardian: true
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
