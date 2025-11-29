@@ -37,8 +37,9 @@ module DaybreakHealthBackend
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
 
-    # Add middleware directory to autoload paths
+    # Add middleware directory to autoload and eager load paths
     config.autoload_paths << Rails.root.join('app/middleware')
+    config.eager_load_paths << Rails.root.join('app/middleware')
 
     # Configuration for the application, engines, and railties goes here.
     #
@@ -47,8 +48,9 @@ module DaybreakHealthBackend
     #
     # config.time_zone = "Central Time (US & Canada)"
 
-    # Add GraphQL subdirectories to autoload paths
+    # Add GraphQL subdirectories to autoload and eager load paths
     config.autoload_paths << Rails.root.join('app/graphql')
+    config.eager_load_paths << Rails.root.join('app/graphql')
 
     # Session management configuration
     # AC 2.4.1: Configurable session expiration period
