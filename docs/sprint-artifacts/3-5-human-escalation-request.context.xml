@@ -1,0 +1,318 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>5</storyId>
+    <title>Human Escalation Request</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-5-human-escalation-request.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to request to speak with a human at any point during the onboarding conversation</iWant>
+    <soThat>I can get personalized help if the AI isn't meeting my needs or I prefer human assistance</soThat>
+    <tasks>
+      <task id="1" title="Extend OnboardingSession Model for Escalation Tracking" ac="2,3,9">
+        <subtask>Add migration for new fields: needs_human_contact:boolean, escalation_requested_at:datetime, escalation_reason:text</subtask>
+        <subtask>Update app/models/onboarding_session.rb with boolean field needs_human_contact (default: false)</subtask>
+        <subtask>Add encrypted text field escalation_reason using Encryptable concern</subtask>
+        <subtask>Add scope needs_human_contact to filter escalated sessions</subtask>
+        <subtask>Add validation to ensure escalation_requested_at is set when needs_human_contact is true</subtask>
+        <subtask>Write model specs for new fields and scope</subtask>
+      </task>
+      <task id="2" title="Create AI Escalation Detection Service" ac="8">
+        <subtask>Create app/services/ai/escalation_detector.rb service class</subtask>
+        <subtask>Implement detect_escalation_intent(message_text) method returning boolean</subtask>
+        <subtask>Define escalation phrase patterns: speak to human, talk to person, real person, not a bot, representative, actual person, human help, speak to someone</subtask>
+        <subtask>Use case-insensitive matching for phrase detection</subtask>
+        <subtask>Return escalation metadata: { escalation_detected: boolean, matched_phrases: [] }</subtask>
+        <subtask>Write service specs testing all trigger phrases</subtask>
+      </task>
+      <task id="3" title="Update AI Context Manager for Escalation Handling" ac="1,5,7">
+        <subtask>Modify app/services/ai/context_manager.rb to check for escalation intent</subtask>
+        <subtask>Integrate EscalationDetector service into message processing flow</subtask>
+        <subtask>When escalation detected, inject empathetic acknowledgment into AI prompt</subtask>
+        <subtask>Add prompt template for escalation response in app/services/ai/prompts/escalation_response.rb</subtask>
+        <subtask>Ensure AI asks if parent wants to provide reason for escalation (optional)</subtask>
+        <subtask>Capture escalation reason from conversation if parent provides it</subtask>
+        <subtask>Update AI context to indicate escalation mode with gentler tone</subtask>
+        <subtask>Write integration specs for context manager escalation flow</subtask>
+      </task>
+      <task id="4" title="Create GraphQL Mutation for Manual Escalation" ac="2,3,7">
+        <subtask>Create app/graphql/mutations/sessions/request_human_contact.rb mutation</subtask>
+        <subtask>Accept inputs: session_id: ID!, reason: String (optional)</subtask>
+        <subtask>Update session: set needs_human_contact = true, escalation_requested_at = now</subtask>
+        <subtask>Store encrypted escalation_reason if provided</subtask>
+        <subtask>Return updated session with escalation status</subtask>
+        <subtask>Create audit log entry: action: HUMAN_ESCALATION_REQUESTED</subtask>
+        <subtask>Add GraphQL type field needsHumanContact: Boolean! to OnboardingSessionType</subtask>
+        <subtask>Add GraphQL type field escalationRequestedAt: ISO8601DateTime to OnboardingSessionType</subtask>
+        <subtask>Write mutation specs</subtask>
+      </task>
+      <task id="5" title="Integrate with Care Team Notification System" ac="6">
+        <subtask>Create app/jobs/escalation_notification_job.rb Sidekiq job</subtask>
+        <subtask>Job triggers when needs_human_contact flag is set</subtask>
+        <subtask>Integrate with existing notification service from Story 6.4 (care team notification)</subtask>
+        <subtask>Include in notification payload: session ID, escalation timestamp, escalation reason, parent contact info, progress summary</subtask>
+        <subtask>Set notification priority to high for escalation requests</subtask>
+        <subtask>Queue job immediately upon escalation (not deferred)</subtask>
+        <subtask>Write job specs ensuring notification contains required fields</subtask>
+      </task>
+      <task id="6" title="Create Contact Options Configuration" ac="4">
+        <subtask>Create config/initializers/contact_options.rb configuration file</subtask>
+        <subtask>Define configurable values: support phone number, support email, chat availability hours</subtask>
+        <subtask>Load from environment variables: SUPPORT_PHONE, SUPPORT_EMAIL, CHAT_HOURS</subtask>
+        <subtask>Create helper method ContactOptions.for_parent returning formatted contact info</subtask>
+        <subtask>Include timezone-aware chat hours display</subtask>
+        <subtask>Add to AI prompt context when escalation occurs</subtask>
+        <subtask>Write specs for contact options configuration</subtask>
+      </task>
+      <task id="7" title="Update SendMessage Mutation to Handle Escalation" ac="1,8,9">
+        <subtask>Modify app/graphql/mutations/conversation/send_message.rb</subtask>
+        <subtask>Before calling AI, check message for escalation intent via EscalationDetector</subtask>
+        <subtask>If escalation detected: trigger RequestHumanContact mutation internally</subtask>
+        <subtask>Inject contact options into AI response context</subtask>
+        <subtask>Ensure AI response acknowledges escalation empathetically</subtask>
+        <subtask>Trigger EscalationNotificationJob asynchronously</subtask>
+        <subtask>Update mutation specs to cover escalation flow</subtask>
+      </task>
+      <task id="8" title="Update AI Prompts for Escalation Context" ac="1,5">
+        <subtask>Create app/services/ai/prompts/escalation_response.rb template</subtask>
+        <subtask>Prompt should acknowledge request with empathy: I understand you'd like to speak with someone from our team...</subtask>
+        <subtask>Include contact options in response: phone, email, chat hours</subtask>
+        <subtask>Offer to continue collecting information if parent is willing</subtask>
+        <subtask>Ensure tone is supportive, not dismissive of escalation request</subtask>
+        <subtask>Add escalation status to ongoing conversation context</subtask>
+      </task>
+      <task id="9" title="Preserve Data Through Escalation" ac="10">
+        <subtask>Verify session progress JSON is not cleared on escalation</subtask>
+        <subtask>Verify parent/child/insurance/assessment data remains intact</subtask>
+        <subtask>Verify conversation history (messages) is preserved</subtask>
+        <subtask>Add integration test: escalate mid-conversation, verify all data persists</subtask>
+        <subtask>Ensure admin dashboard shows escalated sessions with full context</subtask>
+        <subtask>Write end-to-end spec for data preservation during escalation</subtask>
+      </task>
+      <task id="10" title="Add Escalation UI Indicators to GraphQL Schema" ac="9">
+        <subtask>Add escalationRequested: Boolean! field to session subscription payload</subtask>
+        <subtask>Update app/graphql/subscriptions/session_updated.rb to include escalation status</subtask>
+        <subtask>Ensure frontend can display Request Human Contact button at all times</subtask>
+        <subtask>Add GraphQL query for contact options: query { contactOptions { phone, email, chatHours } }</subtask>
+        <subtask>Write subscription specs for escalation status updates</subtask>
+      </task>
+      <task id="11" title="Testing and Validation" ac="all">
+        <subtask>Write integration test: parent says I want to talk to a real person mid-conversation</subtask>
+        <subtask>Verify: escalation detected, session flagged, notification sent, data preserved</subtask>
+        <subtask>Write integration test: parent uses mutation to request human contact</subtask>
+        <subtask>Verify: session updated, audit logged, care team notified</subtask>
+        <subtask>Test all escalation trigger phrases for detection accuracy</subtask>
+        <subtask>Test escalation with and without reason provided</subtask>
+        <subtask>Test that conversation can continue normally after escalation</subtask>
+        <subtask>Performance test: escalation detection should not add more than 100ms to message processing</subtask>
+        <subtask>Create fixture data for escalated sessions</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">AI acknowledges request empathetically without making parent feel judged</criterion>
+    <criterion id="2">Session flagged for human follow-up: escalation_requested: true in session metadata</criterion>
+    <criterion id="3">Session needs_human_contact flag set to true in OnboardingSession model</criterion>
+    <criterion id="4">Contact options provided to parent (phone number, email, chat hours from config)</criterion>
+    <criterion id="5">Session continues with AI for data collection if parent agrees to proceed</criterion>
+    <criterion id="6">Care team notified of escalation request (integration with FR34 notification system)</criterion>
+    <criterion id="7">Escalation reason captured if provided by parent</criterion>
+    <criterion id="8">AI detects escalation intent from phrases: speak to human, talk to person, real person, not a bot, representative, actual person</criterion>
+    <criterion id="9">Parent never feels trapped in AI-only flow - option always visible/accessible</criterion>
+    <criterion id="10">Escalation doesn't lose any previously collected data - all progress preserved</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR12 - Human Escalation Request</section>
+        <snippet>FR12: Parents can request to speak with a human at any point. Part of Conversational AI Interface requirements (FR7-FR12).</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR34 - Care Team Notification</section>
+        <snippet>FR34: System notifies care team of completed onboarding. Referenced for escalation notification integration.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Service Pattern</section>
+        <snippet>Service pattern using Ai::Client with provider abstraction. Services in app/services/ namespace following Rails conventions.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>GraphQL Mutation Pattern</section>
+        <snippet>Mutations extend BaseMutation with argument, field definitions. Include audit logging and authorization checks via Pundit.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Background Jobs (Sidekiq)</section>
+        <snippet>Jobs in app/jobs/ extending ApplicationJob. Queue priorities: critical (3), default (2), low (1). Use retry_on for error handling.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Model with Encryption Concern</section>
+        <snippet>Encryptable concern provides encrypts_phi method for PHI fields. Rails 7 encryption with deterministic: false for non-searchable.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 3.5 - Human Escalation Request</section>
+        <snippet>Epic 3 Story 3.5: Detect escalation phrases, flag session needs_human_contact, notify care team, preserve data through escalation.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-151</lines>
+        <reason>Core model to extend with needs_human_contact, escalation_requested_at, escalation_reason fields. Already includes Auditable concern.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/encryptable.rb</path>
+        <kind>concern</kind>
+        <symbol>Encryptable</symbol>
+        <lines>1-13</lines>
+        <reason>Concern for encrypting PHI fields. Use encrypts_phi for escalation_reason field.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/auditable.rb</path>
+        <kind>concern</kind>
+        <symbol>Auditable</symbol>
+        <lines>1-128</lines>
+        <reason>Automatic audit logging concern. Already included in OnboardingSession for HUMAN_ESCALATION_REQUESTED audit entries.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/mutations/base_mutation.rb</path>
+        <kind>mutation-base</kind>
+        <symbol>Mutations::BaseMutation</symbol>
+        <lines>1-24</lines>
+        <reason>Base class for RequestHumanContact mutation. Includes CurrentSession concern and Pundit authorization.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/subscriptions/session_updated.rb</path>
+        <kind>subscription</kind>
+        <symbol>Subscriptions::SessionUpdated</symbol>
+        <lines>1-26</lines>
+        <reason>Subscription to update with escalation status fields (needsHumanContact, escalationRequestedAt).</reason>
+      </artifact>
+      <artifact>
+        <path>app/jobs/application_job.rb</path>
+        <kind>job-base</kind>
+        <symbol>ApplicationJob</symbol>
+        <lines>1-7</lines>
+        <reason>Base class for EscalationNotificationJob. Extend with Sidekiq queue configuration.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/onboarding_session_type.rb</path>
+        <kind>graphql-type</kind>
+        <symbol>Types::OnboardingSessionType</symbol>
+        <reason>GraphQL type to add needsHumanContact: Boolean! and escalationRequestedAt: ISO8601DateTime fields.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <gem name="rails" version="~> 7.2.3">Rails framework with built-in encryption</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL server for mutations and subscriptions</gem>
+        <gem name="sidekiq" version="~> 7.2">Background job processing for notifications</gem>
+        <gem name="sidekiq-cron" version="~> 1.9">Scheduled job support</gem>
+        <gem name="jwt" version="~> 2.7">JWT authentication</gem>
+        <gem name="pundit" version="~> 2.3">Authorization policies</gem>
+        <gem name="rspec-rails" version="~> 6.1">Testing framework</gem>
+        <gem name="factory_bot_rails" version="~> 6.4">Test fixtures</gem>
+      </ruby>
+      <env>
+        <var name="SUPPORT_PHONE">Support phone number for contact options</var>
+        <var name="SUPPORT_EMAIL">Support email for contact options</var>
+        <var name="CHAT_HOURS">Chat availability hours for contact options</var>
+      </env>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Use Encryptable concern for escalation_reason field (PHI)</constraint>
+    <constraint>Use Auditable concern for all escalation events (HUMAN_ESCALATION_REQUESTED action)</constraint>
+    <constraint>Follow Rails 7 service object pattern in app/services/ namespace</constraint>
+    <constraint>GraphQL mutations in app/graphql/mutations/sessions/ namespace</constraint>
+    <constraint>Sidekiq jobs in app/jobs/ with immediate queue priority for escalations</constraint>
+    <constraint>PHI-safe logging - never log actual escalation_reason content, only existence flags</constraint>
+    <constraint>Escalation detection must not add more than 100ms to message processing latency</constraint>
+    <constraint>Idempotency: Multiple escalation requests return existing state without duplicate notifications</constraint>
+    <constraint>Data preservation: No session data cleared or modified during escalation</constraint>
+    <constraint>Contact options loaded from environment variables with sensible defaults</constraint>
+    <constraint>AI tone must be empathetic, supportive - never dismissive or judgmental</constraint>
+    <constraint>Care team notification must be immediate (not batched or deferred)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>RequestHumanContact</name>
+      <kind>GraphQL Mutation</kind>
+      <signature>mutation RequestHumanContact($sessionId: ID!, $reason: String) { requestHumanContact(input: { sessionId: $sessionId, reason: $reason }) { session { id needsHumanContact escalationRequestedAt } } }</signature>
+      <path>app/graphql/mutations/sessions/request_human_contact.rb</path>
+    </interface>
+    <interface>
+      <name>OnboardingSessionType escalation fields</name>
+      <kind>GraphQL Type</kind>
+      <signature>field :needs_human_contact, Boolean, null: false; field :escalation_requested_at, GraphQL::Types::ISO8601DateTime, null: true</signature>
+      <path>app/graphql/types/onboarding_session_type.rb</path>
+    </interface>
+    <interface>
+      <name>Ai::EscalationDetector</name>
+      <kind>Service</kind>
+      <signature>def detect_escalation_intent(message_text) returns { escalation_detected: Boolean, matched_phrases: Array }</signature>
+      <path>app/services/ai/escalation_detector.rb</path>
+    </interface>
+    <interface>
+      <name>ContactOptions</name>
+      <kind>Configuration Module</kind>
+      <signature>ContactOptions.for_parent returns { phone: String, email: String, chat_hours: String }</signature>
+      <path>config/initializers/contact_options.rb</path>
+    </interface>
+    <interface>
+      <name>EscalationNotificationJob</name>
+      <kind>Sidekiq Job</kind>
+      <signature>def perform(session_id) - sends care team notification with escalation details</signature>
+      <path>app/jobs/escalation_notification_job.rb</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>RSpec with Rails conventions. Factory Bot for test data. Integration tests for full escalation flows. PHI-safe test assertions - verify encryption without exposing values.</standards>
+    <locations>
+      <location>spec/models/onboarding_session_spec.rb - Model validations, scopes, escalation fields</location>
+      <location>spec/services/ai/escalation_detector_spec.rb - Phrase detection, case sensitivity, performance</location>
+      <location>spec/graphql/mutations/sessions/request_human_contact_spec.rb - Mutation tests</location>
+      <location>spec/jobs/escalation_notification_job_spec.rb - Notification job tests</location>
+      <location>spec/integration/escalation_flow_spec.rb - End-to-end escalation scenarios</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test AI response contains empathetic acknowledgment phrases when escalation detected</idea>
+      <idea ac="2,3">Test session.needs_human_contact is true after escalation and escalation_requested_at is set</idea>
+      <idea ac="4">Test ContactOptions.for_parent returns phone, email, chat_hours from environment</idea>
+      <idea ac="5">Test conversation flow continues normally after escalation with AI data collection</idea>
+      <idea ac="6">Test EscalationNotificationJob is enqueued with correct payload when escalation requested</idea>
+      <idea ac="7">Test escalation_reason is encrypted and stored when provided by parent</idea>
+      <idea ac="8">Test all escalation trigger phrases are detected case-insensitively</idea>
+      <idea ac="8">Test non-escalation phrases like need human therapist do NOT trigger escalation</idea>
+      <idea ac="9">Test GraphQL schema exposes needsHumanContact field in subscription updates</idea>
+      <idea ac="10">Test all session data (progress, parent, child, messages) preserved through escalation</idea>
+      <idea ac="all">Integration test: full escalation flow from message to detection to flagging to notification</idea>
+      <idea ac="all">Performance test: escalation detection completes in under 100ms</idea>
+      <idea ac="2,3">Test idempotency: multiple escalation requests do not create duplicate notifications</idea>
+    </ideas>
+  </tests>
+</story-context>

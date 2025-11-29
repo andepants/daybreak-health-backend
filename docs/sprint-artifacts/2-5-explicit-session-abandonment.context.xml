@@ -1,0 +1,258 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>5</storyId>
+    <title>Explicit Session Abandonment</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-5-explicit-session-abandonment.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to explicitly abandon my session if I decide not to continue</iWant>
+    <soThat>my intent is clear and I can start fresh later if needed</soThat>
+    <tasks>
+      <task id="1" title="Create abandonSession GraphQL mutation" acs="2.5.1, 2.5.2, 2.5.3">
+        <subtask id="1.1">Define mutation in schema with sessionId argument</subtask>
+        <subtask id="1.2">Implement authorization check (session token validation)</subtask>
+        <subtask id="1.3">Implement status transition to ABANDONED</subtask>
+        <subtask id="1.4">Return session with updated status</subtask>
+      </task>
+      <task id="2" title="Implement session ownership validation" acs="2.5.2">
+        <subtask id="2.1">Extract session ID from JWT token</subtask>
+        <subtask id="2.2">Compare token session ID with mutation argument</subtask>
+        <subtask id="2.3">Return FORBIDDEN error if IDs don't match</subtask>
+        <subtask id="2.4">Add test cases for unauthorized access attempts</subtask>
+      </task>
+      <task id="3" title="Implement data retention logic" acs="2.5.4">
+        <subtask id="3.1">Verify abandoned sessions follow same retention policy as expired</subtask>
+        <subtask id="3.2">Document retention period in code comments</subtask>
+        <subtask id="3.3">Ensure no data deletion occurs on abandonment</subtask>
+        <subtask id="3.4">Add database constraints to prevent premature deletion</subtask>
+      </task>
+      <task id="4" title="Implement session state validation" acs="2.5.6">
+        <subtask id="4.1">Add validation to prevent resuming ABANDONED sessions</subtask>
+        <subtask id="4.2">Return appropriate error message for resume attempts</subtask>
+        <subtask id="4.3">Add test cases for resume prevention</subtask>
+        <subtask id="4.4">Document abandoned session lifecycle in comments</subtask>
+      </task>
+      <task id="5" title="Create audit logging for abandonment" acs="2.5.8">
+        <subtask id="5.1">Capture previous session status before transition</subtask>
+        <subtask id="5.2">Create audit log entry with SESSION_ABANDONED action</subtask>
+        <subtask id="5.3">Include previousStatus in audit log details</subtask>
+        <subtask id="5.4">Record IP address and user agent from context</subtask>
+      </task>
+      <task id="6" title="Document client-side confirmation pattern" acs="2.5.9">
+        <subtask id="6.1">Add GraphQL schema documentation for abandonSession</subtask>
+        <subtask id="6.2">Document recommended confirmation dialog flow</subtask>
+        <subtask id="6.3">Provide example confirmation message text</subtask>
+        <subtask id="6.4">Document best practices for UX of abandonment</subtask>
+      </task>
+      <task id="7" title="Add integration hook for FR32 reminder workflow" acs="2.5.10">
+        <subtask id="7.1">Add optional trigger point for abandoned session reminder</subtask>
+        <subtask id="7.2">Document integration pattern for future notification system</subtask>
+        <subtask id="7.3">Add feature flag or configuration for reminder trigger</subtask>
+        <subtask id="7.4">Ensure graceful handling if notification system unavailable</subtask>
+      </task>
+      <task id="8" title="Implement comprehensive test suite">
+        <subtask id="8.1">Test successful session abandonment</subtask>
+        <subtask id="8.2">Test authorization failures (wrong session token)</subtask>
+        <subtask id="8.3">Test abandonment of already abandoned session</subtask>
+        <subtask id="8.4">Test creating new session after abandonment</subtask>
+        <subtask id="8.5">Test resume prevention for abandoned sessions</subtask>
+        <subtask id="8.6">Test audit log creation</subtask>
+        <subtask id="8.7">Integration test with full abandonment flow</subtask>
+      </task>
+      <task id="9" title="Add GraphQL response type and documentation">
+        <subtask id="9.1">Define SessionAbandonmentPayload type</subtask>
+        <subtask id="9.2">Include success indicators in response</subtask>
+        <subtask id="9.3">Add inline documentation for mutation fields</subtask>
+        <subtask id="9.4">Document error scenarios and codes</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="2.5.1">GraphQL mutation `abandonSession(sessionId: ID!): Session!` is implemented</criterion>
+    <criterion id="2.5.2">Mutation requires valid session token (cannot abandon others' sessions)</criterion>
+    <criterion id="2.5.3">Mutation sets session status to `ABANDONED`</criterion>
+    <criterion id="2.5.4">Session data is retained per data retention policy (same as expiration)</criterion>
+    <criterion id="2.5.5">Parent can create a new session immediately after abandonment</criterion>
+    <criterion id="2.5.6">Abandoned session cannot be resumed (mutation returns error if attempted)</criterion>
+    <criterion id="2.5.7">Response confirms abandonment with session ID and new status</criterion>
+    <criterion id="2.5.8">Audit log entry created: `action: SESSION_ABANDONED, details: { previousStatus }`</criterion>
+    <criterion id="2.5.9">Confirmation required before abandonment (client-side validation documented)</criterion>
+    <criterion id="2.5.10">FR32 abandoned session reminder workflow can be triggered (optional integration)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements - Session Management</section>
+        <snippet>FR5: Parents can explicitly abandon a session with confirmation. FR6: System tracks session state (started, in-progress, insurance-pending, assessment_complete, submitted, abandoned, expired)</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Project Structure - Session Mutations</section>
+        <snippet>GraphQL mutations follow pattern in app/graphql/mutations/sessions/. Sessions use state machine with enum status. Audit logging via Auditable concern.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Model Enums - OnboardingSession</section>
+        <snippet>Status enum includes abandoned: 5. Terminal states: abandoned, expired, submitted cannot transition further.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Story 2.5: Explicit Session Abandonment</section>
+        <snippet>Mutation sets status to ABANDONED (terminal state). Session data retained per retention policy. Audit log entry includes previousStatus. Cannot abandon other users' sessions.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>State Transition Rules</section>
+        <snippet>abandoned → (terminal, no transitions). Any active state can transition to abandoned explicitly.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-30</lines>
+        <reason>Contains status enum with abandoned: 5. Will need method to handle abandonment transition and validation.</reason>
+      </artifact>
+      <artifact>
+        <path>app/policies/onboarding_session_policy.rb</path>
+        <kind>policy</kind>
+        <symbol>OnboardingSessionPolicy</symbol>
+        <lines>39-42</lines>
+        <reason>Authorization check via update? method ensures session ownership. Must verify user cannot abandon others' sessions.</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/auth/jwt_service.rb</path>
+        <kind>service</kind>
+        <symbol>Auth::JwtService</symbol>
+        <lines>1-113</lines>
+        <reason>Used to decode JWT token and extract session_id for ownership verification in abandonSession mutation.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/audit_log.rb</path>
+        <kind>model</kind>
+        <symbol>AuditLog</symbol>
+        <lines>1-14</lines>
+        <reason>Audit log entries created for SESSION_ABANDONED action. Requires action, resource, and can include details hash.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/auditable.rb</path>
+        <kind>concern</kind>
+        <symbol>Auditable</symbol>
+        <lines>1-128</lines>
+        <reason>Pattern for automatic audit logging. Shows how to capture context (IP, user agent) and redact PHI from audit logs.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/mutations/base_mutation.rb</path>
+        <kind>mutation</kind>
+        <symbol>BaseMutation</symbol>
+        <lines>all</lines>
+        <reason>Base class for all GraphQL mutations. New abandon_session.rb will inherit from this.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <gem name="rails" version="~> 7.2.3">Core framework with Active Record and state management</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL API implementation for abandonSession mutation</gem>
+        <gem name="jwt" version="~> 2.7">JWT token validation for session ownership verification</gem>
+        <gem name="pundit" version="~> 2.3">Authorization policies for session access control</gem>
+        <gem name="pg" version="~> 1.1">PostgreSQL database for session persistence</gem>
+      </ruby>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Authorization Pattern: Session ownership verified via JWT token comparison (session_id in token must match sessionId argument)</constraint>
+    <constraint>State Machine: ABANDONED is a terminal state - no transitions allowed from abandoned status</constraint>
+    <constraint>Data Retention: Abandoned sessions follow same 90-day retention policy as expired sessions (do NOT delete data)</constraint>
+    <constraint>Audit Trail: All session state transitions must be logged with previous state in details hash</constraint>
+    <constraint>Idempotency: Abandoning an already abandoned session should return success (not error) per tech spec</constraint>
+    <constraint>Client-Side Confirmation: Backend mutation assumes confirmation already obtained by client (document this)</constraint>
+    <constraint>No Resumption: Once abandoned, session cannot be recovered or resumed - mutations must reject attempts</constraint>
+    <constraint>Error Handling: Use GraphQL error codes from architecture doc (FORBIDDEN for wrong session, SESSION_ABANDONED for operations on abandoned session)</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>abandonSession GraphQL Mutation</name>
+      <kind>GraphQL Mutation</kind>
+      <signature>mutation AbandonSession($sessionId: ID!): SessionAbandonmentPayload!</signature>
+      <path>app/graphql/mutations/sessions/abandon_session.rb</path>
+      <notes>Input: sessionId from JWT must match sessionId argument. Output: SessionAbandonmentPayload type with session and success fields.</notes>
+    </interface>
+    <interface>
+      <name>SessionAbandonmentPayload GraphQL Type</name>
+      <kind>GraphQL Type</kind>
+      <signature>type SessionAbandonmentPayload { session: OnboardingSession!, success: Boolean! }</signature>
+      <path>app/graphql/types/session_abandonment_payload_type.rb</path>
+      <notes>Response type for abandonSession mutation. Returns updated session with ABANDONED status.</notes>
+    </interface>
+    <interface>
+      <name>OnboardingSession#abandon! method</name>
+      <kind>Model Method</kind>
+      <signature>def abandon!(previous_status: nil, context: {})</signature>
+      <path>app/models/onboarding_session.rb</path>
+      <notes>Instance method to handle abandonment logic: validate transition, update status, create audit log. Returns self or raises error.</notes>
+    </interface>
+    <interface>
+      <name>OnboardingSessionPolicy#abandon? method</name>
+      <kind>Policy Method</kind>
+      <signature>def abandon?</signature>
+      <path>app/policies/onboarding_session_policy.rb</path>
+      <notes>Authorization check for abandonment. Should delegate to update? method (session owner only).</notes>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>RSpec 3.x for all test specifications located in spec/ directory</standard>
+      <standard>GraphQL mutations tested in spec/graphql/mutations/ with full request/response validation</standard>
+      <standard>Authorization tests in spec/policies/ using Pundit testing patterns</standard>
+      <standard>Model tests in spec/models/ including state transitions, validations, and associations</standard>
+      <standard>Factory Bot for test data creation (spec/factories/)</standard>
+      <standard>Shoulda Matchers for concise model validation testing</standard>
+      <standard>PHI-safe testing: Never use real PHI in test data, use redacted/fake data only</standard>
+      <standard>Audit logging verification: All state transitions must create corresponding audit log entries</standard>
+    </standards>
+    <locations>
+      <location>spec/graphql/mutations/sessions/abandon_session_spec.rb - New mutation tests</location>
+      <location>spec/models/onboarding_session_spec.rb - Updated with abandonment transition tests</location>
+      <location>spec/policies/onboarding_session_policy_spec.rb - Updated with abandon? authorization tests</location>
+      <location>spec/graphql/types/session_abandonment_payload_type_spec.rb - New type tests</location>
+      <location>spec/factories/onboarding_sessions.rb - Factory for creating test sessions</location>
+    </locations>
+    <ideas>
+      <idea ac="2.5.1">Test abandonSession mutation returns SessionAbandonmentPayload with session.status = 'abandoned'</idea>
+      <idea ac="2.5.2">Test unauthorized abandonment: JWT with different session_id returns FORBIDDEN error</idea>
+      <idea ac="2.5.2">Test abandonment without auth token returns UNAUTHENTICATED error</idea>
+      <idea ac="2.5.3">Test mutation sets session status enum value to 5 (abandoned)</idea>
+      <idea ac="2.5.4">Test abandoned session data persists: parent, child, insurance, messages all remain accessible</idea>
+      <idea ac="2.5.5">Test createSession mutation succeeds immediately after abandoning previous session</idea>
+      <idea ac="2.5.6">Test updateSessionProgress mutation on abandoned session returns SESSION_ABANDONED error</idea>
+      <idea ac="2.5.6">Test recoverSession mutation rejects abandoned sessions</idea>
+      <idea ac="2.5.7">Test response payload includes session.id and session.status fields</idea>
+      <idea ac="2.5.8">Test AuditLog.last after abandonment has action='SESSION_ABANDONED' and details includes previousStatus</idea>
+      <idea ac="2.5.8">Test audit log captures IP address and user agent from GraphQL context</idea>
+      <idea ac="2.5.9">Document GraphQL schema description for abandonSession explaining client-side confirmation requirement</idea>
+      <idea ac="2.5.10">Test abandoned session can trigger optional notification hook (integration point for future FR32)</idea>
+      <idea>Test idempotency: abandoning already-abandoned session returns success (not error)</idea>
+      <idea>Test state transitions: started → abandoned, in_progress → abandoned, insurance_pending → abandoned all valid</idea>
+      <idea>Test invalid transitions: submitted session cannot be abandoned, expired session cannot be abandoned</idea>
+      <idea>Integration test: Full flow from createSession → updateProgress → abandonSession → verify terminal state</idea>
+    </ideas>
+  </tests>
+</story-context>

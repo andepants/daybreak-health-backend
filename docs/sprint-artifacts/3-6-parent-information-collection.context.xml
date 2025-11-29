@@ -1,0 +1,316 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>6</storyId>
+    <title>Parent Information Collection</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-6-parent-information-collection.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to provide my contact information through natural conversation</iWant>
+    <soThat>Daybreak can reach me about my child's care</soThat>
+    <tasks>
+- [ ] Task 1: Create Parent GraphQL Type and Input (AC: #1, #2, #3)
+  - [ ] Define `ParentType` in `app/graphql/types/parent_type.rb` with fields: id, firstName, lastName, email, phone, relationship, isGuardian
+  - [ ] Create `ParentInput` input type with all required fields
+  - [ ] Add `parent` field to `OnboardingSessionType` (1:1 relationship)
+  - [ ] Implement field-level resolver to decrypt PHI fields transparently
+
+- [ ] Task 2: Create Parent Model with Encryption (AC: #8)
+  - [ ] Generate Parent migration with UUID primary key
+  - [ ] Add encrypted text columns: email, phone, first_name, last_name
+  - [ ] Add string columns: relationship (enum), is_guardian (boolean)
+  - [ ] Add foreign key to onboarding_sessions with unique index
+  - [ ] Create Parent model with `Encryptable` and `Auditable` concerns
+  - [ ] Define `encrypts_phi :email, :phone, :first_name, :last_name`
+  - [ ] Add relationship enum: parent, guardian, grandparent, foster_parent, other
+  - [ ] Run migration
+
+- [ ] Task 3: Implement Validation Logic (AC: #4, #5)
+  - [ ] Add email validation using Rails URI::MailTo::EMAIL_REGEXP (RFC 5322)
+  - [ ] Install and configure `phonelib` gem for E.164 phone validation
+  - [ ] Add custom validator for phone format in Parent model
+  - [ ] Ensure relationship is one of allowed enum values
+  - [ ] Ensure is_guardian is boolean (true/false)
+  - [ ] Add presence validations for required fields
+
+- [ ] Task 4: Create SubmitParentInfo Mutation (AC: #1-#7, #9)
+  - [ ] Create `app/graphql/mutations/intake/submit_parent_info.rb`
+  - [ ] Accept ParentInput argument
+  - [ ] Verify session exists and is in correct state
+  - [ ] Extract and normalize phone number to E.164 format
+  - [ ] Validate email and phone formats before saving
+  - [ ] Create or update Parent record associated with session
+  - [ ] Return parent object with success/error response
+  - [ ] Trigger audit log entry: PARENT_INFO_SUBMITTED
+
+- [ ] Task 5: AI Context Manager Integration (AC: #6)
+  - [ ] Update `app/services/ai/context_manager.rb` to track parent info phase
+  - [ ] Implement natural language extraction for parent fields
+  - [ ] Parse responses to identify: name components, email, phone, relationship
+  - [ ] Handle variations: "I'm her mom" → relationship: parent, "my email is..." → extract email
+  - [ ] Mark parent info fields as collected in session progress
+  - [ ] Transition to confirmation step when all required fields present
+
+- [ ] Task 6: Confirmation Flow (AC: #7)
+  - [ ] Add confirmation step to AI prompt flow
+  - [ ] Present collected information to parent for review
+  - [ ] Format confirmation message: "I've got: [name], [email], [phone], [relationship]"
+  - [ ] Allow parent to correct individual fields
+  - [ ] Only call SubmitParentInfo mutation after explicit confirmation
+  - [ ] Handle corrections by re-prompting for specific field
+
+- [ ] Task 7: Session Recovery Email Trigger (AC: #10)
+  - [ ] Create session recovery token service in `app/services/auth/token_service.rb`
+  - [ ] Generate cryptographically secure recovery token (32 bytes)
+  - [ ] Store token in Redis with 15-minute TTL, keyed by session_id
+  - [ ] Queue `SessionRecoveryEmailJob` when email is saved
+  - [ ] Email should include magic link: `/onboarding/recover?token=...`
+  - [ ] Note: Full email sending implementation in Story 6.1
+
+- [ ] Task 8: Update Session Progress (AC: #9)
+  - [ ] Add `parentInfoCollected: true` to session.progress JSON
+  - [ ] Update session.updatedAt timestamp
+  - [ ] Extend session.expiresAt by 1 hour on activity
+  - [ ] Mark phase transition: started → in_progress (if not already)
+  - [ ] Trigger sessionUpdated GraphQL subscription
+
+- [ ] Task 9: RSpec Tests (All ACs)
+  - [ ] Model tests: Parent model validations (email format, phone format, relationships)
+  - [ ] Model tests: Encryption works (save PHI, reload, verify encrypted in DB)
+  - [ ] Mutation tests: submitParentInfo success case with valid data
+  - [ ] Mutation tests: submitParentInfo validation failures (invalid email, invalid phone)
+  - [ ] Mutation tests: submitParentInfo creates audit log entry
+  - [ ] Integration tests: AI context manager extracts parent info from natural language
+  - [ ] Integration tests: Confirmation flow requires explicit approval
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Fields collected: firstName, lastName, email, phone
+2. Relationship to child collected (parent, guardian, grandparent, etc.)
+3. Legal guardian status confirmed (boolean)
+4. Email validated (RFC 5322 format)
+5. Phone validated (E.164 format)
+6. Data extracted from natural language responses
+7. Confirmation shown before saving
+8. All PHI encrypted before storage
+9. Data stored in Parent entity linked to session
+10. Session recovery email capability triggered once email known
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 3: Conversational AI Intake - Story 3.6</section>
+        <snippet>Parent provides contact information through natural conversation. Fields: firstName, lastName, email, phone, relationship, isGuardian. Email validated RFC 5322, phone E.164 format. PHI encrypted before storage.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Implementation Patterns - Model with Encryption Concern</section>
+        <snippet>Use Encryptable concern for PHI field encryption. Include Encryptable and Auditable concerns. Call encrypts_phi :email, :phone, :first_name, :last_name for automatic Rails 7 encryption.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>GraphQL Mutation Pattern</section>
+        <snippet>Mutations in app/graphql/mutations/ subdirectories. Inherit from BaseMutation. Accept input arguments, validate session state, create/update models, trigger audit logs, return typed responses.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Session Progress & State Management</section>
+        <snippet>Progress stored as JSONB: { currentStep, completedSteps[], intake: {}, insurance: {}, assessment: {} }. Use Redis cache with write-through to DB. Extend expiresAt by 1 hour on activity.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Session Recovery Flow</section>
+        <snippet>Recovery token stored in Redis with 15-minute TTL. Cryptographically secure random string. Magic link sent to email for session recovery. Token is one-time use (deleted after validation).</snippet>
+      </artifact>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/parent.rb</path>
+        <kind>model</kind>
+        <symbol>Parent</symbol>
+        <lines>1-20</lines>
+        <reason>Existing Parent model with Encryptable concern, PHI encryption for email/phone/names, basic validations. Missing relationship enum and E.164 phone validation (currently using regex).</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-45</lines>
+        <reason>Session model with status enum, has_one :parent relationship, expiration logic, extend_expiration method. Provides session state management needed for parent info collection.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/encryptable.rb</path>
+        <kind>concern</kind>
+        <symbol>Encryptable</symbol>
+        <lines>1-13</lines>
+        <reason>Concern providing encrypts_phi class method for Rails 7 non-deterministic encryption. Used by Parent model to encrypt PHI fields.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/auditable.rb</path>
+        <kind>concern</kind>
+        <symbol>Auditable</symbol>
+        <lines></lines>
+        <reason>Concern for automatic audit logging. Should be included in Parent model and used by mutations for PARENT_INFO_SUBMITTED audit entries.</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/auth/token_service.rb</path>
+        <kind>service</kind>
+        <symbol>Auth::TokenService</symbol>
+        <lines></lines>
+        <reason>Existing token service for refresh tokens (7 days). Can be extended or separate recovery_token_service created for 15-minute session recovery tokens.</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/auth/recovery_token_service.rb</path>
+        <kind>service</kind>
+        <symbol>Auth::RecoveryTokenService</symbol>
+        <lines></lines>
+        <reason>Service for session recovery token generation and validation. Stores tokens in Redis with 15-minute TTL for magic link authentication.</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/sessions/progress_merger.rb</path>
+        <kind>service</kind>
+        <symbol>Sessions::ProgressMerger</symbol>
+        <lines></lines>
+        <reason>Service for deep merging session progress JSON. Used to update progress with parentInfoCollected: true while preserving other progress data.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <gem>rails</gem>
+        <version>~> 7.2.3</version>
+      </ruby>
+      <ruby>
+        <gem>jwt</gem>
+        <version>~> 2.7</version>
+      </ruby>
+      <ruby>
+        <gem>pundit</gem>
+        <version>~> 2.3</version>
+      </ruby>
+      <ruby>
+        <gem>phonelib</gem>
+        <version>NEEDED - Not yet installed</version>
+        <note>Required for E.164 phone validation per story specification. Add to Gemfile: gem "phonelib"</note>
+      </ruby>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+- Use Encryptable concern for all PHI fields (email, phone, first_name, last_name)
+- Use Auditable concern for automatic audit logging
+- Follow Rails Active Record conventions for models
+- GraphQL types in app/graphql/types/, mutations in app/graphql/mutations/intake/
+- Services in app/services/ for business logic (AI, auth, validation)
+- Email validation: RFC 5322 compliant using Rails URI::MailTo::EMAIL_REGEXP
+- Phone validation: E.164 format using phonelib gem (Phonelib.parse(phone).valid?)
+- All PHI must use Rails 7 encryption with non-deterministic mode
+- Never log actual PHI values - only log existence flags (has_email: true)
+- Audit log should capture action but NOT PHI content
+- All PHI fields must be encrypted before save is called
+- Magic link tokens must be cryptographically secure (SecureRandom.urlsafe_base64(32))
+- Session recovery tokens: 15-minute TTL, one-time use, stored in Redis
+- Refresh tokens: 7-day TTL, different from recovery tokens
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>ParentType</name>
+      <kind>GraphQL Type</kind>
+      <signature>
+type Parent {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  email: String!
+  phone: String!
+  relationship: String!
+  isGuardian: Boolean!
+}
+      </signature>
+      <path>app/graphql/types/parent_type.rb</path>
+    </interface>
+    <interface>
+      <name>ParentInput</name>
+      <kind>GraphQL Input</kind>
+      <signature>
+input ParentInput {
+  firstName: String!
+  lastName: String!
+  email: String!
+  phone: String!
+  relationship: String!
+  isGuardian: Boolean!
+}
+      </signature>
+      <path>app/graphql/types/inputs/parent_input.rb</path>
+    </interface>
+    <interface>
+      <name>submitParentInfo</name>
+      <kind>GraphQL Mutation</kind>
+      <signature>
+mutation submitParentInfo(input: ParentInput!): SubmitParentInfoPayload!
+
+type SubmitParentInfoPayload {
+  parent: Parent!
+  errors: [String!]
+}
+      </signature>
+      <path>app/graphql/mutations/intake/submit_parent_info.rb</path>
+    </interface>
+    <interface>
+      <name>OnboardingSession.parent</name>
+      <kind>Active Record Association</kind>
+      <signature>has_one :parent, dependent: :destroy</signature>
+      <path>app/models/onboarding_session.rb</path>
+    </interface>
+    <interface>
+      <name>Parent.encrypts_phi</name>
+      <kind>Rails Encryption</kind>
+      <signature>encrypts_phi :email, :phone, :first_name, :last_name</signature>
+      <path>app/models/parent.rb</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+Use RSpec for all tests. Model specs test validations, associations, and encryption. Mutation specs test authorization, input validation, success/error cases. Integration specs test end-to-end flows with AI context manager. Test both happy path and error cases. For encryption: save record, reload from DB, verify encrypted value in raw database query. Test edge cases like malformed email, international phone numbers.
+    </standards>
+    <locations>
+spec/models/parent_spec.rb
+spec/graphql/mutations/intake/submit_parent_info_spec.rb
+spec/services/ai/context_manager_spec.rb
+spec/integration/parent_info_collection_spec.rb
+    </locations>
+    <ideas>
+- AC #1: Test Parent model validates presence of firstName, lastName, email, phone
+- AC #2: Test relationship field accepts parent, guardian, grandparent, foster_parent, other
+- AC #3: Test is_guardian field only accepts true/false boolean values
+- AC #4: Test email validation accepts valid@example.com, rejects invalid formats
+- AC #5: Test phone validation with phonelib gem accepts E.164 format (+15551234567), rejects invalid
+- AC #6: Test AI context manager extracts "My name is Sarah Johnson" → firstName: Sarah, lastName: Johnson
+- AC #6: Test AI context manager extracts "I'm her mother" → relationship: parent
+- AC #6: Test AI context manager extracts "sarah@example.com" → email: sarah@example.com
+- AC #6: Test AI context manager normalizes phone "555-123-4567" → +15551234567 (E.164)
+- AC #7: Test confirmation flow presents collected data and waits for explicit "yes" before saving
+- AC #8: Test PHI encryption - save parent, reload, query raw DB to verify email/phone/names are encrypted
+- AC #9: Test submitParentInfo mutation creates Parent record linked to session via foreign key
+- AC #9: Test unique index on onboarding_session_id prevents duplicate parent records
+- AC #10: Test session recovery email job queued when parent email is saved
+- AC #10: Test recovery token is cryptographically secure (32 bytes), stored in Redis with 15-min TTL
+- Integration: Test full flow - conversation → extraction → confirmation → mutation → audit log → email queue
+    </ideas>
+  </tests>
+</story-context>

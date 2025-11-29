@@ -1,0 +1,302 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>1</storyId>
+    <title>Conversational AI Service Integration</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-1-conversational-ai-service-integration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to interact with an AI assistant that guides me through intake</iWant>
+    <soThat>the process feels like a supportive conversation, not form-filling</soThat>
+    <tasks>
+- Task 1: Create AI Client Service with Provider Pattern (AC: 2, 7)
+  - Create app/services/ai/client.rb with provider selection logic
+  - Create app/services/ai/providers/base_provider.rb interface
+  - Create app/services/ai/providers/anthropic_provider.rb implementing base
+  - Create app/services/ai/providers/openai_provider.rb implementing base
+  - Add configuration in config/initializers/ai_providers.rb
+  - Implement exponential backoff via Sidekiq retry for rate limits
+  - Add RSpec tests for client and providers
+
+- Task 2: Create Message Model with Encryption (AC: 1, 5) [COMPLETE]
+  - Run migration 006_create_messages.rb if not already applied
+  - Implement app/models/message.rb with Encryptable concern
+  - Add role enum: user: 0, assistant: 1, system: 2
+  - Add belongs_to :onboarding_session association
+  - Apply encrypts_phi :content for message content
+  - Add model validations and RSpec tests
+
+- Task 3: Create SendMessage GraphQL Mutation (AC: 1, 2, 4)
+  - Create app/graphql/mutations/conversation/send_message.rb
+  - Accept sessionId and content arguments
+  - Store user message with timestamp
+  - Call AI client with conversation context
+  - Store assistant response
+  - Return both messages in response
+  - Add mutation integration tests
+
+- Task 4: Implement Context Assembly (AC: 4)
+  - Create app/services/ai/context_manager.rb
+  - Load last 50 messages from session
+  - Include session progress summary in context
+  - Format messages for AI provider API
+  - Add unit tests for context manager
+
+- Task 5: Create System Prompts (AC: 2)
+  - Create app/services/ai/prompts/intake_prompt.rb
+  - Define system prompt for intake conversation
+  - Include empathetic, supportive tone guidelines
+  - Define conversation flow phases: Welcome, Parent Info, Child Info, Concerns
+  - Make prompts configurable (preparatory for FR41)
+
+- Task 6: Create MessageReceived GraphQL Subscription (AC: 3)
+  - Create app/graphql/subscriptions/message_received.rb
+  - Subscribe by session_id with authorization check
+  - Trigger subscription when assistant message is created
+  - Configure Action Cable channel for GraphQL subscriptions
+  - Add subscription integration tests
+
+- Task 7: Create MessageType GraphQL Type (AC: 1, 3)
+  - Create app/graphql/types/message_type.rb
+  - Define fields: id, role, content, createdAt, metadata
+  - Add to OnboardingSessionType as messages connection
+
+- Task 8: Add Audit Logging (AC: all)
+  - Log MESSAGE_SENT action for user messages
+  - Log AI_RESPONSE action for assistant messages
+  - Include session_id, message_id in audit details
+  - Never log actual message content (PHI)
+
+- Task 9: Performance Testing (AC: 6)
+  - Create benchmark tests for AI response time
+  - Test with mock AI provider for consistent timing
+  - Document baseline metrics
+  - Set up monitoring hooks for p95 tracking
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Given a session is active, When the parent sends a message, Then the sendMessage mutation accepts message content and stores it with role USER and timestamp
+
+2. Given a message is received, When AI processing completes, Then AI service (Anthropic Claude or OpenAI) is called with conversation context and response is stored with role ASSISTANT
+
+3. Given AI is responding, When response is generated, Then response is streamed via GraphQL subscription messageReceived
+
+4. Given ongoing conversation, When context is assembled, Then conversation context is maintained across messages (up to 50 messages)
+
+5. Given message content, When stored in database, Then all messages are encrypted at rest (PHI)
+
+6. Given AI service call, When measuring performance, Then AI response time p95 < 2 seconds
+
+7. Given AI provider rate limit, When limit is reached, Then exponential backoff with Sidekiq retries handles the situation gracefully
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Conversational AI Interface (FR7-FR12)</section>
+        <snippet>FR7: System presents intake questions through conversational AI interface. AI-First Onboarding uses conversational AI as the primary interface, with context-aware follow-ups based on parent responses, emotional intelligence in tone and pacing, and graceful handoff to human when needed.</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Non-Functional Requirements - Performance</section>
+        <snippet>AI Response Time: p95 less than 2 seconds (acceptable for "thinking" indicator). API Response Time: p95 less than 500ms for conversational feel. Concurrent Sessions: 1000+ to handle traffic spikes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Service Pattern - AI Client</section>
+        <snippet>Provider-agnostic AI client using provider pattern. Supports Anthropic Claude and OpenAI via pluggable backends. Configuration-driven provider selection with fallback capability. Handles rate limits with exponential backoff via Sidekiq retries.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Data Architecture - Message Model</section>
+        <snippet>Message model with encrypted PHI content. Enum role: user (0), assistant (1), system (2). Belongs to onboarding_session. Includes Encryptable and Auditable concerns. Context window: last 50 messages + session progress summary.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>GraphQL Subscriptions - Real-Time Messaging</section>
+        <snippet>Action Cable for GraphQL subscriptions with Redis backend. MessageReceived subscription fires when assistant message is created. JWT authentication for WebSocket connections. Authorization check required to prevent cross-session access.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>ADR-002: Agnostic AI Provider</section>
+        <snippet>Provider pattern with pluggable AI backends enables vendor flexibility, A/B testing different providers, fallback capability, and cost optimization options. Avoids vendor lock-in.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>ADR-003: Rails 7 Encryption for PHI</section>
+        <snippet>Rails 7 built-in encryption with custom Encryptable concern. Handles key rotation, deterministic option for searchable fields, audit-friendly. AES-256-GCM encryption at rest. No external dependencies required.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 3: Conversational AI Intake - Story 3.1</section>
+        <snippet>Story 3.1 establishes foundational AI service layer for natural language conversation. Implements sendMessage mutation, AI service calling with conversation context, response streaming via GraphQL subscription, conversation context maintenance (up to 50 messages), message encryption at rest (PHI), AI response time p95 less than 2 seconds, rate limit handling with exponential backoff.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Technical Specification - Epic 2</title>
+        <section>Session Management Foundation</section>
+        <snippet>OnboardingSession model with status enum, progress JSON field, and expiration tracking. Session lifecycle management with state machine. JWT authentication with role-based access control. Encryptable and Auditable concerns for PHI protection and compliance.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/message.rb</path>
+        <kind>model</kind>
+        <symbol>Message</symbol>
+        <lines>1-23</lines>
+        <reason>Message model already implemented with Encryptable concern, role enum (user/assistant/system), belongs_to onboarding_session, and encrypts_phi :content. Foundation for Story 3.1 Task 2 complete.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-140</lines>
+        <reason>OnboardingSession model with has_many :messages association, status enum, and session lifecycle methods. Required for associating messages to sessions in Task 3.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/encryptable.rb</path>
+        <kind>concern</kind>
+        <symbol>Encryptable</symbol>
+        <lines>1-13</lines>
+        <reason>Encryptable concern provides encrypts_phi class method for PHI encryption using Rails 7 encryption. Used by Message model for AC5 (message content encryption).</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <version>3.3.x</version>
+        <gem name="rails" version="~> 7.2.3">Rails 7 API framework with built-in encryption</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL server implementation</gem>
+        <gem name="sidekiq" version="~> 7.2">Background job processing for async AI calls</gem>
+        <gem name="redis" version="~> 5.0">Action Cable and Sidekiq backend</gem>
+        <gem name="jwt" version="~> 2.7">JWT authentication for sessions</gem>
+        <gem name="pundit" version="~> 2.3">Authorization policies</gem>
+        <gem name="rspec-rails" version="~> 6.1">Testing framework</gem>
+        <gem name="factory_bot_rails" version="~> 6.4">Test fixtures</gem>
+      </ruby>
+      <ai_providers>
+        <required>
+          <gem name="anthropic" version="~> 0.1">Anthropic Ruby SDK for Claude integration (NOT YET ADDED - see prerequisites)</gem>
+          <gem name="ruby-openai" version="~> 6.0">OpenAI Ruby SDK for optional provider (NOT YET ADDED - see prerequisites)</gem>
+        </required>
+      </ai_providers>
+      <environment>
+        <var name="AI_PROVIDER">anthropic or openai - selects active AI provider</var>
+        <var name="ANTHROPIC_API_KEY">Anthropic API key for Claude</var>
+        <var name="OPENAI_API_KEY">OpenAI API key (if using OpenAI provider)</var>
+        <var name="REDIS_URL">Redis connection for Action Cable and Sidekiq</var>
+      </environment>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Provider Pattern: AI client MUST support multiple providers (Anthropic, OpenAI) via abstract interface</constraint>
+    <constraint>PHI Encryption: All message content MUST be encrypted at rest using Rails 7 encryption via Encryptable concern</constraint>
+    <constraint>Performance: AI response time p95 MUST be less than 2 seconds</constraint>
+    <constraint>Context Window: Conversation context limited to last 50 messages plus session progress summary</constraint>
+    <constraint>Real-Time: Message responses MUST stream via GraphQL subscription (Action Cable)</constraint>
+    <constraint>Authorization: Subscription MUST verify session ownership to prevent cross-session access</constraint>
+    <constraint>Rate Limiting: MUST handle AI provider rate limits with exponential backoff via Sidekiq retries</constraint>
+    <constraint>Audit Logging: MUST log MESSAGE_SENT and AI_RESPONSE actions without logging actual message content (PHI-safe)</constraint>
+    <constraint>Error Handling: MUST use standard GraphQL error codes (UNAUTHENTICATED, FORBIDDEN, VALIDATION_ERROR, etc.)</constraint>
+    <constraint>Testing: MUST achieve 90%+ test coverage for all new service code</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Ai::Client#chat</name>
+      <kind>service_method</kind>
+      <signature>chat(messages:, context:) -> Hash</signature>
+      <path>app/services/ai/client.rb</path>
+      <description>Agnostic AI client method for non-streaming chat completion. Accepts array of messages and context hash, returns AI response.</description>
+    </interface>
+    <interface>
+      <name>Ai::Client#stream</name>
+      <kind>service_method</kind>
+      <signature>stream(messages:, context:, &block) -> void</signature>
+      <path>app/services/ai/client.rb</path>
+      <description>Agnostic AI client method for streaming chat completion. Yields chunks to block for real-time response delivery.</description>
+    </interface>
+    <interface>
+      <name>Ai::Providers::BaseProvider</name>
+      <kind>interface</kind>
+      <signature>chat(messages:, context:), stream(messages:, context:, &block)</signature>
+      <path>app/services/ai/providers/base_provider.rb</path>
+      <description>Abstract base provider interface that all AI providers must implement. Ensures consistent interface across Anthropic, OpenAI, and future providers.</description>
+    </interface>
+    <interface>
+      <name>Mutations::Conversation::SendMessage</name>
+      <kind>graphql_mutation</kind>
+      <signature>sendMessage(sessionId: ID!, content: String!): SendMessagePayload!</signature>
+      <path>app/graphql/mutations/conversation/send_message.rb</path>
+      <description>GraphQL mutation for sending user message. Stores user message, calls AI client with context, stores assistant response, triggers subscription.</description>
+    </interface>
+    <interface>
+      <name>Subscriptions::MessageReceived</name>
+      <kind>graphql_subscription</kind>
+      <signature>messageReceived(sessionId: ID!): Message!</signature>
+      <path>app/graphql/subscriptions/message_received.rb</path>
+      <description>GraphQL subscription for real-time message delivery. Fires when assistant message is created, requires session ownership authorization.</description>
+    </interface>
+    <interface>
+      <name>Types::MessageType</name>
+      <kind>graphql_type</kind>
+      <signature>id, role, content, createdAt, metadata</signature>
+      <path>app/graphql/types/message_type.rb</path>
+      <description>GraphQL type definition for Message model. Exposes message fields for queries, mutations, and subscriptions.</description>
+    </interface>
+    <interface>
+      <name>Ai::ContextManager#build_context</name>
+      <kind>service_method</kind>
+      <signature>build_context(session_id:) -> Array&lt;Hash&gt;</signature>
+      <path>app/services/ai/context_manager.rb</path>
+      <description>Builds conversation context from last 50 messages plus session progress summary. Formats for AI provider API consumption.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Rails project uses RSpec for testing with Factory Bot for fixtures and Shoulda Matchers for model testing. Test structure follows Rails conventions with spec/models/, spec/services/, spec/graphql/, and spec/jobs/ directories. All PHI encryption must be verified at database level (not just application). Integration tests required for full GraphQL mutation and subscription flows. Performance tests required for AI response time benchmarks (p95 less than 2 seconds). VCR cassettes or provider mocks required for AI service integration tests. Test coverage target: 90%+ for all new code.
+    </standards>
+    <locations>
+      <location>spec/models/message_spec.rb</location>
+      <location>spec/factories/messages.rb</location>
+      <location>spec/services/ai/client_spec.rb</location>
+      <location>spec/services/ai/providers/anthropic_provider_spec.rb</location>
+      <location>spec/services/ai/providers/openai_provider_spec.rb</location>
+      <location>spec/services/ai/context_manager_spec.rb</location>
+      <location>spec/graphql/mutations/conversation/send_message_spec.rb</location>
+      <location>spec/graphql/subscriptions/message_received_spec.rb</location>
+      <location>spec/graphql/types/message_type_spec.rb</location>
+      <location>spec/integration/conversation_flow_spec.rb</location>
+    </locations>
+    <ideas>
+      <idea acceptance_criteria="AC1">Test sendMessage mutation accepts message content and stores with role USER and timestamp</idea>
+      <idea acceptance_criteria="AC2">Test AI service called with conversation context when message received, response stored with role ASSISTANT</idea>
+      <idea acceptance_criteria="AC3">Test messageReceived subscription fires when assistant response generated</idea>
+      <idea acceptance_criteria="AC4">Test conversation context includes last 50 messages (create 60 messages, verify only last 50 included)</idea>
+      <idea acceptance_criteria="AC5">Test message content encrypted at database level using Encryptable concern (already tested in message_spec.rb)</idea>
+      <idea acceptance_criteria="AC6">Test AI response time p95 less than 2 seconds using benchmark test with mock provider</idea>
+      <idea acceptance_criteria="AC7">Test exponential backoff with Sidekiq retries when rate limit reached (mock rate limit error)</idea>
+      <idea>Test provider pattern: client selects correct provider based on configuration</idea>
+      <idea>Test authorization: subscription rejects requests for sessions user doesn't own</idea>
+      <idea>Test context manager formats messages correctly for AI provider APIs</idea>
+      <idea>Test audit logging creates MESSAGE_SENT and AI_RESPONSE entries without logging PHI content</idea>
+      <idea>Integration test: full flow from sendMessage mutation through AI processing to subscription delivery</idea>
+    </ideas>
+  </tests>
+</story-context>

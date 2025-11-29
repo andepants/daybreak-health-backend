@@ -1,0 +1,213 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3.2</storyId>
+    <title>Adaptive Question Flow</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-2-adaptive-question-flow.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>the AI to ask relevant follow-up questions based on my responses</iWant>
+    <soThat>I only answer what's necessary and the conversation feels natural</soThat>
+    <tasks>
+      - Task 1: Implement Context Manager Service (AC: Phase tracking, field collection, pending questions)
+        - Create `app/services/ai/context_manager.rb` service class
+        - Implement phase state tracking (welcome, parent_info, child_info, concerns)
+        - Implement collected fields tracking with validation
+        - Implement pending questions queue management
+        - Add session progress JSON structure management
+        - Write unit tests for context manager
+
+      - Task 2: Implement Response Analysis (AC: Completeness and relevance detection)
+        - Create response analyzer in context manager
+        - Implement completeness detection logic
+        - Implement ambiguity detection
+        - Add related topic exploration logic
+        - Write tests for response analysis
+
+      - Task 3: Implement Adaptive Follow-up Logic (AC: Dynamic question generation)
+        - Create follow-up question generator
+        - Implement missing information detection
+        - Implement clarification question generation
+        - Add related topic question generation
+        - Ensure no question repetition logic
+        - Write tests for follow-up generation
+
+      - Task 4: Implement Phase Transition Management (AC: Conversation flow)
+        - Create phase transition validator
+        - Implement Welcome → Parent Info transition
+        - Implement Parent Info → Child Info transition
+        - Implement Child Info → Concerns transition
+        - Add automatic phase progression based on completion
+        - Write tests for phase transitions
+
+      - Task 5: Update AI Prompts for Adaptive Behavior (AC: Empathetic tone, focused conversation)
+        - Update system prompts in `app/services/ai/prompts/intake_prompt.rb`
+        - Add context manager instructions to prompts
+        - Implement empathetic response guidelines
+        - Add conversation focus constraints
+        - Test tone and focus with sample conversations
+
+      - Task 6: Integrate with Session Progress Updates (AC: Progress reflects completed topics)
+        - Update session progress JSON on field collection
+        - Implement progress percentage calculation
+        - Add current phase tracking to session
+        - Update `updateSessionProgress` mutation integration
+        - Write integration tests
+
+      - Task 7: Integration Testing (AC: All criteria)
+        - Create end-to-end conversation flow tests
+        - Test phase transitions with real AI responses
+        - Verify no question repetition across conversation
+        - Test missing information detection scenarios
+        - Verify progress updates accuracy
+        - Test empathetic tone maintenance
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    Given: parent has provided initial information
+    When: they respond to a question
+    Then:
+    - AI analyzes response for completeness and relevance
+    - Follow-up questions adapt based on:
+      - Missing required information
+      - Clarification needed for ambiguous responses
+      - Related topics that should be explored
+    - Conversation flows through intake phases: Welcome → Parent Info → Child Info → Concerns
+    - AI doesn't repeat questions already answered
+    - Progress updates reflect completed topics
+
+    And: AI maintains empathetic, supportive tone throughout
+    And: Conversation stays focused on intake goals
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Conversational AI Interface (FR7-FR12)</section>
+        <snippet>FR7: System presents intake questions through conversational AI interface. FR8: AI adapts follow-up questions based on parent responses. FR10: AI provides progress indicators and estimated time remaining. The system enables AI-powered conversational intake that collects information naturally, not through form-filling.</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Parent & Child Data Collection (FR13-FR18)</section>
+        <snippet>FR13-FR18 define parent contact information, relationship to child, child demographics, school information, concerns, and medical history collection through natural conversation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Service Pattern</section>
+        <snippet>Services in `app/services/` with class-based organization. Provider pattern for AI abstraction. Rails service object pattern with BaseService inheritance. Example: Ai::Client with provider pattern for multiple AI backends.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Data Architecture - OnboardingSession Model</section>
+        <snippet>Session.progress as JSONB field for flexible state tracking. Status enum: started, in_progress, insurance_pending, assessment_complete, submitted, abandoned, expired. Progress JSON structure stores conversation state and completion tracking.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 3 Story 3.2: Adaptive Question Flow</section>
+        <snippet>Context manager tracks: { phase, collectedFields[], pendingQuestions[] }. Implement in `app/services/ai/context_manager.rb`. Use structured output prompting to extract data from responses. Phase transitions update session progress automatically. Conversation phases: Welcome → Parent Info → Child Info → Concerns.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-140</lines>
+        <reason>Core session model with progress JSONB field, status enum, and state machine for phase tracking. Context manager will integrate with this model's progress field.</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/base_service.rb</path>
+        <kind>service</kind>
+        <symbol>BaseService</symbol>
+        <lines>1-18</lines>
+        <reason>Base service pattern that context manager service will inherit from, following Rails service object conventions.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/mutations/sessions/update_session_progress.rb</path>
+        <kind>mutation</kind>
+        <symbol>UpdateSessionProgress</symbol>
+        <lines>all</lines>
+        <reason>Existing mutation for updating session progress that will be integrated with context manager's phase tracking and field collection.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <gem name="rails" version="~> 7.1" />
+        <gem name="graphql" version="~> 2.x" />
+        <gem name="sidekiq" version="~> 7.x" />
+        <gem name="redis" version="~> 7.x" />
+        <gem name="anthropic" version="latest" />
+        <gem name="ruby-openai" version="latest" />
+      </ruby>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Services must be placed in `app/services/` following Rails service object pattern
+    - All file names use snake_case, class names use PascalCase (Ai::ContextManager not AI::ContextManager)
+    - Context manager state stored in session.progress JSONB field (encrypted)
+    - No PHI logged directly - only field existence flags
+    - Audit trail for phase transitions via existing Auditable concern
+    - Rate limiting on message sends to prevent abuse
+    - Follow GraphQL mutation pattern with BaseMutation inheritance
+    - State machine pattern for phases aligns with Rails enum pattern
+    - Context Manager State Schema: { phase: string, collected_fields: array, pending_questions: array, field_metadata: hash }
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>OnboardingSession.progress</name>
+      <kind>JSONB field</kind>
+      <signature>progress: { phase: string, collected_fields: string[], pending_questions: string[], field_metadata: hash }</signature>
+      <path>app/models/onboarding_session.rb</path>
+    </interface>
+    <interface>
+      <name>updateSessionProgress</name>
+      <kind>GraphQL Mutation</kind>
+      <signature>updateSessionProgress(sessionId: ID!, progress: JSON!): SessionProgress!</signature>
+      <path>app/graphql/mutations/sessions/update_session_progress.rb</path>
+    </interface>
+    <interface>
+      <name>BaseService</name>
+      <kind>Ruby service class pattern</kind>
+      <signature>class MyService < BaseService; def call; end; end</signature>
+      <path>app/services/base_service.rb</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      RSpec testing framework following Rails conventions. Unit tests in spec/services/, integration tests in spec/integration/. Test fixtures for various response patterns. Follow PHI-safe testing practices - no actual PHI in test data. Use factory patterns for test data generation. Test coverage for phase transitions, field collection, and question deduplication.
+    </standards>
+    <locations>
+      - spec/services/ai/context_manager_spec.rb (unit tests)
+      - spec/integration/adaptive_question_flow_spec.rb (integration tests)
+      - spec/graphql/mutations/sessions/update_session_progress_spec.rb (mutation tests)
+    </locations>
+    <ideas>
+      - AC 1: Test context manager phase transitions in isolation (welcome → parent_info → child_info → concerns)
+      - AC 2: Test field collection tracking with validation (ensure fields are marked collected and not re-asked)
+      - AC 3: Test question deduplication (verify same question not asked twice)
+      - AC 4: Test completeness detection algorithms (ambiguous vs complete responses)
+      - AC 5: Integration test for full conversation flows through all phases with AI responses
+      - AC 6: Test progress persistence across messages (verify session.progress updates correctly)
+      - AC 7: Test empathetic tone maintenance (keyword spot-checks for empathy markers)
+      - AC 8: Test missing information detection scenarios (incomplete parent info triggers follow-ups)
+      - Create fixtures for: ambiguous responses, incomplete responses, complete responses
+      - Test context manager state schema matches specification exactly
+      - Verify no regression in existing session progress update functionality
+    </ideas>
+  </tests>
+</story-context>

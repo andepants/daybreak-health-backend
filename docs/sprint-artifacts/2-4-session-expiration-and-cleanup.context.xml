@@ -1,0 +1,284 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>4</storyId>
+    <title>Session Expiration & Cleanup</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-4-session-expiration-and-cleanup.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>the system</asA>
+    <iWant>to expire inactive sessions after a configurable period</iWant>
+    <soThat>resources are freed and abandoned data is handled per retention policy</soThat>
+    <tasks>
+- Task 1: Create SessionCleanupJob (AC: 2.4.1, 2.4.5)
+  - Subtask 1.1: Create `app/jobs/session_cleanup_job.rb`
+  - Subtask 1.2: Implement query for sessions where `expires_at < Time.current` and status != 'expired'
+  - Subtask 1.3: Update matched sessions to status `expired`
+  - Subtask 1.4: Log count of sessions expired in each run
+  - Subtask 1.5: Add error handling with retry logic
+
+- Task 2: Configure Sidekiq-cron scheduling (AC: 2.4.5)
+  - Subtask 2.1: Add `sidekiq-cron` gem to Gemfile
+  - Subtask 2.2: Run `bundle install`
+  - Subtask 2.3: Create `config/initializers/sidekiq_cron.rb`
+  - Subtask 2.4: Configure SessionCleanupJob to run every 15 minutes (`*/15 * * * *`)
+  - Subtask 2.5: Verify job appears in Sidekiq-cron schedule
+
+- Task 3: Add environment variable configuration (AC: 2.4.1, 2.4.2)
+  - Subtask 3.1: Add `SESSION_EXPIRATION_HOURS` to `.env.example` (default: 24)
+  - Subtask 3.2: Add `DATA_RETENTION_DAYS` to `.env.example` (default: 90)
+  - Subtask 3.3: Add config accessors in `config/application.rb` or initializer
+  - Subtask 3.4: Document environment variables in README or SETUP.md
+
+- Task 4: Implement expired session validation (AC: 2.4.4, 2.4.6)
+  - Subtask 4.1: Add `expired?` instance method to OnboardingSession model
+  - Subtask 4.2: Add before_action or validation to prevent updates on expired sessions
+  - Subtask 4.3: Return `SESSION_EXPIRED` GraphQL error when expired session is accessed
+  - Subtask 4.4: Test error handling in GraphQL mutations
+
+- Task 5: Implement audit logging for expiration (AC: 2.4.7)
+  - Subtask 5.1: Create AuditLog entry when session status changes to `expired`
+  - Subtask 5.2: Set action: `SESSION_EXPIRED` in audit log
+  - Subtask 5.3: Include session_id and timestamp in audit details
+  - Subtask 5.4: Verify audit log is created via Auditable concern or explicit call
+
+- Task 6: Add data retention handling (AC: 2.4.2, 2.4.3)
+  - Subtask 6.1: Create separate cleanup job for hard-deleting expired sessions after retention period
+  - Subtask 6.2: Implement query for sessions where `status = 'expired'` and `updated_at < 90.days.ago`
+  - Subtask 6.3: Soft delete or hard delete based on retention policy
+  - Subtask 6.4: Document retention period in architecture notes
+  - Subtask 6.5: Schedule retention cleanup job (daily or weekly)
+
+- Task 7: Write RSpec tests for SessionCleanupJob
+  - Subtask 7.1: Create `spec/jobs/session_cleanup_job_spec.rb`
+  - Subtask 7.2: Test that sessions with `expires_at` in past are marked expired
+  - Subtask 7.3: Test that non-expired sessions are not affected
+  - Subtask 7.4: Test that audit log entry is created for each expired session
+  - Subtask 7.5: Test job error handling and retry behavior
+
+- Task 8: Write RSpec tests for expired session validation
+  - Subtask 8.1: Create specs in `spec/models/onboarding_session_spec.rb`
+  - Subtask 8.2: Test `expired?` method returns true when expires_at is in past
+  - Subtask 8.3: Test GraphQL mutation returns SESSION_EXPIRED error for expired sessions
+  - Subtask 8.4: Test that expired sessions cannot be updated
+  - Subtask 8.5: Run `bundle exec rspec` to verify all tests pass
+
+- Task 9: Integration testing and verification
+  - Subtask 9.1: Manually test job execution via `SessionCleanupJob.perform_now`
+  - Subtask 9.2: Verify sessions are expired correctly
+  - Subtask 9.3: Verify Sidekiq-cron schedule is active
+  - Subtask 9.4: Check Sidekiq web UI for scheduled jobs
+  - Subtask 9.5: Verify audit logs are created
+  - Subtask 9.6: Test expired session error in GraphQL
+
+- Task 10: Documentation updates
+  - Subtask 10.1: Document session expiration behavior in dev notes
+  - Subtask 10.2: Document retention policy (90 days)
+  - Subtask 10.3: Add configuration notes for SESSION_EXPIRATION_HOURS
+  - Subtask 10.4: Update README with Sidekiq-cron requirement
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. AC 2.4.1: Sessions with `expiresAt` in the past marked as `EXPIRED`
+2. AC 2.4.2: Expired sessions retained in database for 90 days (compliance)
+3. AC 2.4.3: Associated data (messages, progress) retained with session
+4. AC 2.4.4: No new activity allowed on expired sessions
+5. AC 2.4.5: Cleanup job runs every 15 minutes via scheduled task
+6. AC 2.4.6: Attempting to update expired session returns `SESSION_EXPIRED` error
+7. AC 2.4.7: Audit log: `action: SESSION_EXPIRED`
+</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements: Session Management (FR1-FR6)</section>
+        <snippet>FR4: Sessions expire after configurable period of inactivity with data retention. Sessions automatically save progress after each interaction and can be resumed from any device using session recovery.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Background Jobs (Sidekiq)</section>
+        <snippet>Sidekiq handles background job processing with queues: critical (3), default (2), low (1). Jobs implement retry logic with exponential backoff. Example: SessionCleanupJob runs on scheduled intervals to expire inactive sessions.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Data Models - OnboardingSession</section>
+        <snippet>OnboardingSession enum status includes: started, in_progress, insurance_pending, assessment_complete, submitted, abandoned, expired. Scopes include active (excludes terminal states) and expiring_soon (active sessions expiring within 1 hour).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Error Handling</section>
+        <snippet>SESSION_EXPIRED error code (401 equivalent) indicates session has timed out. All GraphQL errors follow standard format with code, message, timestamp, and path in extensions.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Story 2.4: Session Expiration & Cleanup - Acceptance Criteria</section>
+        <snippet>Sessions with expiresAt in the past marked as EXPIRED. Expired sessions retained for 90 days (compliance). Associated data retained with session. Cleanup job runs every 15 minutes via scheduled task. Attempting to update expired session returns SESSION_EXPIRED error.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Session Expiration Flow (Background Job)</section>
+        <snippet>SessionCleanupJob runs every 15 min via Sidekiq-cron. Queries OnboardingSession.expired_pending (sessions where expires_at &lt; Time.current and status != expired). For each session: update status to 'expired', create AuditLog with action SESSION_EXPIRED. Logs count of expired sessions.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Environment Variables and Configuration</section>
+        <snippet>SESSION_EXPIRATION_HOURS (default: 24) - Hours since last activity before session expires. DATA_RETENTION_DAYS (default: 90) - Days to keep expired sessions before deletion. Configured via ENV vars with fallback to defaults.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 2.4: Session Expiration & Cleanup</section>
+        <snippet>As the system, I want to expire inactive sessions after a configurable period, so that resources are freed and abandoned data is handled per retention policy. Cleanup job runs every 15 minutes, expired sessions retained for 90 days, attempting to update expired session returns SESSION_EXPIRED error.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-30</lines>
+        <reason>Core model with status enum including 'expired' state. Already has expiring_soon scope. Need to add expired? method and expired_pending scope for cleanup job.</reason>
+      </artifact>
+      <artifact>
+        <path>app/jobs/application_job.rb</path>
+        <kind>job</kind>
+        <symbol>ApplicationJob</symbol>
+        <lines>1-7</lines>
+        <reason>Base class for all jobs. SessionCleanupJob will inherit from this with retry logic and error handling.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/auditable.rb</path>
+        <kind>concern</kind>
+        <symbol>Auditable</symbol>
+        <lines>all</lines>
+        <reason>Concern for automatic audit logging. Will be used to log SESSION_EXPIRED events when sessions transition to expired status.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/audit_log.rb</path>
+        <kind>model</kind>
+        <symbol>AuditLog</symbol>
+        <lines>all</lines>
+        <reason>Model for storing audit trail. SessionCleanupJob will create entries with action: SESSION_EXPIRED for each expired session.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/errors/error_codes.rb</path>
+        <kind>module</kind>
+        <symbol>Errors::ErrorCodes</symbol>
+        <lines>28</lines>
+        <reason>Already defines SESSION_EXPIRED error code constant. Will be used in GraphQL mutations when validating session is not expired before allowing updates.</reason>
+      </artifact>
+      <artifact>
+        <path>Gemfile</path>
+        <kind>file</kind>
+        <symbol>N/A</symbol>
+        <lines>14-15</lines>
+        <reason>Sidekiq already included (~> 7.2). Need to add sidekiq-cron gem for scheduled job execution every 15 minutes.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <ruby>
+        <gem name="rails" version="~> 7.2.3" />
+        <gem name="pg" version="~> 1.1" />
+        <gem name="sidekiq" version="~> 7.2" />
+        <gem name="sidekiq-cron" version="~> 1.9" required="true" note="Need to add for scheduled cleanup job" />
+        <gem name="redis" version="~> 5.0" />
+        <gem name="rspec-rails" version="~> 6.1" group="test" />
+      </ruby>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - All session status transitions must go through the state machine defined in OnboardingSession model
+    - Audit logs must be created for every session expiration event (AC 2.4.7)
+    - Expired sessions must be retained for 90 days before deletion (AC 2.4.2)
+    - Associated data (messages, progress, parent, child, insurance, assessment) must be retained with the session (AC 2.4.3)
+    - Cleanup job must run every 15 minutes via Sidekiq-cron (AC 2.4.5)
+    - SESSION_EXPIRED GraphQL error must be returned when attempting operations on expired sessions (AC 2.4.6)
+    - Configuration must use environment variables with sensible defaults (SESSION_EXPIRATION_HOURS=24, DATA_RETENTION_DAYS=90)
+    - All database queries must be efficient and use proper indexing
+    - Error handling must include retry logic with exponential backoff
+    - PHI-safe logging - never log actual PHI values, only existence flags and session IDs
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>OnboardingSession.expired?</name>
+      <kind>instance method</kind>
+      <signature>def expired?; expires_at &lt; Time.current; end</signature>
+      <path>app/models/onboarding_session.rb</path>
+    </interface>
+    <interface>
+      <name>OnboardingSession.expired_pending</name>
+      <kind>scope</kind>
+      <signature>scope :expired_pending, -&gt; { active.where('expires_at &lt; ?', Time.current) }</signature>
+      <path>app/models/onboarding_session.rb</path>
+    </interface>
+    <interface>
+      <name>SessionCleanupJob#perform</name>
+      <kind>job method</kind>
+      <signature>def perform; mark_expired_sessions; log_expiration_count; end</signature>
+      <path>app/jobs/session_cleanup_job.rb</path>
+    </interface>
+    <interface>
+      <name>Sidekiq-cron schedule configuration</name>
+      <kind>initializer</kind>
+      <signature>Sidekiq::Cron::Job.load_from_hash({ 'session_cleanup' =&gt; { 'cron' =&gt; '*/15 * * * *', 'class' =&gt; 'SessionCleanupJob' } })</signature>
+      <path>config/initializers/sidekiq_cron.rb</path>
+    </interface>
+    <interface>
+      <name>Rails.application.config accessors</name>
+      <kind>configuration</kind>
+      <signature>config.session_expiration_hours = ENV.fetch('SESSION_EXPIRATION_HOURS', 24).to_i</signature>
+      <path>config/application.rb</path>
+    </interface>
+    <interface>
+      <name>SESSION_EXPIRED error response</name>
+      <kind>GraphQL error</kind>
+      <signature>raise GraphQL::ExecutionError.new('Session has expired', extensions: { code: Errors::ErrorCodes::SESSION_EXPIRED })</signature>
+      <path>app/graphql/mutations/base_mutation.rb or session mutations</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Framework: RSpec 6.1 for all testing with Rails-specific matchers. Follow existing test patterns in spec/ directory. Use FactoryBot for test data creation. Test coverage should include unit tests for models and jobs, integration tests for GraphQL mutations, and edge cases for state transitions. All tests must pass before story completion (bundle exec rspec).</standards>
+
+    <locations>
+      - spec/models/onboarding_session_spec.rb (model tests including expired? method)
+      - spec/jobs/session_cleanup_job_spec.rb (background job tests)
+      - spec/graphql/mutations/sessions/*_spec.rb (GraphQL mutation error handling)
+      - spec/models/audit_log_spec.rb (audit logging verification)
+    </locations>
+
+    <ideas>
+      - Test expired? method returns true when expires_at is in the past (AC 2.4.1 coverage)
+      - Test expired? method returns false when expires_at is in the future
+      - Test SessionCleanupJob marks sessions with expires_at in past as expired (AC 2.4.1 coverage)
+      - Test SessionCleanupJob only affects active sessions, not already expired/abandoned/submitted sessions
+      - Test SessionCleanupJob creates audit log entry with action: SESSION_EXPIRED for each expiration (AC 2.4.7 coverage)
+      - Test SessionCleanupJob logs count of expired sessions
+      - Test SessionCleanupJob handles errors gracefully with retry logic
+      - Test GraphQL mutation returns SESSION_EXPIRED error when attempting to update expired session (AC 2.4.6 coverage)
+      - Test expired sessions cannot be queried or modified (AC 2.4.4 coverage)
+      - Test associated data (messages, progress) is retained when session expires (AC 2.4.3 coverage)
+      - Test expired_pending scope returns only active sessions past expiration time
+      - Test Sidekiq-cron schedule configuration loads correctly (AC 2.4.5 coverage)
+      - Integration test: Create session, set expires_at to past, run job, verify status changed to expired
+      - Integration test: Verify expired session data is retained for 90 days (AC 2.4.2 coverage)
+    </ideas>
+  </tests>
+</story-context>

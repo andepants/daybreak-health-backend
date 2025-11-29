@@ -1,0 +1,25 @@
+# Sidekiq Configuration
+# See: https://github.com/sidekiq/sidekiq/wiki/Advanced-Options
+
+# Concurrency: Number of threads to process jobs
+:concurrency: 5
+
+# Queues: Define job queues with priorities
+# Format: [queue_name, weight]
+# Higher weight = higher priority
+:queues:
+  - [critical, 3]    # Critical jobs: risk alerts, urgent notifications
+  - [default, 2]     # Default jobs: OCR processing, eligibility checks
+  - [low, 1]         # Low priority: cleanup jobs, analytics, reports
+
+# Timeouts
+:timeout: 25
+
+# Verbose logging in development
+:verbose: <%= Rails.env.development? %>
+
+# Production-specific settings
+<% if Rails.env.production? %>
+:max_retries: 3
+:dead_max_jobs: 10000
+<% end %>

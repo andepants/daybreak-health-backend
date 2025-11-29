@@ -1,0 +1,286 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2</storyId>
+    <title>Session Progress & State Management</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-2-session-progress-and-state-management.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a parent</asA>
+    <iWant>my progress to be saved automatically after each interaction</iWant>
+    <soThat>I never lose my work even if I close the browser</soThat>
+    <tasks>
+      - Task 1: Create GraphQL mutation for progress updates (AC: 2.2.1, 2.2.3)
+      - Task 2: Implement progress merge logic (AC: 2.2.5)
+      - Task 3: Implement session status state machine (AC: 2.2.2, 2.2.8)
+      - Task 4: Implement session expiration extension (AC: 2.2.4)
+      - Task 5: Implement Redis caching layer (AC: 2.2.7)
+      - Task 6: Create GraphQL subscription for session updates (AC: 2.2.6)
+      - Task 7: Add audit logging for progress updates
+      - Task 8: Create progress structure validation
+      - Task 9: Write integration tests
+      - Task 10: Test persistence across page refreshes (AC: 2.2.7)
+      - Task 11: Documentation and examples
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    - AC 2.2.1: updateSessionProgress mutation updates progress JSON field
+    - AC 2.2.2: Session status transitions: STARTED → IN_PROGRESS (on first progress update)
+    - AC 2.2.3: updatedAt timestamp refreshed on progress update
+    - AC 2.2.4: Session expiresAt extended by 1 hour on activity
+    - AC 2.2.5: Progress is merged (not replaced) with existing data
+    - AC 2.2.6: GraphQL subscription sessionUpdated fires with new state
+    - AC 2.2.7: Progress persists across page refreshes
+    - AC 2.2.8: Status transitions follow valid state machine (no backward transitions except to ABANDONED)
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Session Management (FR1-6)</section>
+        <snippet>FR3: System automatically saves progress after each interaction. FR6: System tracks session state (started, in-progress, insurance-pending, assessment-complete, submitted)</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Performance Requirements</section>
+        <snippet>API Response Time p95 &lt; 500ms for conversational feel. Caching layer for configuration and static data. Redis used for session state management.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Data Architecture - Session Progress JSONB</section>
+        <snippet>OnboardingSession model uses JSONB progress field with structure: currentStep, completedSteps, intake, insurance, assessment sections. Redis cache with 1-hour TTL, write-through pattern.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>State Management - Redis Caching</section>
+        <snippet>Session progress cached in Redis with 1-hour TTL. Write-through: update cache → async write to DB. Cache key format: session:progress:{session_id}. Invalidate on status change to terminal state.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>GraphQL Subscriptions - Real-time Updates</section>
+        <snippet>Action Cable WebSocket for real-time updates. Subscriptions filtered by session_id for multi-tenant isolation. Triggered on: progress update, status change. Payload includes full session object.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>State Machine Design</section>
+        <snippet>Status enum: started, in_progress, insurance_pending, assessment_complete, submitted, abandoned, expired. Forward-only transitions except ABANDONED. Auto-transition to IN_PROGRESS on first progress update.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Progress Structure (JSONB)</section>
+        <snippet>Progress JSON structure: {currentStep, completedSteps[], intake{}, insurance{}, assessment{}}. Deep merge strategy with array deduplication for completedSteps.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Caching Strategy</section>
+        <snippet>Redis cache with 1-hour TTL matching session activity window. Write-through pattern: update DB first, then cache. Cache-aside pattern: read from cache, fall back to DB. Invalidate cache on status change, expiration, abandonment.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-31</lines>
+        <reason>Core session model with status enum, associations, and validations. Need to add state machine concern and extend_expiration method.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/auditable.rb</path>
+        <kind>concern</kind>
+        <symbol>Auditable</symbol>
+        <lines>1-129</lines>
+        <reason>Existing audit logging concern - will automatically log progress updates when included in OnboardingSession.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/encryptable.rb</path>
+        <kind>concern</kind>
+        <symbol>Encryptable</symbol>
+        <lines>1-14</lines>
+        <reason>PHI encryption concern pattern to follow if progress contains sensitive data.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/mutation_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>MutationType</symbol>
+        <lines>all</lines>
+        <reason>Must add updateSessionProgress mutation to mutation type.</reason>
+      </artifact>
+      <artifact>
+        <path>config/environments/development.rb</path>
+        <kind>config</kind>
+        <symbol>Rails.application.configure</symbol>
+        <lines>20-29</lines>
+        <reason>Need to configure Redis cache store for development environment.</reason>
+      </artifact>
+      <artifact>
+        <path>config/initializers/redis.rb</path>
+        <kind>initializer</kind>
+        <symbol>redis_url</symbol>
+        <lines>1-12</lines>
+        <reason>Redis configuration for caching and Sidekiq. Already configured, will use for session caching.</reason>
+      </artifact>
+      <artifact>
+        <path>Gemfile</path>
+        <kind>dependency</kind>
+        <symbol>redis</symbol>
+        <lines>12</lines>
+        <reason>Redis gem already installed (~> 5.0) - supports session caching.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <gem name="rails" version="~> 7.2.3" />
+        <gem name="redis" version="~> 5.0" />
+        <gem name="graphql" version="~> 2.2" />
+        <gem name="sidekiq" version="~> 7.2" />
+        <gem name="pundit" version="~> 2.3" />
+      </ruby>
+      <external>
+        <service name="Redis" version="7.x" purpose="Session progress caching, subscription backend" />
+        <service name="PostgreSQL" version="16.x" purpose="Primary data persistence" />
+        <service name="Action Cable" purpose="WebSocket transport for GraphQL subscriptions" />
+      </external>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - All progress updates must use deep merge strategy to avoid data loss
+    - Progress merge must handle arrays (completedSteps) with deduplication
+    - State transitions must be validated: only forward transitions except ABANDONED
+    - Auto-transition STARTED → IN_PROGRESS on first progress update
+    - Session expiration must extend by 1 hour on every progress update
+    - Redis cache TTL must match session activity window (1 hour)
+    - Write-through cache pattern: DB write first, then cache update
+    - Cache-aside pattern for reads: check cache first, fallback to DB
+    - Invalidate cache on terminal status transitions (abandoned, expired, submitted)
+    - GraphQL subscription must fire on every progress update
+    - Subscription must include full session object with updated progress
+    - All progress updates must create audit log entries with PROGRESS_UPDATED action
+    - PHI must be redacted from audit log details
+    - Progress structure must validate required fields: currentStep, completedSteps
+    - Session status enum already defined in OnboardingSession model
+    - Use Rails.cache API with Redis backend for caching
+    - Action Cable must be configured for subscription transport
+    - Tests must verify persistence across simulated page refreshes
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>updateSessionProgress</name>
+      <kind>GraphQL Mutation</kind>
+      <signature>
+mutation UpdateSessionProgress($sessionId: ID!, $progress: JSON!) {
+  updateSessionProgress(sessionId: $sessionId, progress: $progress) {
+    session {
+      id
+      status
+      progress
+      updatedAt
+      expiresAt
+    }
+  }
+}
+      </signature>
+      <path>app/graphql/mutations/sessions/update_session_progress.rb</path>
+    </interface>
+    <interface>
+      <name>sessionUpdated</name>
+      <kind>GraphQL Subscription</kind>
+      <signature>
+subscription SessionUpdated($sessionId: ID!) {
+  sessionUpdated(sessionId: $sessionId) {
+    session {
+      id
+      status
+      progress
+      updatedAt
+    }
+  }
+}
+      </signature>
+      <path>app/graphql/subscriptions/session_updated.rb</path>
+    </interface>
+    <interface>
+      <name>Sessions::ProgressMerger</name>
+      <kind>Service Class</kind>
+      <signature>
+class Sessions::ProgressMerger
+  def initialize(session, new_progress)
+  def call
+  private
+  def merge_progress(existing, new_data)
+end
+      </signature>
+      <path>app/services/sessions/progress_merger.rb</path>
+    </interface>
+    <interface>
+      <name>SessionStateMachine</name>
+      <kind>Model Concern</kind>
+      <signature>
+module SessionStateMachine
+  def can_transition_to?(new_status)
+  def auto_transition_on_progress_update
+  private
+  def validate_status_transition
+end
+      </signature>
+      <path>app/models/concerns/session_state_machine.rb</path>
+    </interface>
+    <interface>
+      <name>OnboardingSession#extend_expiration</name>
+      <kind>Model Method</kind>
+      <signature>
+def extend_expiration(duration = 1.hour)
+  self.expires_at = [expires_at, Time.current].max + duration
+  save!
+end
+      </signature>
+      <path>app/models/onboarding_session.rb</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing with RSpec 6.1, Factory Bot for fixtures, Shoulda Matchers for model testing. GraphQL mutations tested via schema execution with authentication context. Services tested in isolation with mocked dependencies. Integration tests verify full GraphQL request/response cycle including caching and subscriptions. Model concerns tested independently with dummy classes.
+    </standards>
+    <locations>
+      spec/graphql/mutations/sessions/
+      spec/services/sessions/
+      spec/models/concerns/
+      spec/graphql/subscriptions/
+    </locations>
+    <ideas>
+      - Test ProgressMerger service with various merge scenarios (deep merge, array handling, null values)
+      - Test SessionStateMachine with all valid transitions (started→in_progress, etc.)
+      - Test SessionStateMachine rejects invalid backward transitions
+      - Test auto-transition STARTED→IN_PROGRESS on first progress update
+      - Test updateSessionProgress mutation with authentication
+      - Test progress merge does not replace existing data
+      - Test expiration extension adds 1 hour to expiresAt
+      - Test Redis cache write-through on progress update
+      - Test cache-aside pattern on session read
+      - Test subscription fires with full session data on update
+      - Test audit log created with PROGRESS_UPDATED action
+      - Test PHI redaction in audit log details
+      - Test progress structure validation (currentStep, completedSteps required)
+      - Test concurrent updates to same session (optimistic locking)
+      - Test cache invalidation on status change to terminal state
+      - Integration test: simulate page refresh, verify progress persisted
+      - Integration test: update progress → cache hit → DB persistence
+    </ideas>
+  </tests>
+</story-context>

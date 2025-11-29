@@ -1,0 +1,130 @@
+services:
+  # ============================================
+  # PostgreSQL 16.x Database Service
+  # ============================================
+  db:
+    image: postgres:16-alpine
+    container_name: daybreak-db
+    environment:
+      POSTGRES_USER: daybreak
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-daybreak_dev_password_change_me}
+      POSTGRES_DB: daybreak_health_backend_development
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U daybreak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - daybreak-network
+
+  # ============================================
+  # Redis 7.x Cache and Job Queue Service
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: daybreak-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - daybreak-network
+
+  # ============================================
+  # Rails Web Server Service
+  # ============================================
+  web:
+    image: ruby:3.3-alpine
+    container_name: daybreak-web
+    working_dir: /app
+    command: >
+      sh -c "
+        apk add --no-cache build-base postgresql-dev yaml-dev tzdata git &&
+        bundle install &&
+        bundle exec rails db:prepare &&
+        bundle exec rails server -b 0.0.0.0 -p 3000
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      RAILS_ENV: development
+      DATABASE_URL: postgresql://daybreak:${POSTGRES_PASSWORD:-daybreak_dev_password_change_me}@db:5432/daybreak_health_backend_development
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "3000:3000"
+    volumes:
+      - ..:/app
+      - bundle_cache:/usr/local/bundle
+      - rails_cache:/app/tmp/cache
+    stdin_open: true
+    tty: true
+    networks:
+      - daybreak-network
+
+  # ============================================
+  # Sidekiq Background Job Worker Service
+  # ============================================
+  sidekiq:
+    image: ruby:3.3-alpine
+    container_name: daybreak-sidekiq
+    working_dir: /app
+    command: >
+      sh -c "
+        apk add --no-cache build-base postgresql-dev yaml-dev tzdata git &&
+        bundle install &&
+        bundle exec sidekiq -C config/sidekiq.yml
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started
+    env_file:
+      - ../.env
+    environment:
+      RAILS_ENV: development
+      DATABASE_URL: postgresql://daybreak:${POSTGRES_PASSWORD:-daybreak_dev_password_change_me}@db:5432/daybreak_health_backend_development
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ..:/app
+      - bundle_cache:/usr/local/bundle
+    networks:
+      - daybreak-network
+
+# ============================================
+# Named Volumes for Data Persistence
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  bundle_cache:
+    driver: local
+  rails_cache:
+    driver: local
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  daybreak-network:
+    driver: bridge

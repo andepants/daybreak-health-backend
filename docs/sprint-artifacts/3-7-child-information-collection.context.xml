@@ -1,0 +1,357 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>7</storyId>
+    <title>Child Information Collection</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-7-child-information-collection.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to provide my child's information conversationally</iWant>
+    <soThat>Daybreak understands who needs care</soThat>
+    <tasks>
+- Task 1: Implement Child Model with Encrypted PHI Fields (AC: 1, 9, 10)
+  - Create migration for `children` table with UUID primary key
+  - Add encrypted fields: first_name, last_name, date_of_birth
+  - Add fields: gender (string), school_name (string), grade (string)
+  - Add `onboarding_session_id` foreign key with unique index
+  - Include Encryptable concern for PHI encryption
+  - Add validations for date_of_birth (not in future, within age range 5-18)
+  - Add `age` calculated method based on date_of_birth
+  - Add belongs_to :onboarding_session relationship
+
+- Task 2: Create Child GraphQL Type and Input (AC: 1, 2, 8)
+  - Define `ChildType` in `app/graphql/types/child_type.rb`
+  - Add fields: id, firstName, lastName, dateOfBirth, gender, schoolName, grade, age
+  - Create `ChildInput` input type for mutations
+  - Add validations for required vs optional fields
+
+- Task 3: Implement Submit Child Info Mutation (AC: 1, 2, 9)
+  - Create `Mutations::Intake::SubmitChildInfo` mutation
+  - Accept input: sessionId, firstName, lastName, dateOfBirth, gender, schoolName, grade
+  - Validate session exists and is in correct state
+  - Create or update Child record linked to session
+  - Return child data and updated session
+  - Create audit log entry: CHILD_INFO_SUBMITTED
+
+- Task 4: Add Concerns and Medical History Fields (AC: 3, 4, 11)
+  - Add migration for concerns and medical history to children table
+  - Add `primary_concerns` (encrypted text) field
+  - Add `medical_history` (encrypted JSONB) field
+  - Update Child model to encrypt concerns and medical history
+  - Add structure for medical_history: medications[], diagnoses[], hospitalizations[]
+
+- Task 5: Implement AI Prompts for Child Information Collection (AC: 3, 4, 6)
+  - Create `app/services/ai/prompts/child_info_prompt.rb`
+  - Define conversational flow for child demographics
+  - Add sensitive topic handling prompts (trauma, abuse)
+  - Include medical history prompting with appropriate care
+  - Add validation prompts for DOB and age verification
+
+- Task 6: Enhance Context Manager for Child Info Phase (AC: 5, 7, 8)
+  - Update `Ai::ContextManager` to track child info collection phase
+  - Add age calculation and validation logic
+  - Add service age range verification (5-18 years)
+  - Handle multiple children scenario (inform parent: one session per child)
+  - Extract structured data from conversational responses
+  - Update session progress when child info complete
+
+- Task 7: Add DOB Validation and Error Handling (AC: 10)
+  - Validate DOB not in future
+  - Validate DOB yields age between 5-18
+  - Return clear validation errors to AI for parent feedback
+  - Add GraphQL error responses for invalid DOB
+
+- Task 8: Update Session State Machine (AC: 9)
+  - Update OnboardingSession model state transitions
+  - Add child_info_collected status or track in progress JSON
+  - Ensure proper state flow from parent_info → child_info → concerns
+
+- Task 9: Testing (AC: All)
+  - Model specs for Child with validations
+  - Mutation specs for SubmitChildInfo
+  - Test age calculation logic
+  - Test DOB validation (future dates, age range)
+  - Test encryption of PHI fields
+  - Test session state updates
+  - Integration test for full child info collection flow
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+**Given** parent info is collected
+**When** conversation moves to child information
+**Then**
+1. Fields collected: firstName, lastName, dateOfBirth, gender (optional)
+2. School information: name, grade level (optional)
+3. Primary concerns captured in parent's own words
+4. Medical history collected with appropriate prompting
+5. Age verified (service appropriate range, e.g., 5-18)
+6. Sensitive topics handled with extra care (trauma, abuse history)
+7. Multiple children scenario handled (one session per child)
+8. Child's age calculated and stored
+9. Data stored in Child entity linked to session
+10. DOB validation: not in future, within service age range
+11. Concerns stored for clinical review
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- Documentation artifacts -->
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 3: Conversational AI Intake</title>
+        <section>Story 3.7: Child Information Collection</section>
+        <snippet>Fields collected: firstName, lastName, dateOfBirth, gender (optional), school information, primary concerns in parent's own words, medical history with appropriate prompting. Age verified for service range (5-18). Sensitive topics (trauma, abuse) handled with extra care.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Data Architecture</title>
+        <section>Database Schema - Children Table</section>
+        <snippet>Children table uses UUID primary key, encrypted PHI fields (first_name, last_name, date_of_birth), belongs_to onboarding_session with unique index. All PHI encrypted using Rails 7 encryption via Encryptable concern.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Implementation Patterns</title>
+        <section>Model with Encryption Concern</section>
+        <snippet>Models include Encryptable concern and use encrypts_phi macro for PHI fields. Pattern: include Encryptable, then encrypts_phi :field1, :field2. All PHI stored as TEXT columns for encryption compatibility.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>GraphQL Mutation Pattern</title>
+        <section>Mutation Structure</section>
+        <snippet>Mutations extend BaseMutation, accept typed arguments, create/update models, create audit log entries, return typed responses. Pattern includes proper error handling and authorization checks.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/3-6-parent-information-collection.md</path>
+        <title>Story 3.6: Parent Information Collection</title>
+        <section>Prerequisite Story</section>
+        <snippet>Parent information collection must be complete before child info collection begins. Establishes pattern for conversational data extraction, PHI encryption, and session state management that child collection follows.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <!-- Existing code artifacts to reference -->
+      <artifact>
+        <path>app/models/concerns/encryptable.rb</path>
+        <kind>concern</kind>
+        <symbol>Encryptable</symbol>
+        <lines>all</lines>
+        <reason>Required concern for encrypting child PHI fields (first_name, last_name, date_of_birth, primary_concerns, medical_history)</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/auditable.rb</path>
+        <kind>concern</kind>
+        <symbol>Auditable</symbol>
+        <lines>all</lines>
+        <reason>Required concern for audit logging child information submission events</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>all</lines>
+        <reason>Parent model that will have has_one :child relationship. Need to understand existing status enum and state machine for child_info phase integration</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/mutations/base_mutation.rb</path>
+        <kind>mutation</kind>
+        <symbol>BaseMutation</symbol>
+        <lines>all</lines>
+        <reason>Base class for SubmitChildInfo mutation, provides common error handling and authorization patterns</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/onboarding_session_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>OnboardingSessionType</symbol>
+        <lines>all</lines>
+        <reason>Need to add child field to expose Child data through session queries</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/ai/context_manager.rb</path>
+        <kind>service</kind>
+        <symbol>Ai::ContextManager</symbol>
+        <lines>all</lines>
+        <reason>Service that manages conversational data extraction and session phase tracking. Must be enhanced to handle child info phase, age validation, and structured data extraction</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <!-- Framework and library dependencies -->
+      <ruby>
+        <gem name="rails" version="~> 7.1" />
+        <gem name="graphql" version="~> 2.0" />
+        <gem name="pg" version="~> 1.5" />
+        <gem name="jwt" version="~> 2.7" />
+        <gem name="pundit" version="~> 2.3" />
+        <gem name="sidekiq" version="~> 7.0" />
+      </ruby>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <!-- Development constraints and patterns to follow -->
+1. All PHI fields (first_name, last_name, date_of_birth, primary_concerns, medical_history) must use Rails 7 encryption via Encryptable concern
+2. Follow GraphQL mutation pattern: BaseMutation → validate session → create/update model → audit log → return typed response
+3. Use service layer (Ai::ContextManager) for business logic, not mutations
+4. Database schema must use UUID primary keys, TEXT columns for encrypted fields
+5. Logging must be PHI-safe: log existence flags (has_child_data: true), never actual PHI values
+6. Validation errors must be clear and actionable for AI to convey to parent
+7. Age calculation must account for edge cases (leap years acceptable limitation documented)
+8. Medical history stored as TEXT with JSON content (not JSONB column), encrypted via encrypts_phi
+9. Sensitive topic detection and handling must be empathetic and trigger appropriate clinical review flags
+10. Testing must verify encryption at database level (raw SQL query shows encrypted blob)
+11. GraphQL field names use camelCase, Ruby code uses snake_case
+12. One child per session - multiple children require separate sessions
+  </constraints>
+
+  <interfaces>
+    <!-- APIs and interfaces this story must implement or integrate with -->
+    <interface>
+      <name>SubmitChildInfo Mutation</name>
+      <kind>GraphQL Mutation</kind>
+      <signature>
+submitChildInfo(input: SubmitChildInfoInput!): SubmitChildInfoPayload!
+
+input SubmitChildInfoInput {
+  sessionId: ID!
+  firstName: String!
+  lastName: String!
+  dateOfBirth: String!  # ISO 8601 date string
+  gender: String        # Optional: inclusive options
+  schoolName: String    # Optional
+  grade: String         # Optional
+  primaryConcerns: String  # Optional at mutation level, collected conversationally
+}
+
+type SubmitChildInfoPayload {
+  child: ChildType!
+  session: OnboardingSessionType!
+  errors: [UserError!]
+}
+      </signature>
+      <path>app/graphql/mutations/intake/submit_child_info.rb</path>
+    </interface>
+
+    <interface>
+      <name>ChildType GraphQL Type</name>
+      <kind>GraphQL Type</kind>
+      <signature>
+type ChildType {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  dateOfBirth: String!  # ISO 8601 date string
+  age: Int!             # Calculated field
+  gender: String
+  schoolName: String
+  grade: String
+  primaryConcerns: String
+  createdAt: ISO8601DateTime!
+  updatedAt: ISO8601DateTime!
+}
+      </signature>
+      <path>app/graphql/types/child_type.rb</path>
+    </interface>
+
+    <interface>
+      <name>Child Model Validations</name>
+      <kind>Active Record Model</kind>
+      <signature>
+validates :first_name, :last_name, :date_of_birth, presence: true
+validate :date_of_birth_not_in_future
+validate :age_within_service_range  # 5-18 years
+
+def age
+  # Calculate age from date_of_birth
+end
+      </signature>
+      <path>app/models/child.rb</path>
+    </interface>
+
+    <interface>
+      <name>OnboardingSession has_one :child</name>
+      <kind>Active Record Association</kind>
+      <signature>
+has_one :child, dependent: :destroy
+      </signature>
+      <path>app/models/onboarding_session.rb</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+RSpec testing standards for Rails 7 application:
+- Model specs use FactoryBot for test data generation
+- Mutation specs mock AI service calls, use GraphQL execution context
+- Integration specs test full conversational flow end-to-end
+- All specs follow Arrange-Act-Assert pattern
+- PHI encryption verified at database level (raw SQL query returns encrypted blob)
+- Use VCR or similar for any external API mocking
+- Test both happy path and error cases for all validations
+- Shared examples for common patterns (encryption, audit logging)
+    </standards>
+
+    <locations>
+spec/models/child_spec.rb
+spec/graphql/mutations/intake/submit_child_info_spec.rb
+spec/services/ai/context_manager_spec.rb
+spec/services/ai/prompts/child_info_prompt_spec.rb
+spec/integration/child_information_collection_flow_spec.rb
+    </locations>
+
+    <ideas>
+      <!-- Test ideas mapped to acceptance criteria -->
+      <test ac="1,2">
+        <description>Child model accepts required fields (firstName, lastName, dateOfBirth) and optional fields (gender, schoolName, grade)</description>
+        <type>model_spec</type>
+      </test>
+      <test ac="1,9,10">
+        <description>Child model validates dateOfBirth: rejects future dates, rejects ages outside 5-18 range, accepts valid dates</description>
+        <type>model_spec</type>
+      </test>
+      <test ac="8">
+        <description>Child model calculates age correctly for various birth dates including edge cases</description>
+        <type>model_spec</type>
+      </test>
+      <test ac="1,9">
+        <description>Child model encrypts PHI fields (first_name, last_name, date_of_birth) - database stores encrypted blobs</description>
+        <type>model_spec</type>
+      </test>
+      <test ac="3,4,11">
+        <description>Child model stores primary_concerns and medical_history as encrypted fields</description>
+        <type>model_spec</type>
+      </test>
+      <test ac="9">
+        <description>Child belongs_to OnboardingSession, enforces unique constraint</description>
+        <type>model_spec</type>
+      </test>
+      <test ac="1,2,9">
+        <description>SubmitChildInfo mutation creates child record with valid inputs, returns child and updated session</description>
+        <type>mutation_spec</type>
+      </test>
+      <test ac="10">
+        <description>SubmitChildInfo mutation returns validation errors for future DOB, out-of-range age</description>
+        <type>mutation_spec</type>
+      </test>
+      <test ac="9">
+        <description>SubmitChildInfo mutation creates audit log entry: CHILD_INFO_SUBMITTED</description>
+        <type>mutation_spec</type>
+      </test>
+      <test ac="5,6,7">
+        <description>Context manager handles child info phase: age validation, sensitive topics, multiple children scenario</description>
+        <type>service_spec</type>
+      </test>
+      <test ac="3,4,6">
+        <description>Child info prompt includes empathetic language for sensitive topics (trauma, abuse)</description>
+        <type>service_spec</type>
+      </test>
+      <test ac="all">
+        <description>Full integration test: parent provides child info conversationally → AI extracts data → child created → session state updated</description>
+        <type>integration_spec</type>
+      </test>
+    </ideas>
+  </tests>
+</story-context>

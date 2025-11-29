@@ -1,0 +1,409 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.1</storyId>
+    <title>Create Anonymous Session</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-1-create-anonymous-session.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to start a new onboarding session without creating an account first</iWant>
+    <soThat>I can begin immediately without friction</soThat>
+    <tasks>
+- Task 1: Implement CreateSession GraphQL mutation (AC: 1,2,3,4,5,6,7)
+  - Create mutation file in app/graphql/mutations/sessions/create_session.rb
+  - Define GraphQL mutation schema: createSession(input: CreateSessionInput): SessionResponse!
+  - Implement OnboardingSession creation with STARTED status (enum value 0)
+  - Generate CUID for session ID with sess_ prefix
+  - Initialize progress as empty JSON object {}
+  - Set expiresAt to 24 hours from creation
+  - Call Auth::JwtService to generate token with session_id and role: 'anonymous'
+  - Configure 1-hour token expiration (make configurable via SESSION_TOKEN_EXPIRATION_HOURS env var)
+  - Return session object and token in response
+- Task 2: Create GraphQL types and input objects (AC: 7)
+  - Create SessionResponseType with session and token fields
+  - Create CreateSessionInput type (optional referral_source field)
+  - Create OnboardingSessionType GraphQL type
+- Task 3: Implement session query capability (AC: 8)
+  - Add session query to QueryType
+  - Implement current_session helper in GraphQL context
+  - Extract and validate JWT token from Authorization header
+  - Load session by ID from token payload
+- Task 4: Implement audit logging (AC: 9)
+  - Create audit log entry with action: SESSION_CREATED
+  - Include session ID, timestamp, IP address from context
+  - Store audit log in AuditLog model
+- Task 5: Write tests
+  - Unit tests for OnboardingSession model creation
+  - Unit tests for Auth::JwtService token generation
+  - Integration tests for createSession mutation
+  - Test session query with valid token
+  - Test session query with invalid token (should fail)
+  - Test audit log creation
+  - Test token expiration configuration
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Given a parent visits the onboarding page When they initiate the process Then createSession mutation creates new OnboardingSession with status STARTED
+2. Given session creation When ID is generated Then Session ID is a CUID format (e.g., sess_clx123...)
+3. Given session creation When token is issued Then Anonymous JWT token issued with session ID as subject
+4. Given token generation When JWT is created Then Token expires in 1 hour (configurable)
+5. Given session creation When session record is created Then Session expiresAt set to 24 hours from creation
+6. Given session creation When progress field is initialized Then progress JSON initialized as empty object {}
+7. Given successful session creation When mutation completes Then Response includes: { session: { id, status, createdAt }, token }
+8. Given session created with token When session is queried with returned token Then The session can be queried successfully
+9. Given session creation When session is created Then Audit log entry created: action: SESSION_CREATED
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Onboarding Session Management</section>
+        <snippet>FR1: System can create a new anonymous onboarding session with unique identifier. Sessions expire after configurable period of inactivity with data retention. System tracks session state (started, in-progress, insurance-pending, assessment-complete, submitted).</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Authentication & Authorization</section>
+        <snippet>Authentication Flow: Anonymous session created at onboarding start. Parent identity established during intake. Session upgraded to authenticated on completion. JWT tokens expire in 1 hour; refresh tokens in 7 days.</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Data & Compliance</section>
+        <snippet>FR44: System maintains complete audit log of all data access. FR47: System enforces role-based access controls on all endpoints.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Authentication Flow</section>
+        <snippet>1. Parent starts onboarding → Anonymous session created with JWT token. Token payload: { session_id, role: 'anonymous', exp, iat }. Uses HS256 algorithm with 1-hour expiration.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>GraphQL Mutation Pattern</section>
+        <snippet>Standard mutation pattern: BaseMutation with arguments, fields, resolve method. Returns typed response. Creates audit log entries. Handles errors with standard error codes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Security Architecture</section>
+        <snippet>JWT Service: HS256 algorithm, 1-hour expiration, secret from Rails credentials. Auth flow: create session → issue token → validate on requests. All PHI encrypted at rest using Rails 7 encryption.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Session Creation Flow</section>
+        <snippet>Parent → createSession mutation → Generate UUID with 'sess_' prefix → Create OnboardingSession (status: started, expiresAt: +24h) → Generate JWT (1h expiry, payload: { session_id, role: 'anonymous' }) → Create AuditLog (action: SESSION_CREATED) → Return { session, token }</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Data Models and Contracts</section>
+        <snippet>OnboardingSession enum status: started: 0, in_progress: 1, insurance_pending: 2, assessment_complete: 3, submitted: 4, abandoned: 5, expired: 6. Validations: expires_at presence: true. Scopes: active, expiring_soon, expired_pending.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>GraphQL APIs</section>
+        <snippet>mutation CreateSession($input: CreateSessionInput) { createSession(input: $input) { session { id, status, createdAt, expiresAt }, token } }. input CreateSessionInput { referralSource: String }.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Performance Requirements</section>
+        <snippet>createSession latency p95 &lt; 200ms. Minimal DB writes, async audit. Token validation p95 &lt; 10ms via in-memory decode.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-30</lines>
+        <reason>Existing OnboardingSession model with status enum, associations, validations, and scopes. Story will use this model to create new sessions with status: started.</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/auth/jwt_service.rb</path>
+        <kind>service</kind>
+        <symbol>Auth::JwtService</symbol>
+        <lines>1-113</lines>
+        <reason>Complete JWT service implementation with encode/decode methods. Story will call Auth::JwtService.encode to generate anonymous JWT tokens with 1-hour expiration.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/encryptable.rb</path>
+        <kind>concern</kind>
+        <symbol>Encryptable</symbol>
+        <lines>1-13</lines>
+        <reason>PHI encryption concern using Rails 7 encrypts. Required for HIPAA compliance on all PHI fields.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/auditable.rb</path>
+        <kind>concern</kind>
+        <symbol>Auditable</symbol>
+        <lines>1-129</lines>
+        <reason>Audit logging concern with automatic log creation on CRUD operations. Handles PHI redaction and captures context from Thread.current. Story needs manual AuditLog.create for SESSION_CREATED action.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/audit_log.rb</path>
+        <kind>model</kind>
+        <symbol>AuditLog</symbol>
+        <lines>1-20</lines>
+        <reason>AuditLog model for compliance tracking. Story will create entry with action: SESSION_CREATED, resource: OnboardingSession, including IP address and timestamp.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/mutations/base_mutation.rb</path>
+        <kind>base_class</kind>
+        <symbol>Mutations::BaseMutation</symbol>
+        <lines>1-30</lines>
+        <reason>Base mutation class that all mutations inherit from. Provides common error handling, context access, and audit logging patterns.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/base_object.rb</path>
+        <kind>base_class</kind>
+        <symbol>Types::BaseObject</symbol>
+        <lines>1-10</lines>
+        <reason>Base GraphQL type class. Story will create OnboardingSessionType and SessionResponseType inheriting from this.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/query_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>Types::QueryType</symbol>
+        <lines>1-20</lines>
+        <reason>Root query type where session query will be added. Story needs to add session(id: ID!) field to enable querying sessions with JWT token.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/mutation_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>Types::MutationType</symbol>
+        <lines>1-15</lines>
+        <reason>Root mutation type where createSession mutation will be registered. Story needs to add field :create_session, mutation: Mutations::Sessions::CreateSession.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/concerns/current_session.rb</path>
+        <kind>concern</kind>
+        <symbol>CurrentSession</symbol>
+        <lines>1-40</lines>
+        <reason>GraphQL concern for extracting and validating session from JWT token in Authorization header. Story will use this to implement authentication context.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/daybreak_health_backend_schema.rb</path>
+        <kind>schema</kind>
+        <symbol>DaybreakHealthBackendSchema</symbol>
+        <lines>1-25</lines>
+        <reason>Root GraphQL schema. Already configured with query_type and mutation_type. Story creates new mutations that auto-register through MutationType.</reason>
+      </artifact>
+      <artifact>
+        <path>app/policies/onboarding_session_policy.rb</path>
+        <kind>policy</kind>
+        <symbol>OnboardingSessionPolicy</symbol>
+        <lines>1-30</lines>
+        <reason>Pundit authorization policy for OnboardingSession. Defines access rules: anonymous can create, parent can read/write own session.</reason>
+      </artifact>
+      <artifact>
+        <path>db/schema.rb</path>
+        <kind>schema</kind>
+        <symbol>Database Schema</symbol>
+        <lines>85-94</lines>
+        <reason>OnboardingSession table structure: UUID id, integer status (default: 0), jsonb progress (default: {}), datetime expires_at (not null), string referral_source, timestamps. Indexes on status and created_at.</reason>
+      </artifact>
+      <artifact>
+        <path>Gemfile</path>
+        <kind>dependencies</kind>
+        <symbol>Project Dependencies</symbol>
+        <lines>1-65</lines>
+        <reason>Rails 7.2.3, PostgreSQL, GraphQL 2.2, JWT 2.7, Pundit 2.3, Redis 5.0, Sidekiq 7.2, RSpec 6.1. All required gems already installed for story implementation.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <gem name="rails" version="~> 7.2.3" purpose="API framework" />
+        <gem name="pg" version="~> 1.1" purpose="PostgreSQL database" />
+        <gem name="graphql" version="~> 2.2" purpose="GraphQL API" />
+        <gem name="jwt" version="~> 2.7" purpose="JWT token encode/decode" />
+        <gem name="bcrypt" version="~> 3.1.7" purpose="Token hashing" />
+        <gem name="pundit" version="~> 2.3" purpose="Authorization policies" />
+        <gem name="redis" version="~> 5.0" purpose="Caching and session storage" />
+        <gem name="sidekiq" version="~> 7.2" purpose="Background jobs" />
+      </ruby>
+      <database>
+        <system name="PostgreSQL" version="16" purpose="Primary data store with UUID support and JSONB" />
+        <extension name="pgcrypto" purpose="UUID generation via gen_random_uuid()" />
+      </database>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+- Session IDs must use CUID format with 'sess_' prefix (e.g., sess_clx123abc). Use SecureRandom.uuid.gsub('-', '') for generation.
+- JWT algorithm: HS256 (will migrate to RS256 in Story 2.6)
+- Token expiration: 1 hour configurable via SESSION_TOKEN_EXPIRATION_HOURS env var (default: 1)
+- Session expiration: 24 hours from creation (use 24.hours.from_now)
+- Status enum values: started: 0, in_progress: 1, insurance_pending: 2, assessment_complete: 3, submitted: 4, abandoned: 5, expired: 6
+- Progress field initialized as empty JSON object: {}
+- All mutations must create audit log entries with action, resource, resource_id, ip_address, timestamp
+- GraphQL mutations must inherit from Mutations::BaseMutation
+- GraphQL types must inherit from Types::BaseObject
+- Use existing OnboardingSession model (do not recreate)
+- Use existing Auth::JwtService for token generation (do not recreate)
+- Follow Rails naming conventions: snake_case for files/methods, PascalCase for classes
+- GraphQL field names use camelCase (e.g., sessionId, createdAt)
+- Database columns use snake_case (e.g., session_id, created_at)
+- Audit log IP address available via context[:ip_address] in GraphQL mutations
+- Token expiration configurable: ENV.fetch('SESSION_TOKEN_EXPIRATION_HOURS', 1).to_i.hours
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>createSession</name>
+      <kind>GraphQL Mutation</kind>
+      <signature>
+mutation CreateSession($input: CreateSessionInput) {
+  createSession(input: $input) {
+    session {
+      id
+      status
+      createdAt
+      expiresAt
+    }
+    token
+  }
+}
+
+input CreateSessionInput {
+  referralSource: String
+}
+      </signature>
+      <path>app/graphql/mutations/sessions/create_session.rb</path>
+    </interface>
+    <interface>
+      <name>session</name>
+      <kind>GraphQL Query</kind>
+      <signature>
+query GetSession($id: ID!) {
+  session(id: $id) {
+    id
+    status
+    progress
+    createdAt
+    updatedAt
+    expiresAt
+  }
+}
+      </signature>
+      <path>app/graphql/types/query_type.rb</path>
+    </interface>
+    <interface>
+      <name>Auth::JwtService.encode</name>
+      <kind>Service Method</kind>
+      <signature>
+Auth::JwtService.encode(
+  payload: { session_id: String, role: String },
+  exp: Time
+) -> String (JWT token)
+      </signature>
+      <path>app/services/auth/jwt_service.rb</path>
+    </interface>
+    <interface>
+      <name>Auth::JwtService.decode</name>
+      <kind>Service Method</kind>
+      <signature>
+Auth::JwtService.decode(token: String) -> Hash | nil
+Returns: { session_id: String, role: String, exp: Integer, iat: Integer }
+      </signature>
+      <path>app/services/auth/jwt_service.rb</path>
+    </interface>
+    <interface>
+      <name>AuditLog.create!</name>
+      <kind>Model Method</kind>
+      <signature>
+AuditLog.create!(
+  action: String,
+  resource: String,
+  resource_id: UUID,
+  onboarding_session_id: UUID,
+  ip_address: String,
+  user_agent: String,
+  details: Hash
+)
+      </signature>
+      <path>app/models/audit_log.rb</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+Testing framework: RSpec 6.1 with FactoryBot and Shoulda Matchers.
+Test locations: spec/models/ for model tests, spec/graphql/ for GraphQL tests, spec/services/ for service tests.
+Patterns: Use let blocks for setup, describe/context/it structure, shared examples for common behaviors.
+GraphQL tests: Use DaybreakHealthBackendSchema.execute with context and variables.
+Model tests: Test validations, associations, scopes, enum values.
+Service tests: Test public methods, error handling, edge cases.
+Coverage: Aim for 90%+ coverage on business logic.
+    </standards>
+    <locations>
+spec/models/onboarding_session_spec.rb
+spec/services/auth/jwt_service_spec.rb
+spec/graphql/mutations/sessions/create_session_spec.rb
+spec/graphql/types/onboarding_session_type_spec.rb
+spec/requests/graphql/create_session_spec.rb
+    </locations>
+    <ideas>
+      <test ac="1">
+        <description>Verify createSession mutation creates OnboardingSession with status: started</description>
+        <approach>Execute GraphQL mutation, query DB for created session, assert status == 'started'</approach>
+      </test>
+      <test ac="2">
+        <description>Verify session ID format matches CUID with sess_ prefix</description>
+        <approach>Create session, extract ID from response, assert ID =~ /^sess_[a-z0-9]{25}$/</approach>
+      </test>
+      <test ac="3">
+        <description>Verify JWT token contains session_id and role: anonymous</description>
+        <approach>Create session, decode returned token, assert payload[:session_id] == session.id and payload[:role] == 'anonymous'</approach>
+      </test>
+      <test ac="4">
+        <description>Verify token expiration is 1 hour from creation</description>
+        <approach>Create session, decode token, assert (Time.at(payload[:exp]) - Time.at(payload[:iat])).round == 3600</approach>
+      </test>
+      <test ac="5">
+        <description>Verify session expiresAt is 24 hours from creation</description>
+        <approach>Create session, assert (session.expires_at - session.created_at).round / 3600 == 24</approach>
+      </test>
+      <test ac="6">
+        <description>Verify progress initialized as empty JSON object</description>
+        <approach>Create session, assert session.progress == {}</approach>
+      </test>
+      <test ac="7">
+        <description>Verify response structure includes session and token</description>
+        <approach>Execute mutation, assert response has keys: session (with id, status, createdAt) and token</approach>
+      </test>
+      <test ac="8">
+        <description>Verify session query works with valid token</description>
+        <approach>Create session with token, execute session query with Authorization header, assert returns session data</approach>
+      </test>
+      <test ac="9">
+        <description>Verify audit log entry created with action: SESSION_CREATED</description>
+        <approach>Create session, query AuditLog where resource_id == session.id, assert action == 'SESSION_CREATED' and resource == 'OnboardingSession'</approach>
+      </test>
+      <test ac="edge-case">
+        <description>Test session query with invalid token returns error</description>
+        <approach>Execute session query with malformed/expired token, assert error code == UNAUTHENTICATED</approach>
+      </test>
+      <test ac="edge-case">
+        <description>Test session query without token returns error</description>
+        <approach>Execute session query without Authorization header, assert error code == UNAUTHENTICATED</approach>
+      </test>
+      <test ac="configuration">
+        <description>Test SESSION_TOKEN_EXPIRATION_HOURS env var configures token expiration</description>
+        <approach>Set ENV['SESSION_TOKEN_EXPIRATION_HOURS'] = '2', create session, decode token, assert expiration is 2 hours</approach>
+      </test>
+    </ideas>
+  </tests>
+</story-context>

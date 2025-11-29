@@ -1,0 +1,25 @@
+DAYBREAK HEALTH
+================
+
+<% if @parent.first_name.present? %>
+Hi <%= @parent.first_name %>,
+<% else %>
+Hello,
+<% end %>
+
+We received a request to continue your Daybreak onboarding session.
+Click the link below to pick up right where you left off.
+
+Continue Your Onboarding:
+<%= @recovery_url %>
+
+IMPORTANT: This link will expire in <%= @expiration_minutes %> minutes for your security.
+
+If you didn't request this email, you can safely ignore it.
+
+---
+
+Daybreak Health
+Supporting families on their mental health journey
+
+If you have any questions, please contact us at support@daybreak.health

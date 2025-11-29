@@ -44,24 +44,24 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Session Lifecycle & Authentication (6 stories)
-  epic-2: backlog
-  2-1-create-anonymous-session: backlog
-  2-2-session-progress-and-state-management: backlog
-  2-3-session-recovery-and-multi-device-support: backlog
-  2-4-session-expiration-and-cleanup: backlog
-  2-5-explicit-session-abandonment: backlog
-  2-6-authentication-and-authorization-foundation: backlog
+  epic-2: contexted
+  2-1-create-anonymous-session: done
+  2-2-session-progress-and-state-management: review
+  2-3-session-recovery-and-multi-device-support: in-progress  # Blocked - critical bugs found in review
+  2-4-session-expiration-and-cleanup: review  # Review complete: CHANGES REQUESTED - 3 action items
+  2-5-explicit-session-abandonment: done
+  2-6-authentication-and-authorization-foundation: in-progress
   epic-2-retrospective: optional
 
   # Epic 3: Conversational AI Intake (7 stories)
   epic-3: backlog
-  3-1-conversational-ai-service-integration: backlog
-  3-2-adaptive-question-flow: backlog
-  3-3-help-and-off-topic-handling: backlog
-  3-4-progress-indicators: backlog
-  3-5-human-escalation-request: backlog
-  3-6-parent-information-collection: backlog
-  3-7-child-information-collection: backlog
+  3-1-conversational-ai-service-integration: ready-for-dev
+  3-2-adaptive-question-flow: ready-for-dev
+  3-3-help-and-off-topic-handling: ready-for-dev
+  3-4-progress-indicators: ready-for-dev
+  3-5-human-escalation-request: ready-for-dev
+  3-6-parent-information-collection: ready-for-dev
+  3-7-child-information-collection: ready-for-dev
   epic-3-retrospective: optional
 
   # Epic 4: Insurance Verification (6 stories)

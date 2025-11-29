@@ -1,0 +1,309 @@
+<story-context id="{bmad_folder}/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>4</storyId>
+    <title>Progress Indicators</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-4-progress-indicators.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a parent</asA>
+    <iWant>to see how far along I am in the onboarding process</iWant>
+    <soThat>I know how much longer it will take</soThat>
+    <tasks>
+- Task 1: Implement Progress Calculation Service (AC: 1, 7)
+  - Create app/services/conversation/progress_service.rb
+  - Define intake phases: Welcome, Parent Info, Child Info, Concerns, Insurance, Assessment
+  - Implement field tracking for each phase with required/completed counts
+  - Calculate percentage: (completed_required_fields / total_required_fields) * 100
+  - Ensure progress percentage never decreases (monotonic increase validation)
+  - Add RSpec tests for progress calculation edge cases
+
+- Task 2: Add Time Estimation with Adaptive Learning (AC: 3, 8)
+  - Store baseline average phase durations in config
+  - Track actual completion times per phase in session.progress JSONB
+  - Calculate estimated time: sum of (remaining phases' avg duration)
+  - Implement adaptive adjustment: update estimates based on user's actual pace
+  - Add estimatedMinutesRemaining field to progress calculation
+  - Test time estimation accuracy with sample data
+
+- Task 3: Create ProgressType GraphQL Type (AC: 1, 2, 4, 5)
+  - Create app/graphql/types/progress_type.rb
+  - Define fields: percentage, currentPhase, completedPhases, estimatedMinutesRemaining
+  - Add nextPhase field for preview
+  - Add progress field to OnboardingSessionType
+  - Implement resolver to call ProgressService.calculate(session)
+  - Add GraphQL query tests
+
+- Task 4: Implement Real-Time Progress Subscription (AC: 6)
+  - Create app/graphql/subscriptions/progress_updated.rb
+  - Subscribe by session_id with authorization check
+  - Trigger subscription on session progress updates
+  - Use Action Cable to broadcast progress changes
+  - Add subscription integration tests
+
+- Task 5: Update Session Progress Mutation (AC: 6)
+  - Modify Mutations::Sessions::UpdateProgress to calculate progress after update
+  - Trigger ProgressUpdated subscription with new progress data
+  - Ensure transaction integrity (DB update + subscription trigger)
+  - Add mutation tests verifying subscription trigger
+
+- Task 6: Configure Phase Definitions (AC: 2, 4, 5)
+  - Create config/initializers/onboarding_phases.rb
+  - Define phase order and required fields per phase
+  - Set baseline duration estimates per phase
+  - Make configuration admin-updatable (preparatory for FR41)
+
+- Task 7: Add Redis Caching (AC: 1, 3)
+  - Cache progress calculations in Redis (1 hour TTL)
+  - Invalidate cache on session progress update
+  - Ensure cache miss falls back to DB calculation
+  - Add cache tests
+
+- Task 8: Testing and Validation (AC: all)
+  - Test progress calculation for all phase transitions
+  - Verify monotonic progress (no backward movement)
+  - Test time estimation adapts to user pace
+  - Integration test: complete full intake flow, verify progress updates
+  - Test subscription broadcasts correctly
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Given conversation is in progress When session progress is queried Then progress percentage is calculated from completed vs. required fields
+
+2. Given active session When progress is queried Then current phase is displayed (e.g., "Child Information")
+
+3. Given ongoing intake When progress is calculated Then estimated time remaining is based on average completion times
+
+4. Given multi-phase intake When viewing progress Then completed phases are shown as checkmarks
+
+5. Given current phase When progress includes preview Then next phase preview is available
+
+6. Given progress update occurs When subscribed to session Then progress updates in real-time via subscription
+
+7. Given any progress state When calculating percentage Then progress never goes backward (monotonic)
+
+8. Given user completing intake When measuring time Then time estimate adjusts based on actual progress rate
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR10 - Progress Indicators</section>
+        <snippet>FR10: AI provides progress indicators and estimated time remaining. Parents need visibility into onboarding progress to feel in control and understand time commitment.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Real-Time: GraphQL Subscriptions</section>
+        <snippet>GraphQL subscriptions via Action Cable for real-time updates. Session progress stored in progress JSONB field on OnboardingSession with Redis caching (1 hour TTL).</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 3 - Conversational AI Intake</title>
+        <section>Story 3.4 - Progress Indicators</section>
+        <snippet>Progress percentage calculated from completed vs required fields, current phase display, estimated time based on averages, completed phases as checkmarks, real-time subscription updates. Progress never goes backward (monotonic).</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Session Progress & State Management</section>
+        <snippet>Session progress stored in JSONB: { currentStep, completedSteps[], intake: {}, insurance: {}, assessment: {} }. Redis cache with 1-hour TTL for performance. Progress updates trigger sessionUpdated subscription.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-141</lines>
+        <reason>Core session model with progress JSONB field and state machine. Progress indicators will be calculated from this model's progress data and status.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/onboarding_session_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>OnboardingSessionType</symbol>
+        <lines>1-21</lines>
+        <reason>GraphQL type for OnboardingSession. Progress field will be added to expose calculated progress indicators to clients.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/mutations/sessions/update_session_progress.rb</path>
+        <kind>graphql_mutation</kind>
+        <symbol>UpdateSessionProgress</symbol>
+        <lines>1-98</lines>
+        <reason>Existing mutation that updates session progress. Will be modified to trigger progress calculation and subscription for AC6.</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/sessions/progress_merger.rb</path>
+        <kind>service</kind>
+        <symbol>ProgressMerger</symbol>
+        <lines>1-38</lines>
+        <reason>Service that merges progress data. Reference for understanding how progress data is structured and updated.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/subscriptions/session_updated.rb</path>
+        <kind>graphql_subscription</kind>
+        <symbol>SessionUpdated</symbol>
+        <lines>N/A</lines>
+        <reason>Existing subscription for session updates. Will be used to broadcast progress updates in real-time for AC6.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <gem name="graphql" version="~> 2.x">GraphQL server implementation</gem>
+        <gem name="redis" version="~> 5.0">Cache backend for progress calculations</gem>
+        <gem name="action_cable_redis_backplane" version="~> 1.0">Action Cable broadcasting via Redis</gem>
+      </ruby>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Progress calculation must use session.progress JSONB field structure: { currentStep, completedSteps[], intake: {}, phaseTimings: {} }</constraint>
+    <constraint>Progress percentage must be monotonic (never decrease) by tracking last_percentage in progress JSONB</constraint>
+    <constraint>Cache progress calculations in Redis with 1-hour TTL per architecture pattern</constraint>
+    <constraint>Use GraphQL subscription (sessionUpdated) for real-time progress updates via Action Cable</constraint>
+    <constraint>Phase definitions stored in config/initializers/onboarding_phases.rb per Dev Notes</constraint>
+    <constraint>ProgressService must follow Rails service pattern in app/services/conversation/ namespace</constraint>
+    <constraint>ProgressType must follow GraphQL type naming: Types::ProgressType with camelCase fields</constraint>
+    <constraint>All tests use RSpec per architecture (spec/services/, spec/graphql/)</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>ProgressType GraphQL Type</name>
+      <kind>GraphQL Type</kind>
+      <signature>
+type ProgressType {
+  percentage: Int!
+  currentPhase: String!
+  completedPhases: [String!]!
+  nextPhase: String
+  estimatedMinutesRemaining: Int!
+}
+      </signature>
+      <path>app/graphql/types/progress_type.rb</path>
+    </interface>
+    <interface>
+      <name>OnboardingSessionType.progress</name>
+      <kind>GraphQL Field</kind>
+      <signature>field :progress, Types::ProgressType, null: false, description: "Calculated progress indicators"</signature>
+      <path>app/graphql/types/onboarding_session_type.rb</path>
+    </interface>
+    <interface>
+      <name>ProgressService.calculate</name>
+      <kind>Service Method</kind>
+      <signature>
+def calculate(session)
+  {
+    percentage: Integer (0-100),
+    current_phase: String,
+    completed_phases: Array[String],
+    next_phase: String|nil,
+    estimated_minutes_remaining: Integer
+  }
+end
+      </signature>
+      <path>app/services/conversation/progress_service.rb</path>
+    </interface>
+    <interface>
+      <name>ProgressUpdated GraphQL Subscription</name>
+      <kind>GraphQL Subscription</kind>
+      <signature>
+subscription progressUpdated($sessionId: ID!) {
+  progressUpdated(sessionId: $sessionId) {
+    percentage
+    currentPhase
+    completedPhases
+    nextPhase
+    estimatedMinutesRemaining
+  }
+}
+      </signature>
+      <path>app/graphql/subscriptions/progress_updated.rb</path>
+    </interface>
+    <interface>
+      <name>ONBOARDING_PHASES Configuration</name>
+      <kind>Ruby Constant</kind>
+      <signature>
+ONBOARDING_PHASES = {
+  welcome: { required_fields: 0, baseline_minutes: 1 },
+  parent_info: { required_fields: 6, baseline_minutes: 2 },
+  child_info: { required_fields: 4, baseline_minutes: 3 },
+  concerns: { required_fields: 1, baseline_minutes: 2 },
+  insurance: { required_fields: 3, baseline_minutes: 4 },
+  assessment: { required_fields: nil, baseline_minutes: 5 }
+}.freeze
+      </signature>
+      <path>config/initializers/onboarding_phases.rb</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+This project uses RSpec for testing with the following standards:
+- Service specs in spec/services/ test business logic in isolation
+- GraphQL type specs in spec/graphql/types/ verify field definitions and resolvers
+- GraphQL subscription specs in spec/graphql/subscriptions/ test real-time broadcasting
+- Integration specs in spec/integration/ test full workflows
+- Use let() for test data setup, use factories for model creation
+- Test edge cases: empty data, missing fields, boundary values
+- Mock external dependencies (Redis, Action Cable) in unit tests
+- Use time helpers (freeze_time, travel_to) for time-based tests
+    </standards>
+    <locations>
+- spec/services/conversation/progress_service_spec.rb - Progress calculation service tests
+- spec/graphql/types/progress_type_spec.rb - ProgressType structure and field tests
+- spec/graphql/subscriptions/progress_updated_spec.rb - Real-time subscription tests
+- spec/integration/progress_indicators_spec.rb - Full intake flow with progress tracking
+- spec/graphql/types/onboarding_session_type_spec.rb - Updated to test progress field
+    </locations>
+    <ideas>
+**AC1 - Progress percentage calculation:**
+- Test percentage = (completed_fields / total_required_fields) * 100
+- Test empty progress returns 0%
+- Test all fields completed returns 100%
+- Test partial completion returns correct percentage
+
+**AC2 - Current phase display:**
+- Test currentStep from session.progress maps to phase name
+- Test all valid phases (welcome, parent_info, child_info, concerns, insurance, assessment)
+- Test unknown phase returns safe default
+
+**AC3 - Time estimation from averages:**
+- Test baseline durations from ONBOARDING_PHASES config
+- Test sum of remaining phases' durations
+- Test estimation when no phases remain returns 0
+
+**AC4 - Completed phases as checkmarks:**
+- Test completedSteps array maps to completedPhases
+- Test phase order is preserved
+- Test duplicate phases are handled
+
+**AC5 - Next phase preview:**
+- Test nextPhase returns next phase in sequence
+- Test last phase returns nil for nextPhase
+- Test phase sequence: welcome → parent_info → child_info → concerns → insurance → assessment
+
+**AC6 - Real-time subscription updates:**
+- Test progressUpdated subscription triggered on UpdateSessionProgress mutation
+- Test subscription delivers progress data
+- Test subscription authorization (only session owner can subscribe)
+- Test multiple clients receive updates
+
+**AC7 - Monotonic progress:**
+- Test progress percentage never decreases
+- Test last_percentage tracking in progress JSONB
+- Test completed field removal doesn't decrease percentage
+
+**AC8 - Adaptive time estimation:**
+- Test actual completion times stored in phaseTimings
+- Test faster pace reduces estimates
+- Test slower pace increases estimates
+- Test estimation adjusts based on user's actual vs baseline times
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,6 @@
+# Aptfile - Aptible platform dependencies and requirements
+# See: https://www.aptible.com/docs/aptfile
+
+# PostgreSQL 16.x database requirement
+# Aptible will provision a managed PostgreSQL 16 database instance
+postgresql-16

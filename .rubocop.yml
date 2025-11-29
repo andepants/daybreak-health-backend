@@ -1,0 +1,41 @@
+# Daybreak Health Backend RuboCop Configuration
+# Inherits from Omakase Ruby styling for Rails
+inherit_gem: { rubocop-rails-omakase: rubocop.yml }
+
+AllCops:
+  NewCops: enable
+  Exclude:
+    - 'db/schema.rb'
+    - 'db/migrate/**/*'
+    - 'bin/**/*'
+    - 'vendor/**/*'
+    - 'node_modules/**/*'
+    - 'tmp/**/*'
+    - 'log/**/*'
+
+# Naming conventions
+Naming/FileName:
+  Enabled: true
+  ExpectMatchingDefinition: true
+  CheckDefinitionPathHierarchy: true
+  Regex: !ruby/regexp /^[a-z][a-z0-9_]*\.rb$/
+
+# Rails-specific cops
+Rails/I18nLocaleTexts:
+  Enabled: false
+
+# Style preferences
+Style/Documentation:
+  Enabled: false  # Will enable after Epic 1
+
+# Metrics - be reasonable but not overly restrictive during initial development
+Metrics/MethodLength:
+  Max: 25
+
+Metrics/ClassLength:
+  Max: 150
+
+Metrics/BlockLength:
+  Exclude:
+    - 'config/**/*'
+    - 'spec/**/*'

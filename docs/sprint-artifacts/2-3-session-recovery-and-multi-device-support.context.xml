@@ -1,0 +1,297 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>3</storyId>
+    <title>Session Recovery & Multi-Device Support</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-3-session-recovery-and-multi-device-support.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a parent</asA>
+    <iWant>to resume my session from a different device</iWant>
+    <soThat>I can start on my phone and finish on my computer</soThat>
+    <tasks>
+      <task id="1" title="Implement recovery token storage in Redis" acs="2.3.1, 2.3.2, 2.3.6">
+        <subtask id="1.1">Create Auth::RecoveryTokenService in app/services/auth/recovery_token_service.rb</subtask>
+        <subtask id="1.2">Implement generate_recovery_token(session_id, email) returning secure random token</subtask>
+        <subtask id="1.3">Store token in Redis with 15-minute TTL using key pattern recovery:#{token}</subtask>
+        <subtask id="1.4">Implement validate_recovery_token(token) returning session_id or nil</subtask>
+        <subtask id="1.5">Implement one-time-use by deleting token on successful validation</subtask>
+        <subtask id="1.6">Add rate limiting: max 3 recovery requests per hour per email</subtask>
+      </task>
+      <task id="2" title="Create GraphQL mutation requestSessionRecovery" acs="2.3.1">
+        <subtask id="2.1">Create mutation type in app/graphql/mutations/sessions/request_recovery.rb</subtask>
+        <subtask id="2.2">Define input: sessionId: ID! (requires authenticated session token)</subtask>
+        <subtask id="2.3">Validate parent email exists on session (raise error if not collected yet)</subtask>
+        <subtask id="2.4">Generate recovery token via Auth::RecoveryTokenService</subtask>
+        <subtask id="2.5">Call email service to send magic link email</subtask>
+        <subtask id="2.6">Return success response with message "Recovery link sent to your email"</subtask>
+        <subtask id="2.7">Handle rate limit exceeded error gracefully</subtask>
+      </task>
+      <task id="3" title="Create GraphQL query sessionByRecoveryToken" acs="2.3.3, 2.3.4, 2.3.7">
+        <subtask id="3.1">Create query type in app/graphql/queries/sessions/session_by_recovery_token.rb</subtask>
+        <subtask id="3.2">Define input: recoveryToken: String! (no auth required)</subtask>
+        <subtask id="3.3">Validate recovery token via Auth::RecoveryTokenService</subtask>
+        <subtask id="3.4">Fetch session by ID returned from token validation</subtask>
+        <subtask id="3.5">Verify session is not expired or abandoned</subtask>
+        <subtask id="3.6">Generate new JWT token for session using Auth::JwtService</subtask>
+        <subtask id="3.7">Return session data with full progress and new token</subtask>
+        <subtask id="3.8">Return proper error if token invalid/expired</subtask>
+      </task>
+      <task id="4" title="Implement audit logging for session recovery" acs="2.3.8">
+        <subtask id="4.1">Add create_audit_log call in sessionByRecoveryToken resolver</subtask>
+        <subtask id="4.2">Log action SESSION_RECOVERED with session_id</subtask>
+        <subtask id="4.3">Capture device info from GraphQL context (User-Agent header)</subtask>
+        <subtask id="4.4">Capture IP address from GraphQL context</subtask>
+        <subtask id="4.5">Store details as JSON: { device: userAgent, ip: ipAddress }</subtask>
+        <subtask id="4.6">Ensure PHI-safe logging (no email in logs)</subtask>
+      </task>
+      <task id="5" title="Implement email template for recovery link" acs="2.3.1">
+        <subtask id="5.1">Create email template in app/views/parent_mailer/session_recovery.html.erb</subtask>
+        <subtask id="5.2">Template subject: "Continue your Daybreak onboarding"</subtask>
+        <subtask id="5.3">Template body includes personalized greeting (if name collected)</subtask>
+        <subtask id="5.4">Template includes magic link with recovery token as URL param</subtask>
+        <subtask id="5.5">Template includes expiration notice (15 minutes)</subtask>
+        <subtask id="5.6">Create text version in session_recovery.text.erb</subtask>
+        <subtask id="5.7">Add mailer method in app/mailers/parent_mailer.rb</subtask>
+      </task>
+      <task id="6" title="Verify multi-device support - no token invalidation" acs="2.3.5">
+        <subtask id="6.1">Review Auth::JwtService to ensure no token revocation on recovery</subtask>
+        <subtask id="6.2">Document design decision: multiple active tokens allowed per session</subtask>
+        <subtask id="6.3">Add comment explaining security trade-off vs UX benefit</subtask>
+        <subtask id="6.4">Ensure session expiration still applies globally regardless of tokens</subtask>
+      </task>
+      <task id="7" title="Write RSpec tests for recovery flow">
+        <subtask id="7.1">Create spec/services/auth/recovery_token_service_spec.rb</subtask>
+        <subtask id="7.2">Test token generation creates Redis entry with TTL</subtask>
+        <subtask id="7.3">Test token validation returns correct session_id</subtask>
+        <subtask id="7.4">Test token is deleted after successful validation (one-time use)</subtask>
+        <subtask id="7.5">Test expired token returns nil</subtask>
+        <subtask id="7.6">Test rate limiting blocks 4th request within hour</subtask>
+        <subtask id="7.7">Create spec/graphql/mutations/sessions/request_recovery_spec.rb</subtask>
+        <subtask id="7.8">Test mutation sends email when parent email exists</subtask>
+        <subtask id="7.9">Test mutation fails when parent email not collected</subtask>
+        <subtask id="7.10">Test mutation respects rate limits</subtask>
+        <subtask id="7.11">Create spec/graphql/queries/sessions/session_by_recovery_token_spec.rb</subtask>
+        <subtask id="7.12">Test query returns session with valid token</subtask>
+        <subtask id="7.13">Test query returns error with invalid token</subtask>
+        <subtask id="7.14">Test query creates audit log entry</subtask>
+        <subtask id="7.15">Test query issues new JWT token</subtask>
+        <subtask id="7.16">Create spec/mailers/parent_mailer_spec.rb for recovery email</subtask>
+        <subtask id="7.17">Test email subject and body content</subtask>
+        <subtask id="7.18">Test magic link URL format</subtask>
+      </task>
+      <task id="8" title="Integration testing">
+        <subtask id="8.1">Create spec/requests/session_recovery_flow_spec.rb</subtask>
+        <subtask id="8.2">Test full flow: create session → collect email → request recovery → use token</subtask>
+        <subtask id="8.3">Test token cannot be reused (one-time use)</subtask>
+        <subtask id="8.4">Test expired token (advance time 16 minutes)</subtask>
+        <subtask id="8.5">Test recovery from different device (different User-Agent)</subtask>
+        <subtask id="8.6">Test multiple active devices simultaneously</subtask>
+        <subtask id="8.7">Test rate limiting across multiple recovery requests</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="2.3.1">requestSessionRecovery mutation sends magic link to email</criterion>
+    <criterion id="2.3.2">Magic link contains time-limited token (15 minutes)</criterion>
+    <criterion id="2.3.3">sessionByRecoveryToken query validates token and returns session</criterion>
+    <criterion id="2.3.4">New JWT issued for recovered session</criterion>
+    <criterion id="2.3.5">Previous tokens for this session are NOT invalidated (allow multiple devices)</criterion>
+    <criterion id="2.3.6">Recovery link works only once</criterion>
+    <criterion id="2.3.7">Parent can continue from exact progress point</criterion>
+    <criterion id="2.3.8">Audit log: action: SESSION_RECOVERED, details: { device, ip }</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/prd.md" title="Product Requirements Document" section="Session Management">
+        <snippet>FR2: Parents can resume an in-progress session from any device using session recovery. FR3: System automatically saves progress after each interaction. Sessions expire after configurable period of inactivity with data retention.</snippet>
+      </artifact>
+      <artifact path="docs/architecture.md" title="Architecture Document" section="Authentication & Authorization">
+        <snippet>Authentication Flow: Anonymous session created at onboarding start. Session recovery via magic link sent to email. Token exchanged for new JWT. Multi-device support allows concurrent active tokens.</snippet>
+      </artifact>
+      <artifact path="docs/architecture.md" title="Architecture Document" section="JWT Service">
+        <snippet>JWT tokens use HS256 algorithm with 1-hour expiry. Tokens include session_id and role claims. Service provides encode/decode with expiration handling. All tokens include iat and exp claims.</snippet>
+      </artifact>
+      <artifact path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Session Recovery Flow">
+        <snippet>Recovery flow: requestSessionRecovery mutation → Find session by parent email → Generate recovery token (store in Redis, 15min TTL) → Send email with magic link → Create AuditLog. Parent clicks link → recoverSession mutation → Validate recovery token → Delete token (one-time use) → Generate new JWT → Create AuditLog with device/ip.</snippet>
+      </artifact>
+      <artifact path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Security">
+        <snippet>Recovery token expiry: 15 minutes. Rate limiting: 3 recovery requests per hour per email. PHI encryption: Rails 7 encryption (AES-256-GCM). All session operations logged to audit trail.</snippet>
+      </artifact>
+      <artifact path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Multi-Device Philosophy">
+        <snippet>Allow multiple concurrent devices for UX benefit. Previous tokens NOT invalidated on recovery. Rely on session expiration for security. Session expiration applies globally regardless of number of active tokens.</snippet>
+      </artifact>
+    </docs>
+    <code>
+      <artifact path="app/services/auth/jwt_service.rb" kind="service" symbol="Auth::JwtService" lines="1-114" reason="Provides JWT token generation and validation used for issuing new tokens after session recovery">
+        <interface>
+          encode(payload, exp: 1.hour.from_now) → String
+          decode(token) → HashWithIndifferentAccess | nil
+          valid?(token) → Boolean
+        </interface>
+      </artifact>
+      <artifact path="app/services/auth/token_service.rb" kind="service" symbol="Auth::TokenService" lines="1-149" reason="Pattern for secure token generation and Redis storage - reference for building RecoveryTokenService">
+        <interface>
+          generate_refresh_token(session) → String
+          validate_refresh_token(token) → OnboardingSession | nil
+          invalidate_token(token) → Boolean
+        </interface>
+      </artifact>
+      <artifact path="app/models/onboarding_session.rb" kind="model" symbol="OnboardingSession" lines="1-30" reason="Session model with status enum and associations needed for recovery validation">
+        <interface>
+          Status enum: started, in_progress, insurance_pending, assessment_complete, submitted, abandoned, expired
+          Associations: has_one :parent (required for email lookup)
+          Scopes: active (excludes expired/abandoned sessions)
+        </interface>
+      </artifact>
+      <artifact path="app/models/parent.rb" kind="model" symbol="Parent" lines="1-20" reason="Parent model with encrypted email field required for recovery email lookup">
+        <interface>
+          Encrypted fields: email, phone, first_name, last_name
+          Validation: email presence and format
+          belongs_to :onboarding_session
+        </interface>
+      </artifact>
+      <artifact path="app/models/audit_log.rb" kind="model" symbol="AuditLog" lines="1-14" reason="Audit logging model for SESSION_RECOVERED events">
+        <interface>
+          Fields: action, resource, resource_id, details (jsonb), ip_address, user_agent
+          Associations: belongs_to :onboarding_session (optional)
+        </interface>
+      </artifact>
+      <artifact path="app/mailers/application_mailer.rb" kind="mailer" symbol="ApplicationMailer" lines="1-4" reason="Base mailer class for creating ParentMailer subclass">
+        <interface>
+          Base class for all mailers
+          Default from: "from@example.com" (to be configured)
+          Layout: "mailer"
+        </interface>
+      </artifact>
+      <artifact path="app/graphql/concerns/current_session.rb" kind="concern" symbol="Concerns::CurrentSession" lines="1-131" reason="GraphQL helper for accessing current session and user context in resolvers">
+        <interface>
+          current_session → OnboardingSession | nil
+          current_user → Hash | nil
+          require_session! → raises GraphQL::ExecutionError if no session
+          authenticated? → Boolean
+        </interface>
+      </artifact>
+      <artifact path="config/initializers/redis.rb" kind="config" symbol="Redis configuration" lines="1-11" reason="Redis setup for recovery token storage - uses REDIS_URL environment variable">
+        <note>Redis.new(url: redis_url) pattern for creating connections</note>
+      </artifact>
+      <artifact path="config/initializers/encryption.rb" kind="config" symbol="PHI Encryption" lines="1-17" reason="Rails 7 Active Record encryption configuration for PHI fields">
+        <note>Encryption keys managed through Rails credentials, used by Parent model for email encryption</note>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby version="3.3.x">Core language runtime</ruby>
+      <rails version="7.2.3">Framework with built-in encryption</rails>
+      <postgresql version="16.x">Database with jsonb support for audit details</postgresql>
+      <redis version="5.0+">Cache and token storage with TTL support</redis>
+      <gems>
+        <gem name="jwt" version="~> 2.7">JWT token encoding/decoding</gem>
+        <gem name="bcrypt" version="~> 3.1.7">Token hashing (if needed)</gem>
+        <gem name="redis" version="~> 5.0">Redis client for token storage</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL API framework</gem>
+        <gem name="pundit" version="~> 2.3">Authorization policies</gem>
+        <gem name="sidekiq" version="~> 7.2">Background jobs (for async email)</gem>
+      </gems>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="security">Recovery tokens must be cryptographically secure random strings (32 bytes, hex-encoded)</constraint>
+    <constraint type="security">Tokens stored in Redis with automatic 15-minute expiration via TTL</constraint>
+    <constraint type="security">Rate limiting: max 3 recovery requests per hour per email using Redis counters</constraint>
+    <constraint type="security">One-time use: token deleted from Redis immediately after successful validation</constraint>
+    <constraint type="architecture">Use existing Auth::TokenService pattern for token generation and Redis storage</constraint>
+    <constraint type="architecture">Follow GraphQL mutation pattern: app/graphql/mutations/sessions/request_recovery.rb</constraint>
+    <constraint type="architecture">Follow GraphQL query pattern: app/graphql/queries/sessions/session_by_recovery_token.rb</constraint>
+    <constraint type="architecture">Email service dependency on Epic 6 Story 6.1 - can mock for now</constraint>
+    <constraint type="multi-device">Multiple JWT tokens allowed per session - do NOT invalidate existing tokens on recovery</constraint>
+    <constraint type="multi-device">Session expiration applies globally regardless of number of active tokens</constraint>
+    <constraint type="audit">All recovery attempts (success and failure) must be logged with device and IP</constraint>
+    <constraint type="phi">Never log parent email in application logs - use session_id only</constraint>
+    <constraint type="testing">RSpec test pattern follows existing spec structure in spec/services/auth/</constraint>
+    <constraint type="testing">Integration tests must verify full flow including Redis TTL and one-time use</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="Auth::RecoveryTokenService.generate_recovery_token" kind="service method" signature="generate_recovery_token(session_id:, email:) → String" path="app/services/auth/recovery_token_service.rb">
+      <description>Generate recovery token and store in Redis with 15-min TTL. Check rate limit before generation.</description>
+    </interface>
+    <interface name="Auth::RecoveryTokenService.validate_recovery_token" kind="service method" signature="validate_recovery_token(token:) → String | nil" path="app/services/auth/recovery_token_service.rb">
+      <description>Validate token exists in Redis and return session_id. Delete token after successful validation (one-time use).</description>
+    </interface>
+    <interface name="Auth::RecoveryTokenService.check_rate_limit" kind="service method" signature="check_rate_limit(email:) → Boolean" path="app/services/auth/recovery_token_service.rb">
+      <description>Check if email has exceeded 3 recovery requests in last hour using Redis counter.</description>
+    </interface>
+    <interface name="requestSessionRecovery" kind="GraphQL mutation" signature="requestSessionRecovery(sessionId: ID!): RequestRecoveryPayload!" path="app/graphql/mutations/sessions/request_recovery.rb">
+      <description>Mutation to request session recovery magic link. Requires authenticated session token. Returns success message.</description>
+      <input>sessionId: ID! (current session requiring recovery)</input>
+      <output>success: Boolean!, message: String!</output>
+    </interface>
+    <interface name="sessionByRecoveryToken" kind="GraphQL query" signature="sessionByRecoveryToken(recoveryToken: String!): RecoveredSessionPayload!" path="app/graphql/queries/sessions/session_by_recovery_token.rb">
+      <description>Query to recover session using magic link token. No auth required. Returns session and new JWT.</description>
+      <input>recoveryToken: String! (token from email link)</input>
+      <output>session: OnboardingSession!, token: String!, refreshToken: String!</output>
+    </interface>
+    <interface name="ParentMailer.session_recovery" kind="mailer method" signature="session_recovery(parent:, recovery_url:)" path="app/mailers/parent_mailer.rb">
+      <description>Send recovery email with magic link to parent's email address.</description>
+      <input>parent: Parent (for email address and name), recovery_url: String (magic link with token)</input>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      RSpec 6.1 test framework with FactoryBot for fixtures and Shoulda Matchers for model testing. Test files located in spec/ directory mirroring app/ structure. Service specs in spec/services/, GraphQL specs in spec/graphql/, mailer specs in spec/mailers/, integration specs in spec/requests/. Use let blocks for setup, describe/context for organization, expect syntax for assertions. Mock external services (Redis, email) in unit tests, use real services in integration tests.
+    </standards>
+    <locations>
+      <location>spec/services/auth/recovery_token_service_spec.rb</location>
+      <location>spec/graphql/mutations/sessions/request_recovery_spec.rb</location>
+      <location>spec/graphql/queries/sessions/session_by_recovery_token_spec.rb</location>
+      <location>spec/mailers/parent_mailer_spec.rb</location>
+      <location>spec/requests/session_recovery_flow_spec.rb</location>
+    </locations>
+    <ideas>
+      <test-idea ac="2.3.1" desc="Test RecoveryTokenService generates token and stores in Redis with 15-min TTL">
+        Verify Redis.setex called with correct key pattern and TTL value
+      </test-idea>
+      <test-idea ac="2.3.2" desc="Test recovery token has 15-minute expiration">
+        Generate token, verify Redis TTL, advance time 16 minutes, verify token expired
+      </test-idea>
+      <test-idea ac="2.3.3" desc="Test sessionByRecoveryToken validates token and returns session">
+        Create session with parent, generate recovery token, query with token, verify session returned
+      </test-idea>
+      <test-idea ac="2.3.4" desc="Test new JWT issued for recovered session">
+        Recover session, decode JWT, verify session_id and role in payload
+      </test-idea>
+      <test-idea ac="2.3.5" desc="Test previous tokens NOT invalidated">
+        Create session, get token1, recover session, get token2, verify both tokens work
+      </test-idea>
+      <test-idea ac="2.3.6" desc="Test recovery link one-time use">
+        Generate recovery token, use once successfully, attempt second use, verify fails
+      </test-idea>
+      <test-idea ac="2.3.7" desc="Test parent can continue from exact progress">
+        Create session with progress, recover session, verify progress preserved
+      </test-idea>
+      <test-idea ac="2.3.8" desc="Test audit log captures device and IP">
+        Recover session with specific User-Agent and IP, verify audit log contains details
+      </test-idea>
+      <test-idea ac="2.3.1" desc="Test rate limiting blocks 4th recovery request">
+        Request recovery 3 times, verify success; request 4th time, verify rate limit error
+      </test-idea>
+      <test-idea ac="2.3.1" desc="Test requestSessionRecovery fails when parent email not collected">
+        Create session without parent, attempt recovery, verify error message
+      </test-idea>
+      <test-idea ac="integration" desc="Test full recovery flow end-to-end">
+        Create session → collect parent email → request recovery → verify email sent → extract token from email → recover session → verify continuation
+      </test-idea>
+      <test-idea ac="multi-device" desc="Test multiple devices can access session simultaneously">
+        Create session on device1, recover on device2, make updates from both devices, verify both work
+      </test-idea>
+    </ideas>
+  </tests>
+</story-context>

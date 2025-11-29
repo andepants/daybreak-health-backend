@@ -1,0 +1,236 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>6</storyId>
+    <title>Authentication & Authorization Foundation</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-6-authentication-and-authorization-foundation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>JWT authentication and role-based access control implemented</iWant>
+    <soThat>all endpoints are properly secured per HIPAA requirements</soThat>
+    <tasks>
+      <task id="1" description="Implement refresh token management" acs="2.6.2">
+        <subtask id="1.1">Create RefreshToken model with device fingerprint</subtask>
+        <subtask id="1.2">Create migration for refresh_tokens table with indexes</subtask>
+        <subtask id="1.3">Add relationship to OnboardingSession model</subtask>
+        <subtask id="1.4">Implement token generation in Auth::TokenService</subtask>
+        <subtask id="1.5">Implement token validation with expiration check</subtask>
+        <subtask id="1.6">Implement token rotation (invalidate old token on refresh)</subtask>
+        <subtask id="1.7">Write RSpec tests for RefreshToken model and service</subtask>
+      </task>
+      <task id="2" description="Define role enum and implement role-based logic" acs="2.6.3">
+        <subtask id="2.1">Add role enum to User/Session model (anonymous, parent, coordinator, admin, system)</subtask>
+        <subtask id="2.2">Update JWT payload to include role claim</subtask>
+        <subtask id="2.3">Create CurrentUser/CurrentSession concern for role checking</subtask>
+        <subtask id="2.4">Add helper methods: anonymous?, parent?, coordinator?, admin?, system?</subtask>
+        <subtask id="2.5">Write RSpec tests for role enum and helper methods</subtask>
+      </task>
+      <task id="3" description="Implement GraphQL authorization with Pundit" acs="2.6.4">
+        <subtask id="3.1">Add Pundit to GraphQL base mutation and query classes</subtask>
+        <subtask id="3.2">Create SessionPolicy with permission methods</subtask>
+        <subtask id="3.3">Create ParentPolicy with PHI access rules</subtask>
+        <subtask id="3.4">Create ChildPolicy with PHI access rules</subtask>
+        <subtask id="3.5">Create InsurancePolicy with PHI access rules</subtask>
+        <subtask id="3.6">Create AssessmentPolicy with PHI access rules</subtask>
+        <subtask id="3.7">Implement authorize! checks in GraphQL mutations</subtask>
+        <subtask id="3.8">Write RSpec tests for all policies</subtask>
+      </task>
+      <task id="4" description="Implement rate limiting middleware" acs="2.6.5">
+        <subtask id="4.1">Create RateLimiter middleware using Redis</subtask>
+        <subtask id="4.2">Implement anonymous user rate limit (100/min)</subtask>
+        <subtask id="4.3">Implement authenticated user rate limit (1000/min)</subtask>
+        <subtask id="4.4">Add rate limit headers to responses</subtask>
+        <subtask id="4.5">Return RATE_LIMITED error when threshold exceeded</subtask>
+        <subtask id="4.6">Add rate limiter to Rack middleware stack</subtask>
+        <subtask id="4.7">Write RSpec tests for rate limiting</subtask>
+      </task>
+      <task id="5" description="Verify PHI encryption implementation" acs="2.6.6, 2.6.7">
+        <subtask id="5.1">Audit all PHI fields across models for encryption</subtask>
+        <subtask id="5.2">Verify Encryptable concern uses AES-256-GCM (Rails default)</subtask>
+        <subtask id="5.3">Verify encryption keys in Rails credentials</subtask>
+        <subtask id="5.4">Document key rotation procedure</subtask>
+        <subtask id="5.5">Add encryption verification tests</subtask>
+        <subtask id="5.6">Test encryption key fallback for local development</subtask>
+      </task>
+      <task id="6" description="Implement authentication error handling" acs="2.6.8, 2.6.9">
+        <subtask id="6.1">Create AuthenticationError class extending base GraphQL error</subtask>
+        <subtask id="6.2">Create ForbiddenError class extending base GraphQL error</subtask>
+        <subtask id="6.3">Update error codes constants with UNAUTHENTICATED and FORBIDDEN</subtask>
+        <subtask id="6.4">Add error formatter to GraphQL schema</subtask>
+        <subtask id="6.5">Implement rescue_from handlers in GraphQL context</subtask>
+        <subtask id="6.6">Write RSpec tests for error responses</subtask>
+      </task>
+      <task id="7" description="Implement authentication audit logging" acs="2.6.10">
+        <subtask id="7.1">Extend Auditable concern to capture auth events</subtask>
+        <subtask id="7.2">Log successful JWT creation with session_id</subtask>
+        <subtask id="7.3">Log failed authentication attempts with reason</subtask>
+        <subtask id="7.4">Log refresh token generation and rotation</subtask>
+        <subtask id="7.5">Log authorization failures (403) with attempted action</subtask>
+        <subtask id="7.6">Ensure audit logs include IP address and user agent</subtask>
+        <subtask id="7.7">Write RSpec tests for audit trail creation</subtask>
+      </task>
+      <task id="8" description="Integration testing" acs="all">
+        <subtask id="8.1">Create GraphQL request spec for authenticated queries</subtask>
+        <subtask id="8.2">Create GraphQL request spec for unauthorized access</subtask>
+        <subtask id="8.3">Create GraphQL request spec for forbidden access</subtask>
+        <subtask id="8.4">Create integration test for token refresh flow</subtask>
+        <subtask id="8.5">Create integration test for rate limiting</subtask>
+        <subtask id="8.6">Test PHI encryption end-to-end</subtask>
+        <subtask id="8.7">Test audit logging for all auth events</subtask>
+        <subtask id="8.8">Ensure all tests pass and achieve >90% coverage</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="2.6.1">JWT validation using RS256 algorithm with proper secret management</criterion>
+    <criterion id="2.6.2">Token refresh mechanism with 7-day refresh tokens stored securely</criterion>
+    <criterion id="2.6.3">Roles defined: anonymous, parent, coordinator, admin, system</criterion>
+    <criterion id="2.6.4">Pundit policies enforce role-based permission checks</criterion>
+    <criterion id="2.6.5">Rate limiting: 100 requests/minute for anonymous, 1000 for authenticated</criterion>
+    <criterion id="2.6.6">All PHI fields encrypted at rest using AES-256-GCM via Rails encryption</criterion>
+    <criterion id="2.6.7">Encryption keys managed via Rails credentials (or env for local dev)</criterion>
+    <criterion id="2.6.8">Unauthorized requests return UNAUTHENTICATED (401) error</criterion>
+    <criterion id="2.6.9">Forbidden requests return FORBIDDEN (403) error</criterion>
+    <criterion id="2.6.10">Audit log captures all authentication events</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Security Architecture">
+        JWT Algorithm: RS256 (asymmetric) for production security (upgrade from Story 1.3 HS256). Token Expiration: Access tokens 1 hour, refresh tokens 7 days. Refresh Token Storage: Database with device fingerprint for tracking.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Refresh Token Database Schema">
+        Schema includes: onboarding_session ref, token_hash (bcrypt), device_fingerprint, ip_address, user_agent, expires_at, revoked_at timestamps. Security: Store bcrypt hash of token not plaintext, revoked tokens marked with timestamp.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Rate Limiting Strategy">
+        Redis-based sliding window (60 sec). Limits: anonymous 100 req/min, authenticated 1000 req/min, system unlimited. Response headers: X-RateLimit-Limit/Remaining/Reset.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Role-Based Access Control">
+        Roles: anonymous (create session, read own), parent (CRUD own session), coordinator (read assigned), admin (read/update all), system (full access). Pundit policies enforce checks.
+      </doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Encryption Key Management">
+        Rails 7 encryption with AES-256-GCM. Keys in Rails credentials (encrypted with master key). RSA keys for JWT: private key in credentials, public key in config. Development fallback via ENV vars.
+      </doc>
+      <doc path="docs/architecture.md" title="System Architecture" section="Security Architecture">
+        JWT validation using HS256 algorithm with Rails.application.credentials.jwt_secret. All PHI encrypted at rest using Rails 7 encryption. Rate limiting on all endpoints. Role-based access via Pundit.
+      </doc>
+      <doc path="docs/architecture.md" title="System Architecture" section="JWT Service Pattern">
+        Auth::JwtService handles encode/decode with SECRET from credentials. Algorithm: HS256 (to be upgraded to RS256 in Story 2.6). Payload includes: exp, iat, session_id, role claims.
+      </doc>
+      <doc path="docs/prd.md" title="Product Requirements" section="HIPAA Compliance">
+        PHI Encryption at Rest: AES-256. Access Controls: Role-based with minimum necessary. Audit Logging: Complete trail of all PHI access. All services require BAAs.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="app/services/auth/token_service.rb" kind="service" symbol="Auth::TokenService" lines="1-148" reason="Existing refresh token management using Redis, needs enhancement for database-backed tokens with device tracking">
+        Current implementation: Redis-only with 7-day expiration, one-time use tokens, cryptographically secure generation. Needs: Migration to database model with device_fingerprint, IP tracking, revocation support.
+      </artifact>
+      <artifact path="app/policies/application_policy.rb" kind="policy" symbol="ApplicationPolicy" lines="1-61" reason="Base Pundit policy with default deny-all approach, foundation for role-based authorization">
+        Provides base structure for all policies. Implements: index, show, create, update, destroy methods (all default to false). Includes Scope class for scoped queries.
+      </artifact>
+      <artifact path="app/policies/onboarding_session_policy.rb" kind="policy" symbol="OnboardingSessionPolicy" lines="1-86" reason="Existing session authorization, needs role-based enhancement">
+        Current rules: create (allow all), show/update (session owner only), destroy (deny). Ownership via session_id claim in JWT. Needs: Role-based rules for coordinator, admin, system roles.
+      </artifact>
+      <artifact path="app/models/onboarding_session.rb" kind="model" symbol="OnboardingSession" lines="1-30" reason="Core session model, needs role enum addition">
+        Has status enum, associations to parent/child/insurance/assessment/messages/audit_logs. Scopes: active, expiring_soon. Needs: Role enum or role field for RBAC.
+      </artifact>
+      <artifact path="app/models/concerns/encryptable.rb" kind="concern" symbol="Encryptable" lines="1-13" reason="PHI encryption concern, already implements AES-256-GCM via Rails encryption">
+        Class method encrypts_phi wraps Rails 7 encrypts with deterministic: false. Used for all PHI fields across models.
+      </artifact>
+      <artifact path="app/models/concerns/auditable.rb" kind="concern" symbol="Auditable" lines="1-128" reason="Audit logging concern, captures auth events automatically">
+        Automatically logs CREATE/UPDATE/DELETE with redacted PHI. Tracks: action, resource, user_id, session_id, IP, user_agent, changes. PHI-safe logging.
+      </artifact>
+      <artifact path="app/graphql/concerns/current_session.rb" kind="concern" symbol="Concerns::CurrentSession" lines="1-131" reason="Session/user extraction from GraphQL context, has role checking helpers">
+        Provides: current_session, current_user, authenticated?, role helpers (anonymous?, admin?, parent?). Used in mutations/queries for auth checks.
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>3.3.x</ruby>
+      <rails>7.2.3</rails>
+      <gems>
+        <gem name="jwt" version="~> 2.7">JWT encode/decode for authentication tokens</gem>
+        <gem name="bcrypt" version="~> 3.1.7">Password and token hashing</gem>
+        <gem name="pundit" version="~> 2.3">Authorization policies and role-based access control</gem>
+        <gem name="redis" version="~> 5.0">Rate limiting and token storage backend</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL API layer</gem>
+        <gem name="sidekiq" version="~> 7.2">Background jobs for async operations</gem>
+        <gem name="pg" version="~> 1.1">PostgreSQL database adapter</gem>
+      </gems>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">JWT Algorithm: Must upgrade from HS256 to RS256 for production security</constraint>
+    <constraint type="architecture">Refresh tokens: Store in database with bcrypt hash, never plaintext</constraint>
+    <constraint type="architecture">Rate limiting: Redis-based with sliding window, role-specific limits</constraint>
+    <constraint type="security">All PHI fields must use Rails 7 encryption (AES-256-GCM) via Encryptable concern</constraint>
+    <constraint type="security">Encryption keys: Rails credentials for prod, ENV vars for dev</constraint>
+    <constraint type="security">Audit all authentication events: JWT_CREATED, JWT_REFRESH, AUTH_FAILED, AUTHZ_DENIED, RATE_LIMITED</constraint>
+    <constraint type="pattern">Authorization: Pundit policies with default deny, explicit allows for each role</constraint>
+    <constraint type="pattern">Error handling: Standard GraphQL errors with extensions: { code, timestamp, path }</constraint>
+    <constraint type="testing">All policies require RSpec tests for all role scenarios</constraint>
+    <constraint type="testing">Integration tests: GraphQL request specs for auth flows, rate limiting, token refresh</constraint>
+    <constraint type="testing">Minimum 90% code coverage for all new auth code</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="Auth::JwtService" kind="service" signature="class Auth::JwtService; def self.encode(payload, exp: 1.hour.from_now); def self.decode(token); end" path="app/services/auth/">
+      JWT service for encoding/decoding tokens. Currently uses HS256, needs RS256 upgrade. Methods: encode(payload, exp:), decode(token).
+    </interface>
+    <interface name="Auth::TokenService" kind="service" signature="class Auth::TokenService; def self.generate_refresh_token(session); def self.validate_refresh_token(token); def self.invalidate_token(token); end" path="app/services/auth/token_service.rb">
+      Refresh token management. Currently Redis-only, needs database migration. Methods: generate_refresh_token, validate_refresh_token, invalidate_token, invalidate_all_tokens.
+    </interface>
+    <interface name="ApplicationPolicy" kind="policy" signature="class ApplicationPolicy; def initialize(user, record); def index?; def show?; def create?; def update?; def destroy?; end" path="app/policies/application_policy.rb">
+      Base Pundit policy. All policies inherit. Default deny-all. Methods return boolean for authorization.
+    </interface>
+    <interface name="BaseMutation" kind="graphql" signature="class Mutations::BaseMutation < GraphQL::Schema::RelayClassicMutation; include Concerns::CurrentSession; def authorize(record, query); end" path="app/graphql/mutations/base_mutation.rb">
+      Base class for all GraphQL mutations. Includes CurrentSession concern. Has authorize helper for Pundit checks.
+    </interface>
+    <interface name="Encryptable" kind="concern" signature="module Encryptable; class_methods do def encrypts_phi(*attributes); end; end; end" path="app/models/concerns/encryptable.rb">
+      PHI encryption concern. Class method encrypts_phi wraps Rails 7 encryption with AES-256-GCM.
+    </interface>
+    <interface name="Auditable" kind="concern" signature="module Auditable; def log_creation; def log_update; def log_deletion; end" path="app/models/concerns/auditable.rb">
+      Audit logging concern. Automatically logs CREATE/UPDATE/DELETE with PHI-safe redaction.
+    </interface>
+    <interface name="Concerns::CurrentSession" kind="concern" signature="module Concerns::CurrentSession; def current_session; def current_user; def authenticated?; def anonymous?; def admin?; def parent?; end" path="app/graphql/concerns/current_session.rb">
+      Session and user extraction from GraphQL context. Role checking helpers for authorization.
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      RSpec testing framework with FactoryBot for fixtures. Test structure: spec/models/, spec/services/, spec/policies/, spec/graphql/, spec/requests/.
+      Policy tests: All role scenarios (allow/deny) for each method. Unit tests for services: Token generation, validation, rotation, revocation.
+      Integration tests: GraphQL request specs for authenticated queries, unauthorized access (401), forbidden access (403), token refresh flow, rate limiting.
+      Security tests: JWT tampering detection, token reuse after revocation, RBAC enforcement, PHI encryption verification.
+      Coverage requirement: Minimum 90% for all new authentication code.
+      Use Shoulda matchers for concise model tests. Use Pundit matchers for policy tests.
+    </standards>
+    <locations>
+      spec/models/ - Model tests including RefreshToken
+      spec/services/auth/ - JWT and token service tests
+      spec/policies/ - All Pundit policy tests (SessionPolicy, ParentPolicy, ChildPolicy, InsurancePolicy, AssessmentPolicy)
+      spec/middleware/ - Rate limiter tests
+      spec/graphql/mutations/ - Mutation authorization tests
+      spec/requests/graphql/ - Integration tests for auth flows
+      spec/models/concerns/ - Encryptable and Auditable tests
+    </locations>
+    <ideas>
+      AC 2.6.1: Test JWT encoding/decoding with RS256, verify algorithm in token header, test key management
+      AC 2.6.2: Test refresh token generation, validation with expiration, rotation (old token invalid after refresh), device fingerprint tracking
+      AC 2.6.3: Test role enum on User/Session model, test JWT payload includes role claim, test role helper methods (anonymous?, parent?, etc.)
+      AC 2.6.4: Test all policies (SessionPolicy, ParentPolicy, ChildPolicy, InsurancePolicy, AssessmentPolicy) for all roles and scenarios
+      AC 2.6.5: Test rate limiting: anonymous hits 100/min limit, authenticated hits 1000/min limit, verify rate limit headers in response, verify RATE_LIMITED error when exceeded
+      AC 2.6.6: Test PHI encryption on all fields, verify encrypted in DB (raw SQL check), verify decrypted in app, test encryption key rotation support
+      AC 2.6.7: Test encryption keys from Rails credentials in test env, test fallback to ENV vars, test missing key raises error
+      AC 2.6.8: Test UNAUTHENTICATED (401) returned for: missing token, invalid token, expired token, malformed token
+      AC 2.6.9: Test FORBIDDEN (403) returned for: insufficient role, unauthorized resource access, policy denial scenarios
+      AC 2.6.10: Test audit log creation for: JWT_CREATED, JWT_REFRESH, JWT_INVALID, JWT_EXPIRED, AUTH_FAILED, AUTHZ_DENIED, RATE_LIMITED, REFRESH_TOKEN_CREATED/ROTATED/REVOKED
+    </ideas>
+  </tests>
+</story-context>

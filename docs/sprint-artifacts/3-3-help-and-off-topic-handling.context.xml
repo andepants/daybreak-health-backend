@@ -1,0 +1,216 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3</storyId>
+    <title>Help & Off-Topic Handling</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-3-help-and-off-topic-handling.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to ask clarifying questions and get help when confused</iWant>
+    <soThat>I understand what's being asked and feel supported</soThat>
+    <tasks>
+- Task 1: Implement Intent Classification Service (AC: 1, 6)
+  - Create app/services/ai/intent_classifier.rb
+  - Define intent types: answer, question, help_request, off_topic, clarification
+  - Implement LLM-based classification via prompt
+  - Add fallback keyword-based classification for common patterns
+  - Add RSpec tests for intent classification
+
+- Task 2: Create Help Response Templates (AC: 2, 5)
+  - Create app/services/ai/prompts/help_responses.rb
+  - Define canned explanations for common fields (SSN, DOB, why certain questions)
+  - Add empathetic phrasing guidelines
+  - Map field names to explanation templates
+  - Add tests for response generation
+
+- Task 3: Implement Off-Topic Detection and Redirection (AC: 3, 4, 7)
+  - Extend context_manager.rb to track conversation state
+  - Add off-topic detection logic
+  - Create gentle redirection prompts
+  - Implement acknowledgment patterns for non-intake concerns
+  - Ensure smooth transition back to intake flow
+  - Add integration tests for off-topic handling
+
+- Task 4: Update System Prompts for Help Handling (AC: 2, 5, 8)
+  - Update intake_prompt.rb with help-handling instructions
+  - Add tone guidelines: never judgmental, never rushing
+  - Include examples of empathetic responses
+  - Define conversation recovery patterns
+  - Test prompt effectiveness
+
+- Task 5: Track Help Requests for Analytics (AC: all)
+  - Create analytics tracking for help requests
+  - Log which questions cause confusion (for UX improvement)
+  - Store intent classification results in message metadata
+  - Add audit logging for help interactions
+  - Create report query for help request patterns
+
+- Task 6: Integration with SendMessage Mutation (AC: all)
+  - Update send_message.rb to classify intent before AI call
+  - Route help requests through intent classifier
+  - Include help context in AI prompt when applicable
+  - Ensure conversation state is maintained
+  - Add integration tests
+
+- Task 7: Testing and Validation (AC: all)
+  - Test clarification question flows
+  - Test off-topic detection accuracy
+  - Test conversation recovery (return to intake)
+  - Validate empathetic tone in responses
+  - Test edge cases (repeated help requests, complex questions)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+AC1: Given the AI conversation is active, When parent asks a clarifying question, Then AI recognizes question vs. answer intent
+
+AC2: Given a clarifying question is asked, When AI responds, Then clarifying questions are answered with helpful context
+
+AC3: Given parent goes off-topic, When AI detects off-topic content, Then off-topic responses are gently redirected to intake
+
+AC4: Given parent expresses non-intake concerns, When AI processes the message, Then AI acknowledges concerns that aren't intake-related
+
+AC5: Given parent asks "Why do you need this?", When AI responds, Then "Why" questions are explained with empathy
+
+AC6: Given various help intents, When detected, Then AI handles: "I don't understand", "What does X mean", "Why are you asking"
+
+AC7: Given any help or off-topic interaction, When completed, Then conversation naturally returns to intake after addressing concerns
+
+AC8: Given parent interaction, When throughout conversation, Then AI never makes parent feel judged or rushed
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Conversational AI Interface (FR7-FR12)</section>
+        <snippet>FR9: Parents can ask clarifying questions and receive contextual help. FR11: System detects and handles off-topic or confused responses gracefully. AI must maintain empathetic tone and guide conversation back to intake naturally.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Service Pattern & AI Implementation</section>
+        <snippet>Service layer in app/services/ai/ handles AI logic. System prompts defined in app/services/ai/prompts/intake_prompt.rb. Context manager (app/services/ai/context_manager.rb) tracks conversation state. Help interactions should be tracked via analytics/audit logging.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 3: Story 3.3 - Help & Off-Topic Handling</section>
+        <snippet>Story implements FR9 and FR11. AI must recognize help requests vs answers, provide contextual help, handle off-topic gracefully, explain "why" questions with empathy, and never make parent feel judged. Intent classification approach: keyword matching + LLM fallback.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/message.rb</path>
+        <kind>model</kind>
+        <symbol>Message</symbol>
+        <lines>1-23</lines>
+        <reason>Message model stores conversation content with role enum (user, assistant, system). Intent classification results will be stored in metadata field. Content is PHI-encrypted.</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/base_service.rb</path>
+        <kind>service</kind>
+        <symbol>BaseService</symbol>
+        <lines>1-18</lines>
+        <reason>Base class for service objects. Intent classifier and help response services should inherit from this pattern with call method.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/mutations/base_mutation.rb</path>
+        <kind>mutation</kind>
+        <symbol>BaseMutation</symbol>
+        <lines>1-24</lines>
+        <reason>Base mutation pattern includes CurrentSession concern and Pundit authorization. SendMessage mutation will integrate intent classification before AI processing.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/encryptable.rb</path>
+        <kind>concern</kind>
+        <symbol>Encryptable</symbol>
+        <lines>N/A</lines>
+        <reason>PHI encryption concern used by Message model. Ensures message content and metadata containing intent classification are encrypted at rest.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>3.3.x</ruby>
+      <rails>7.2.3</rails>
+      <graphql>2.2</graphql>
+      <sidekiq>7.2</sidekiq>
+      <jwt>2.7</jwt>
+      <pundit>2.3</pundit>
+      <rspec-rails>6.1</rspec-rails>
+      <factory_bot_rails>6.4</factory_bot_rails>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Service layer pattern: All AI logic must be in app/services/ai/ directory</constraint>
+    <constraint>System prompts must be defined in app/services/ai/prompts/ directory</constraint>
+    <constraint>Follow Rails naming conventions: snake_case for files, PascalCase for classes</constraint>
+    <constraint>All PHI data (including message content) must be encrypted at rest using Encryptable concern</constraint>
+    <constraint>Intent classification results stored in message.metadata JSON field</constraint>
+    <constraint>Help interactions must be tracked for analytics (which questions cause confusion)</constraint>
+    <constraint>Never make parent feel judged or rushed (tone requirement)</constraint>
+    <constraint>Conversation must naturally return to intake after addressing help/off-topic</constraint>
+    <constraint>All service objects should inherit from BaseService with .call class method</constraint>
+    <constraint>Use RSpec for all tests with factory_bot for fixtures</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>Message Model</name>
+      <kind>ActiveRecord Model</kind>
+      <signature>role: enum (user, assistant, system), content: encrypted text, metadata: jsonb</signature>
+      <path>app/models/message.rb</path>
+    </interface>
+    <interface>
+      <name>BaseService Pattern</name>
+      <kind>Service Object</kind>
+      <signature>class MyService &lt; BaseService; def call; end; end; MyService.call(...)</signature>
+      <path>app/services/base_service.rb</path>
+    </interface>
+    <interface>
+      <name>Intent Classifier Service (to be created)</name>
+      <kind>Service</kind>
+      <signature>Ai::IntentClassifier.call(message:, context:) → { intent:, confidence:, pattern: }</signature>
+      <path>app/services/ai/intent_classifier.rb</path>
+    </interface>
+    <interface>
+      <name>Help Response Service (to be created)</name>
+      <kind>Service</kind>
+      <signature>Ai::Prompts::HelpResponses.explain_field(field_name) → explanation_text</signature>
+      <path>app/services/ai/prompts/help_responses.rb</path>
+    </interface>
+    <interface>
+      <name>SendMessage Mutation (to be modified)</name>
+      <kind>GraphQL Mutation</kind>
+      <signature>sendMessage(sessionId: ID!, content: String!) → Message</signature>
+      <path>app/graphql/mutations/conversation/send_message.rb</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>RSpec is the testing framework. Use factory_bot_rails for test fixtures. Follow shoulda-matchers for model validations. Service objects tested in spec/services/. GraphQL mutations tested in spec/graphql/mutations/. Integration tests in spec/integration/. Test PHI encryption behavior. Test intent classification accuracy with various input messages.</standards>
+    <locations>
+      spec/services/ai/intent_classifier_spec.rb
+      spec/services/ai/prompts/help_responses_spec.rb
+      spec/graphql/mutations/conversation/send_message_spec.rb
+      spec/integration/help_and_off_topic_flow_spec.rb
+      spec/models/message_spec.rb
+    </locations>
+    <ideas>
+      <idea ac="AC1">Test intent classifier distinguishes between help requests ("I don't understand") vs answers ("John Smith")</idea>
+      <idea ac="AC2">Test help responses provide contextual explanations for common fields (email, DOB, SSN)</idea>
+      <idea ac="AC3">Test off-topic detection recognizes unrelated topics and generates gentle redirection</idea>
+      <idea ac="AC4">Test system acknowledges non-intake concerns with empathy before redirecting</idea>
+      <idea ac="AC5">Test "why" questions receive empathetic explanations with clear purpose</idea>
+      <idea ac="AC6">Test all help intent patterns: "I don't understand", "What does X mean", "Why are you asking"</idea>
+      <idea ac="AC7">Test conversation flow returns to intake step after addressing help/off-topic</idea>
+      <idea ac="AC8">Test tone validation - responses never use judgmental language or rushing prompts</idea>
+      <idea ac="all">Test metadata storage: intent classification results stored in message.metadata with proper encryption</idea>
+      <idea ac="all">Test analytics tracking: help requests logged with field context for UX improvement analysis</idea>
+    </ideas>
+  </tests>
+</story-context>
