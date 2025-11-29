@@ -6,8 +6,8 @@ RSpec.describe 'Session Progress Persistence', type: :integration do
   let(:session) { create(:onboarding_session, status: :started, progress: {}) }
   let(:update_mutation) do
     <<~GQL
-      mutation UpdateSessionProgress($sessionId: ID!, $progress: JSON!) {
-        updateSessionProgress(sessionId: $sessionId, progress: $progress) {
+      mutation UpdateSessionProgress($input: UpdateSessionProgressInput!) {
+        updateSessionProgress(input: $input) {
           session {
             id
             status
@@ -43,21 +43,28 @@ RSpec.describe 'Session Progress Persistence', type: :integration do
       }
 
       result = execute_graphql(update_mutation, variables: {
-        sessionId: session.id,
-        progress: progress_data
-      })
+        input: {
+          sessionId: session.id,
+          progress: progress_data
+        }
+      }, context: { current_session: session })
 
       expect(result['errors']).to be_nil
       updated_session = result.dig('data', 'updateSessionProgress', 'session')
       expect(updated_session['progress']['currentStep']).to eq('parent_info')
 
       # Step 2: Clear cache (simulating page close/refresh)
-      Rails.cache.delete("session:progress:#{session.id}")
+      Rails.cache.delete("daybreak:sessions:progress:#{session.id}")
 
       # Step 3: Query session again (simulating page reload)
-      query_result = execute_graphql(query_session, variables: { id: session.id })
+      # Need to pass current_session in context for authorization
+      query_result = execute_graphql(query_session, variables: { id: session.id }, context: { current_session: session.reload })
+
+      # Check for errors first
+      expect(query_result['errors']).to be_nil, "Query errors: #{query_result['errors']}"
 
       reloaded_session = query_result.dig('data', 'session')
+      expect(reloaded_session).not_to be_nil, "Session data not found in response: #{query_result.inspect}"
 
       # Verify progress persisted from database
       expect(reloaded_session['progress']['currentStep']).to eq('parent_info')
@@ -74,13 +81,13 @@ RSpec.describe 'Session Progress Persistence', type: :integration do
       )
 
       # Clear cache
-      Rails.cache.delete("session:progress:#{session.id}")
+      Rails.cache.delete("daybreak:sessions:progress:#{session.id}")
 
       # Query should repopulate cache
-      execute_graphql(query_session, variables: { id: session.id })
+      execute_graphql(query_session, variables: { id: session.id }, context: { current_session: session })
 
       # Verify cache was repopulated
-      cached_progress = Rails.cache.read("session:progress:#{session.id}")
+      cached_progress = Rails.cache.read("daybreak:sessions:progress:#{session.id}")
       expect(cached_progress).to be_nil # Note: Query doesn't auto-populate cache, only mutation does
     end
   end
@@ -96,14 +103,16 @@ RSpec.describe 'Session Progress Persistence', type: :integration do
       # Verify DB write happens
       expect {
         execute_graphql(update_mutation, variables: {
-          sessionId: session.id,
-          progress: progress_data
-        })
+          input: {
+            sessionId: session.id,
+            progress: progress_data
+          }
+        }, context: { current_session: session })
       }.to change { session.reload.progress }
 
       # Verify cache write was called
       expect(Rails.cache).to have_received(:write).with(
-        "session:progress:#{session.id}",
+        "daybreak:sessions:progress:#{session.id}",
         anything,
         expires_in: 1.hour
       )
@@ -116,9 +125,11 @@ RSpec.describe 'Session Progress Persistence', type: :integration do
       }
 
       execute_graphql(update_mutation, variables: {
-        sessionId: session.id,
-        progress: progress_data
-      })
+        input: {
+          sessionId: session.id,
+          progress: progress_data
+        }
+      }, context: { current_session: session })
 
       # Verify DB has data
       db_session = OnboardingSession.find(session.id)
@@ -134,14 +145,18 @@ RSpec.describe 'Session Progress Persistence', type: :integration do
       progress2 = { 'currentStep' => 'child_info' }
 
       execute_graphql(update_mutation, variables: {
-        sessionId: session.id,
-        progress: progress1
-      })
+        input: {
+          sessionId: session.id,
+          progress: progress1
+        }
+      }, context: { current_session: session })
 
       execute_graphql(update_mutation, variables: {
-        sessionId: session.id,
-        progress: progress2
-      })
+        input: {
+          sessionId: session.id,
+          progress: progress2
+        }
+      }, context: { current_session: session })
 
       # Last write should win
       final_session = OnboardingSession.find(session.id)
@@ -154,16 +169,18 @@ RSpec.describe 'Session Progress Persistence', type: :integration do
       expect(session.status).to eq('started')
 
       execute_graphql(update_mutation, variables: {
-        sessionId: session.id,
-        progress: { 'currentStep' => 'test' }
-      })
+        input: {
+          sessionId: session.id,
+          progress: { 'currentStep' => 'test' }
+        }
+      }, context: { current_session: session })
 
       # Reload from DB
       session.reload
       expect(session.status).to eq('in_progress')
 
       # Verify after simulated page refresh
-      Rails.cache.delete("session:progress:#{session.id}")
+      Rails.cache.delete("daybreak:sessions:progress:#{session.id}")
       db_session = OnboardingSession.find(session.id)
       expect(db_session.status).to eq('in_progress')
     end
@@ -171,22 +188,35 @@ RSpec.describe 'Session Progress Persistence', type: :integration do
 
   describe 'expiration extension persistence' do
     it 'persists extended expiration time' do
-      original_expires_at = session.expires_at
+      # Freeze time at the beginning
+      freeze_time = Time.zone.parse('2025-01-01 12:00:00')
 
-      travel_to Time.current do
+      travel_to freeze_time do
+        # Create session with known expiration
+        test_session = create(:onboarding_session,
+          status: :started,
+          progress: {},
+          expires_at: freeze_time + 30.minutes
+        )
+
+        original_expires_at = test_session.expires_at
+
+        # Update progress which should extend expiration
         execute_graphql(update_mutation, variables: {
-          sessionId: session.id,
-          progress: { 'currentStep' => 'test' }
-        })
+          input: {
+            sessionId: test_session.id,
+            progress: { 'currentStep' => 'test' }
+          }
+        }, context: { current_session: test_session })
 
         # Reload from DB
-        session.reload
-        expect(session.expires_at).to be > original_expires_at
-        expect(session.expires_at).to be_within(5.seconds).of(Time.current + 1.hour)
+        test_session.reload
+        expect(test_session.expires_at).to be > original_expires_at
+        expect(test_session.expires_at).to be_within(5.seconds).of(freeze_time + 1.hour)
 
         # Verify after simulated page refresh
-        db_session = OnboardingSession.find(session.id)
-        expect(db_session.expires_at).to be_within(5.seconds).of(Time.current + 1.hour)
+        db_session = OnboardingSession.find(test_session.id)
+        expect(db_session.expires_at).to be_within(5.seconds).of(freeze_time + 1.hour)
       end
     end
   end

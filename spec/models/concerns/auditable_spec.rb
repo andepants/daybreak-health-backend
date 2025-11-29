@@ -32,12 +32,18 @@ RSpec.describe Auditable, type: :model do
   describe 'audit logging' do
     context 'on create' do
       it 'creates an audit log entry' do
-        expect {
-          TestAuditable.create!(
-            name: 'Test',
-            onboarding_session: session
-          )
-        }.to change(AuditLog, :count).by(1)
+        # Create session first (it will create its own audit log)
+        test_session = create(:onboarding_session)
+        # Now count audit logs before creating TestAuditable
+        initial_count = AuditLog.count
+
+        TestAuditable.create!(
+          name: 'Test',
+          onboarding_session: test_session
+        )
+
+        # Should have created one audit log for TestAuditable
+        expect(AuditLog.count).to eq(initial_count + 1)
       end
 
       it 'logs the CREATE action' do
@@ -46,7 +52,8 @@ RSpec.describe Auditable, type: :model do
           onboarding_session: session
         )
 
-        audit = AuditLog.last
+        # Find the audit log for TestAuditable (not OnboardingSession)
+        audit = AuditLog.where(resource: 'TestAuditable', resource_id: record.id).last
         expect(audit.action).to eq('CREATE')
         expect(audit.resource).to eq('TestAuditable')
         expect(audit.resource_id).to eq(record.id)
@@ -58,7 +65,8 @@ RSpec.describe Auditable, type: :model do
           onboarding_session: session
         )
 
-        audit = AuditLog.last
+        # Find the audit log for TestAuditable (not OnboardingSession)
+        audit = AuditLog.where(resource: 'TestAuditable', resource_id: record.id).last
         expect(audit.onboarding_session_id).to eq(session.id)
       end
     end
@@ -137,7 +145,8 @@ RSpec.describe Auditable, type: :model do
         onboarding_session: session
       )
 
-      audit = AuditLog.last
+      # Find the audit log for TestAuditable (not OnboardingSession)
+      audit = AuditLog.where(resource: 'TestAuditable', resource_id: record.id).last
       changes = audit.details['changes']
 
       # Name is not encrypted, should be logged
@@ -159,23 +168,31 @@ RSpec.describe Auditable, type: :model do
     it 'logs audit failures' do
       allow(AuditLog).to receive(:create!).and_raise(StandardError, 'Audit failed')
 
-      expect(Rails.logger).to receive(:error).with(/Audit logging failed/)
+      # Expect at least one error log (might be more due to OnboardingSession also having Auditable)
+      expect(Rails.logger).to receive(:error).with(/Audit logging failed/).at_least(:once)
 
       TestAuditable.create!(name: 'Test', onboarding_session: session)
     end
   end
 
   describe 'context tracking' do
+    # Clean thread locals after each test to prevent cascading failures
+    after do
+      Thread.current[:current_session] = nil
+      Thread.current[:current_user] = nil
+      Thread.current[:current_ip_address] = nil
+      Thread.current[:current_user_agent] = nil
+    end
+
     it 'uses Thread.current for session ID if not an association' do
       Thread.current[:current_session] = session
 
       # Create without association
       record = TestAuditable.create!(name: 'Test')
 
-      audit = AuditLog.last
+      # Find the audit log for TestAuditable (not OnboardingSession)
+      audit = AuditLog.where(resource: 'TestAuditable', resource_id: record.id).last
       expect(audit.onboarding_session_id).to eq(session.id)
-
-      Thread.current[:current_session] = nil
     end
 
     it 'uses Thread.current for user ID' do
@@ -184,10 +201,9 @@ RSpec.describe Auditable, type: :model do
 
       record = TestAuditable.create!(name: 'Test', onboarding_session: session)
 
-      audit = AuditLog.last
+      # Find the audit log for TestAuditable (not OnboardingSession)
+      audit = AuditLog.where(resource: 'TestAuditable', resource_id: record.id).last
       expect(audit.user_id).to eq(user_uuid)
-
-      Thread.current[:current_user] = nil
     end
 
     it 'uses Thread.current for IP address' do
@@ -195,10 +211,9 @@ RSpec.describe Auditable, type: :model do
 
       record = TestAuditable.create!(name: 'Test', onboarding_session: session)
 
-      audit = AuditLog.last
+      # Find the audit log for TestAuditable (not OnboardingSession)
+      audit = AuditLog.where(resource: 'TestAuditable', resource_id: record.id).last
       expect(audit.ip_address).to eq('192.168.1.1')
-
-      Thread.current[:current_ip_address] = nil
     end
 
     it 'uses Thread.current for user agent' do
@@ -206,10 +221,9 @@ RSpec.describe Auditable, type: :model do
 
       record = TestAuditable.create!(name: 'Test', onboarding_session: session)
 
-      audit = AuditLog.last
+      # Find the audit log for TestAuditable (not OnboardingSession)
+      audit = AuditLog.where(resource: 'TestAuditable', resource_id: record.id).last
       expect(audit.user_agent).to eq('Mozilla/5.0')
-
-      Thread.current[:current_user_agent] = nil
     end
   end
 end

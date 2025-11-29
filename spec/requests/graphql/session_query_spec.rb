@@ -155,7 +155,7 @@ RSpec.describe 'Session Query', type: :request do
     let(:create_mutation) do
       <<~GQL
         mutation {
-          createSession(input: {}) {
+          createSession {
             session {
               id
               status
