@@ -86,16 +86,15 @@ module Auth
       # @raise [KeyError] If secret is not configured
       def secret
         @secret ||= begin
-          if Rails.env.production?
-            Rails.application.credentials.jwt_secret!
-          else
-            ENV.fetch('JWT_SECRET') do
-              Rails.application.credentials.dig(:jwt_secret) ||
-                'development-secret-key-min-32-chars-long-change-in-production'
-            end
-          end
+          # Try environment variable first (works in all environments)
+          # Supports both JWT_SECRET_KEY and JWT_SECRET for compatibility
+          ENV['JWT_SECRET_KEY'] ||
+            ENV['JWT_SECRET'] ||
+            Rails.application.credentials.dig(:jwt_secret) ||
+            (Rails.env.development? || Rails.env.test? ? 'development-secret-key-min-32-chars-long-change-in-production' : nil)
         end
 
+        raise KeyError, ':jwt_secret is blank' if @secret.blank?
         validate_secret!
         @secret
       end

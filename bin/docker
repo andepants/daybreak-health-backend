@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -e
+
+# Docker development environment helper script
+# Usage: bin/docker [command]
+
+COMPOSE_FILE="docker/docker-compose.dev.yml"
+
+case "${1:-up}" in
+  up)
+    echo "Starting development environment..."
+    docker-compose -f $COMPOSE_FILE up "${@:2}"
+    ;;
+  down)
+    echo "Stopping development environment..."
+    docker-compose -f $COMPOSE_FILE down "${@:2}"
+    ;;
+  build)
+    echo "Building containers..."
+    docker-compose -f $COMPOSE_FILE build "${@:2}"
+    ;;
+  logs)
+    docker-compose -f $COMPOSE_FILE logs -f "${@:2}"
+    ;;
+  restart)
+    echo "Restarting development environment..."
+    docker-compose -f $COMPOSE_FILE restart "${@:2}"
+    ;;
+  console)
+    echo "Opening Rails console..."
+    docker-compose -f $COMPOSE_FILE exec web bundle exec rails console
+    ;;
+  bash)
+    echo "Opening bash shell in web container..."
+    docker-compose -f $COMPOSE_FILE exec web sh
+    ;;
+  *)
+    echo "Usage: bin/docker [command]"
+    echo ""
+    echo "Commands:"
+    echo "  up       Start all services (default)"
+    echo "  down     Stop all services"
+    echo "  build    Build/rebuild containers"
+    echo "  logs     Follow container logs"
+    echo "  restart  Restart all services"
+    echo "  console  Open Rails console"
+    echo "  bash     Open shell in web container"
+    ;;
+esac
