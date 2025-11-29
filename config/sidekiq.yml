@@ -15,11 +15,9 @@
 # Timeouts
 :timeout: 25
 
-# Verbose logging in development
-:verbose: <%= Rails.env.development? %>
+# Verbose logging (controlled by environment variable)
+:verbose: <%= ENV.fetch('SIDEKIQ_VERBOSE', 'false') == 'true' %>
 
-# Production-specific settings
-<% if Rails.env.production? %>
+# Retry configuration (same for all environments)
 :max_retries: 3
 :dead_max_jobs: 10000
-<% end %>
