@@ -2,12 +2,12 @@
 
 require 'rails_helper'
 
-RSpec.describe Errors::BaseError do
+RSpec.describe GraphqlErrors::BaseError do
   describe 'initialization' do
     it 'creates error with message and code' do
       error = described_class.new(
         'Test error message',
-        code: Errors::ErrorCodes::NOT_FOUND
+        code: GraphqlErrors::ErrorCodes::NOT_FOUND
       )
 
       expect(error.message).to eq('Test error message')
@@ -89,7 +89,7 @@ RSpec.describe Errors::BaseError do
   end
 end
 
-RSpec.describe Errors::UnauthenticatedError do
+RSpec.describe GraphqlErrors::UnauthenticatedError do
   it 'uses UNAUTHENTICATED code' do
     error = described_class.new
 
@@ -109,7 +109,7 @@ RSpec.describe Errors::UnauthenticatedError do
   end
 end
 
-RSpec.describe Errors::ForbiddenError do
+RSpec.describe GraphqlErrors::ForbiddenError do
   it 'uses FORBIDDEN code' do
     error = described_class.new
 
@@ -123,7 +123,7 @@ RSpec.describe Errors::ForbiddenError do
   end
 end
 
-RSpec.describe Errors::NotFoundError do
+RSpec.describe GraphqlErrors::NotFoundError do
   it 'uses NOT_FOUND code' do
     error = described_class.new
 
@@ -143,7 +143,7 @@ RSpec.describe Errors::NotFoundError do
   end
 end
 
-RSpec.describe Errors::ValidationError do
+RSpec.describe GraphqlErrors::ValidationError do
   it 'uses VALIDATION_ERROR code' do
     error = described_class.new
 
@@ -164,7 +164,7 @@ RSpec.describe Errors::ValidationError do
   end
 end
 
-RSpec.describe Errors::SessionExpiredError do
+RSpec.describe GraphqlErrors::SessionExpiredError do
   it 'uses SESSION_EXPIRED code' do
     error = described_class.new
 
@@ -178,7 +178,7 @@ RSpec.describe Errors::SessionExpiredError do
   end
 end
 
-RSpec.describe Errors::RateLimitedError do
+RSpec.describe GraphqlErrors::RateLimitedError do
   it 'uses RATE_LIMITED code' do
     error = described_class.new
 
@@ -198,7 +198,7 @@ RSpec.describe Errors::RateLimitedError do
   end
 end
 
-RSpec.describe Errors::InternalError do
+RSpec.describe GraphqlErrors::InternalError do
   it 'uses INTERNAL_ERROR code' do
     error = described_class.new
 

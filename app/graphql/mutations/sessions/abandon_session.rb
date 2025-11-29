@@ -101,19 +101,19 @@ module Mutations
       rescue ActiveRecord::RecordNotFound
         raise GraphQL::ExecutionError.new(
           'Session not found',
-          extensions: { code: Errors::ErrorCodes::NOT_FOUND }
+          extensions: { code: GraphqlErrors::ErrorCodes::NOT_FOUND }
         )
       rescue Pundit::NotAuthorizedError
         # AC 2.5.2: Return FORBIDDEN error if trying to abandon another user's session
         raise GraphQL::ExecutionError.new(
           'You do not have permission to abandon this session',
-          extensions: { code: Errors::ErrorCodes::FORBIDDEN }
+          extensions: { code: GraphqlErrors::ErrorCodes::FORBIDDEN }
         )
       rescue ActiveRecord::RecordInvalid => e
         # Invalid state transition (shouldn't happen with current state machine)
         raise GraphQL::ExecutionError.new(
           "Failed to abandon session: #{e.message}",
-          extensions: { code: Errors::ErrorCodes::VALIDATION_ERROR }
+          extensions: { code: GraphqlErrors::ErrorCodes::VALIDATION_ERROR }
         )
       end
 

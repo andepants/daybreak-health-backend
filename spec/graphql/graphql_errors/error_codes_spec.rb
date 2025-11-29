@@ -2,7 +2,7 @@
 
 require 'rails_helper'
 
-RSpec.describe Errors::ErrorCodes do
+RSpec.describe GraphqlErrors::ErrorCodes do
   describe 'error code constants' do
     it 'defines UNAUTHENTICATED' do
       expect(described_class::UNAUTHENTICATED).to eq('UNAUTHENTICATED')

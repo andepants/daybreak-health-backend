@@ -10,7 +10,7 @@
 #
 # Example usage in a mutation:
 #   class UpdateSession < BaseMutation
-#     include Concerns::CurrentSession
+#     include GraphqlConcerns::CurrentSession
 #
 #     def resolve(**attributes)
 #       session = current_session
@@ -18,7 +18,7 @@
 #       # ... perform update
 #     end
 #   end
-module Concerns::CurrentSession
+module GraphqlConcerns::CurrentSession
   # Get the current onboarding session from GraphQL context
   #
   # @return [OnboardingSession, nil] Current session or nil

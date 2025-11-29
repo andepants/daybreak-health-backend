@@ -2,11 +2,11 @@
 
 require 'rails_helper'
 
-RSpec.describe Concerns::CurrentSession do
+RSpec.describe GraphqlConcerns::CurrentSession do
   # Create a test class that includes the concern
   let(:test_class) do
     Class.new do
-      include Concerns::CurrentSession
+      include GraphqlConcerns::CurrentSession
 
       attr_accessor :context
 

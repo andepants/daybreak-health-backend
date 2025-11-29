@@ -56,7 +56,7 @@ module Mutations
         if session.past_expiration?
           raise GraphQL::ExecutionError.new(
             'Session has expired',
-            extensions: { code: Errors::ErrorCodes::SESSION_EXPIRED }
+            extensions: { code: GraphqlErrors::ErrorCodes::SESSION_EXPIRED }
           )
         end
 
@@ -64,7 +64,7 @@ module Mutations
         if session.abandoned?
           raise GraphQL::ExecutionError.new(
             'Session has been abandoned and cannot be updated',
-            extensions: { code: Errors::ErrorCodes::SESSION_ABANDONED }
+            extensions: { code: GraphqlErrors::ErrorCodes::SESSION_ABANDONED }
           )
         end
 

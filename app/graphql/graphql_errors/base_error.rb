@@ -16,11 +16,11 @@
 #   }
 #
 # Example usage:
-#   raise Errors::BaseError.new(
+#   raise GraphqlErrors::BaseError.new(
 #     'Session not found',
 #     code: 'NOT_FOUND'
 #   )
-class Errors::BaseError < ::GraphQL::ExecutionError
+class GraphqlErrors::BaseError < ::GraphQL::ExecutionError
   attr_reader :code, :details
 
   # Initialize a new GraphQL error
@@ -28,7 +28,7 @@ class Errors::BaseError < ::GraphQL::ExecutionError
   # @param message [String] Human-readable error message
   # @param code [String] Error code from ErrorCodes
   # @param details [Hash] Additional error details (optional)
-  def initialize(message, code: Errors::ErrorCodes::INTERNAL_ERROR, details: {})
+  def initialize(message, code: GraphqlErrors::ErrorCodes::INTERNAL_ERROR, details: {})
     @code = code
     @details = details
 
@@ -70,54 +70,54 @@ end
 # These provide convenient error constructors with appropriate codes
 
 # Authentication required error
-class Errors::UnauthenticatedError < Errors::BaseError
+class GraphqlErrors::UnauthenticatedError < GraphqlErrors::BaseError
   def initialize(message = 'Authentication required')
-    super(message, code: Errors::ErrorCodes::UNAUTHENTICATED)
+    super(message, code: GraphqlErrors::ErrorCodes::UNAUTHENTICATED)
   end
 end
 
 # Permission denied error
-class Errors::ForbiddenError < Errors::BaseError
+class GraphqlErrors::ForbiddenError < GraphqlErrors::BaseError
   def initialize(message = 'Permission denied')
-    super(message, code: Errors::ErrorCodes::FORBIDDEN)
+    super(message, code: GraphqlErrors::ErrorCodes::FORBIDDEN)
   end
 end
 
 # Resource not found error
-class Errors::NotFoundError < Errors::BaseError
+class GraphqlErrors::NotFoundError < GraphqlErrors::BaseError
   def initialize(message = 'Resource not found', resource_type: nil)
     details = resource_type ? { resource_type: resource_type } : {}
-    super(message, code: Errors::ErrorCodes::NOT_FOUND, details: details)
+    super(message, code: GraphqlErrors::ErrorCodes::NOT_FOUND, details: details)
   end
 end
 
 # Validation error
-class Errors::ValidationError < Errors::BaseError
+class GraphqlErrors::ValidationError < GraphqlErrors::BaseError
   def initialize(message = 'Validation failed', errors: {})
     details = errors.any? ? { errors: errors } : {}
-    super(message, code: Errors::ErrorCodes::VALIDATION_ERROR, details: details)
+    super(message, code: GraphqlErrors::ErrorCodes::VALIDATION_ERROR, details: details)
   end
 end
 
 # Session expired error
-class Errors::SessionExpiredError < Errors::BaseError
+class GraphqlErrors::SessionExpiredError < GraphqlErrors::BaseError
   def initialize(message = 'Session has expired')
-    super(message, code: Errors::ErrorCodes::SESSION_EXPIRED)
+    super(message, code: GraphqlErrors::ErrorCodes::SESSION_EXPIRED)
   end
 end
 
 # Rate limit error
-class Errors::RateLimitedError < Errors::BaseError
+class GraphqlErrors::RateLimitedError < GraphqlErrors::BaseError
   def initialize(message = 'Rate limit exceeded', retry_after: nil)
     details = retry_after ? { retry_after: retry_after } : {}
-    super(message, code: Errors::ErrorCodes::RATE_LIMITED, details: details)
+    super(message, code: GraphqlErrors::ErrorCodes::RATE_LIMITED, details: details)
   end
 end
 
 # Internal server error
-class Errors::InternalError < Errors::BaseError
+class GraphqlErrors::InternalError < GraphqlErrors::BaseError
   def initialize(message = 'An unexpected error occurred')
     # Never expose internal error details to clients
-    super(message, code: Errors::ErrorCodes::INTERNAL_ERROR)
+    super(message, code: GraphqlErrors::ErrorCodes::INTERNAL_ERROR)
   end
 end

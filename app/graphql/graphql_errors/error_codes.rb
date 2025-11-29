@@ -8,9 +8,9 @@
 # Example usage:
 #   raise GraphQL::ExecutionError.new(
 #     'User not authenticated',
-#     extensions: { code: Errors::ErrorCodes::UNAUTHENTICATED }
+#     extensions: { code: GraphqlErrors::ErrorCodes::UNAUTHENTICATED }
 #   )
-module Errors::ErrorCodes
+module GraphqlErrors::ErrorCodes
   # User is not authenticated (401 equivalent)
   UNAUTHENTICATED = 'UNAUTHENTICATED'
 
