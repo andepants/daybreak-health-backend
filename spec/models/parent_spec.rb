@@ -35,7 +35,7 @@ RSpec.describe Parent, type: :model do
   end
 
   describe 'PHI encryption' do
-    let(:parent) { create(:parent, email: 'test@example.com', first_name: 'John', last_name: 'Doe', phone: '+1234567890') }
+    let(:parent) { create(:parent, email: 'test@example.com', first_name: 'John', last_name: 'Doe', phone: '+12025551234') }
 
     it 'encrypts email field' do
       raw_value = ActiveRecord::Base.connection.execute(
@@ -66,7 +66,7 @@ RSpec.describe Parent, type: :model do
       raw_value = ActiveRecord::Base.connection.execute(
         "SELECT phone FROM parents WHERE id = '#{parent.id}'"
       ).first['phone']
-      expect(raw_value).not_to eq('+1234567890')
+      expect(raw_value).not_to eq('+12025551234')
     end
   end
 

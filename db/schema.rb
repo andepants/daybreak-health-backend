@@ -10,10 +10,38 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_11_29_192929) do
+ActiveRecord::Schema[7.2].define(version: 2025_11_30_184941) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
+
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "record_type", null: false
+    t.bigint "record_id", null: false
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "filename", null: false
+    t.string "content_type"
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.datetime "created_at", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
 
   create_table "assessments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "onboarding_session_id", null: false
@@ -24,7 +52,10 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_29_192929) do
     t.integer "score"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "status", default: 0, null: false
+    t.string "assessment_mode", default: "conversational"
     t.index ["onboarding_session_id"], name: "index_assessments_on_onboarding_session_id", unique: true
+    t.index ["status"], name: "index_assessments_on_status"
   end
 
   create_table "audit_logs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -53,6 +84,8 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_29_192929) do
     t.string "grade"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "primary_concerns"
+    t.text "medical_history"
     t.index ["onboarding_session_id"], name: "index_children_on_onboarding_session_id", unique: true
   end
 
@@ -67,9 +100,12 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_29_192929) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.text "member_id"
-    t.text "card_image_front"
-    t.text "card_image_back"
+    t.text "subscriber_dob"
+    t.integer "retry_attempts", default: 0, null: false
+    t.boolean "for_billing", default: true, null: false
+    t.index ["for_billing"], name: "index_insurances_on_for_billing"
     t.index ["onboarding_session_id"], name: "index_insurances_on_onboarding_session_id", unique: true
+    t.index ["verification_status"], name: "index_insurances_on_verification_status"
   end
 
   create_table "messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -91,7 +127,12 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_29_192929) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "role", default: 0, null: false
+    t.boolean "needs_human_contact", default: false, null: false
+    t.datetime "escalation_requested_at"
+    t.text "escalation_reason"
     t.index ["created_at"], name: "index_onboarding_sessions_on_created_at"
+    t.index ["escalation_requested_at"], name: "index_onboarding_sessions_on_escalation_requested_at"
+    t.index ["needs_human_contact"], name: "index_onboarding_sessions_on_needs_human_contact"
     t.index ["role"], name: "index_onboarding_sessions_on_role"
     t.index ["status"], name: "index_onboarding_sessions_on_status"
   end
@@ -102,7 +143,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_29_192929) do
     t.text "phone"
     t.text "first_name"
     t.text "last_name"
-    t.string "relationship"
+    t.integer "relationship", default: 4
     t.boolean "is_guardian"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -125,6 +166,8 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_29_192929) do
     t.index ["token_hash"], name: "index_refresh_tokens_on_token_hash", unique: true
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "assessments", "onboarding_sessions"
   add_foreign_key "audit_logs", "onboarding_sessions"
   add_foreign_key "children", "onboarding_sessions"

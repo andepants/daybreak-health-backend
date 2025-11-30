@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="4-1-insurance-card-upload" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>1</storyId>
+    <title>Insurance Card Upload</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/4-1-insurance-card-upload.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to upload photos of my insurance card</iWant>
+    <soThat>I don't have to manually type all the details</soThat>
+
+    <tasks>
+      <task id="0" status="pending" blocking="true">
+        <title>Install Active Storage Dependencies</title>
+        <subtasks>
+          - Uncomment gem "image_processing", "~> 1.2" in Gemfile (line 44)
+          - Add gem "aws-sdk-s3", "~> 1.140" to Gemfile
+          - Add gem "ruby-vips" for HEIC conversion support
+          - Add gem "marcel", "~> 1.0" for secure MIME type detection
+          - Run bundle install
+          - Run rails active_storage:install
+          - Run rails db:migrate
+          - Verify Active Storage tables created
+        </subtasks>
+      </task>
+
+      <task id="1" status="pending">
+        <title>Configure Active Storage with S3 Backend</title>
+        <subtasks>
+          - Create storage configuration for S3 in config/storage.yml
+          - Configure S3 bucket with SSE-KMS encryption
+          - Set up bucket lifecycle policy for 30-day retention
+          - Configure CORS for direct uploads (if needed)
+          - Update config/environments/production.rb to use :amazon service
+          - Update config/environments/development.rb to use :local or :amazon
+          - Test S3 connection and encryption
+        </subtasks>
+      </task>
+
+      <task id="2" status="pending">
+        <title>Implement Image Processing for HEIC Conversion</title>
+        <subtasks>
+          - Configure ImageProcessing with libvips backend
+          - Create custom processor for HEIC to JPEG conversion in app/services/insurance/image_processor.rb
+          - Process images before attachment (not as variants)
+          - Add variant creation for resized images if needed
+          - Test conversion with sample HEIC files
+        </subtasks>
+      </task>
+
+      <task id="3" status="pending">
+        <title>Update Insurance Model for Active Storage</title>
+        <subtasks>
+          - Create migration to add Active Storage associations (NOT text fields)
+          - Remove existing card_image_front and card_image_back text fields
+          - Add has_one_attached :card_image_front to Insurance model
+          - Add has_one_attached :card_image_back to Insurance model
+          - Update model to include Auditable concern
+          - Remove card_image_front and card_image_back from encrypts_phi
+          - Test attachment creation and deletion
+        </subtasks>
+      </task>
+
+      <task id="4" status="pending">
+        <title>Update InsuranceType GraphQL Type</title>
+        <subtasks>
+          - Add fields: cardImageFrontUrl, cardImageBackUrl (presigned URLs)
+          - Add resolver methods that call url(expires_in: 15.minutes) on attachments
+          - Ensure existing fields remain intact
+          - Add unit tests for type definitions
+        </subtasks>
+      </task>
+
+      <task id="5" status="pending">
+        <title>Implement Upload Insurance Card Mutation</title>
+        <subtasks>
+          - Create Mutations::Insurance::UploadCard mutation
+          - Accept arguments: sessionId, frontImage (Upload), backImage (Upload, optional)
+          - Validate file size using tempfile.size
+          - Validate file formats using Marcel gem (magic byte detection)
+          - Convert HEIC to JPEG before attaching using ImageProcessor service
+          - Attach images to Insurance record via Active Storage
+          - Find existing Insurance record or create if not exists
+          - Update status to pending if currently nil
+          - Generate presigned URLs for uploaded images (15-minute expiry)
+          - Queue OcrProcessingJob for background processing
+          - Return Insurance object with presigned URLs
+          - Create audit log entry: INSURANCE_CARD_UPLOADED
+          - Handle concurrent uploads (replace existing images)
+        </subtasks>
+      </task>
+
+      <task id="6" status="pending">
+        <title>Implement File Validation Service</title>
+        <subtasks>
+          - Create app/services/insurance/file_validator.rb
+          - Validate using Marcel gem for actual MIME type
+          - Validate file size from tempfile
+          - Add validation error messages in GraphQL format
+          - Strip EXIF metadata from images
+          - Add performance monitoring for upload time
+        </subtasks>
+      </task>
+
+      <task id="7" status="pending">
+        <title>Create OCR Processing Job Stub</title>
+        <subtasks>
+          - Create OcrProcessingJob in app/jobs/
+          - Accept insurance_id as parameter
+          - Load Insurance record with preloaded session
+          - Access images via Active Storage blob keys
+          - Add placeholder for OCR service call (Story 4.2)
+          - Add error handling and retry logic
+          - Configure Sidekiq queue :insurance and retry policy
+        </subtasks>
+      </task>
+
+      <task id="8" status="pending">
+        <title>Implement Image Retention Policy</title>
+        <subtasks>
+          - Configure S3 lifecycle rule for 30-day retention
+          - Add callback to purge images after verification complete
+          - Trigger cleanup when verification status changes to verified or self_pay
+          - Add audit logging for image deletion
+          - Test retention policy enforcement
+        </subtasks>
+      </task>
+
+      <task id="9" status="pending">
+        <title>Testing</title>
+        <subtasks>
+          - Create spec/factories/insurances.rb with valid/invalid traits
+          - Model specs for Insurance with Active Storage attachments
+          - Mutation specs for UploadCard with file uploads
+          - Test file type validation using Marcel
+          - Test file size validation
+          - Test HEIC to JPEG conversion
+          - Test S3 upload with mocked S3
+          - Test presigned URL generation
+          - Test OCR job queuing
+          - Test audit log creation
+          - Test concurrent upload handling
+          - Integration test for full upload flow
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">uploadInsuranceCard mutation accepts file upload (front and back)</criterion>
+    <criterion id="AC2">Images uploaded to S3 with server-side encryption (SSE-KMS)</criterion>
+    <criterion id="AC3">Supported formats: JPEG, PNG, HEIC (converted to JPEG)</criterion>
+    <criterion id="AC4">Max file size: 10MB per image</criterion>
+    <criterion id="AC5">Images stored with session-scoped path: insurance/{sessionId}/{front|back}.jpg</criterion>
+    <criterion id="AC6">Presigned URL returned for upload confirmation</criterion>
+    <criterion id="AC7">Insurance record updated with status PENDING</criterion>
+    <criterion id="AC8">OCR job queued for processing</criterion>
+    <criterion id="AC9">Upload completes within 5 seconds (server-side processing)</criterion>
+    <criterion id="AC10">Images auto-deleted after verification complete (30 days max retention)</criterion>
+    <criterion id="AC11">Upload completes with error handling for network failures and invalid files</criterion>
+    <criterion id="AC12">Concurrent upload handling replaces previous images</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md">Product Requirements Document - FR19 (Insurance card upload)</doc>
+      <doc path="docs/epics.md">Epic 4: Insurance Verification - Story 4.1 breakdown</doc>
+      <doc path="docs/architecture.md">Architecture - Data Architecture, Security Architecture, Service Pattern</doc>
+      <doc path="docs/sprint-artifacts/stories/4-1-insurance-card-upload.md">Source story file with complete dev notes</doc>
+    </docs>
+
+    <code>
+      <file path="app/models/insurance.rb">Existing Insurance model with Encryptable concern and encrypts_phi for card_image_front/back text fields - NEEDS UPDATE to Active Storage</file>
+      <file path="app/graphql/types/insurance_type.rb">Existing InsuranceType with basic fields - NEEDS cardImageFrontUrl and cardImageBackUrl fields</file>
+      <file path="app/models/concerns/encryptable.rb">Encryptable concern pattern for PHI encryption using Rails 7 encryption</file>
+      <file path="app/models/concerns/auditable.rb">Auditable concern for automatic audit logging on create/update/destroy</file>
+      <file path="app/jobs/application_job.rb">Base job class for Sidekiq background jobs</file>
+      <file path="app/jobs/session_cleanup_job.rb">Example Sidekiq job pattern with queue configuration</file>
+      <file path="config/storage.yml">Storage configuration with local/test services - NEEDS amazon service configuration</file>
+      <file path="db/schema.rb">Current schema showing insurances table with text fields for card images (lines 72-73)</file>
+    </code>
+
+    <dependencies>
+      <dependency name="rails" version="~> 7.2.3" purpose="Framework">Already installed</dependency>
+      <dependency name="pg" version="~> 1.1" purpose="Database">Already installed</dependency>
+      <dependency name="graphql" version="~> 2.2" purpose="GraphQL API">Already installed</dependency>
+      <dependency name="sidekiq" version="~> 7.2" purpose="Background jobs">Already installed</dependency>
+      <dependency name="redis" version="~> 5.0" purpose="Cache/Queue">Already installed</dependency>
+      <dependency name="image_processing" version="~> 1.2" purpose="Image transformation">NEEDS INSTALLATION - commented in Gemfile line 44</dependency>
+      <dependency name="aws-sdk-s3" version="~> 1.140" purpose="S3 upload/storage">NEEDS INSTALLATION</dependency>
+      <dependency name="ruby-vips" version="latest" purpose="HEIC conversion">NEEDS INSTALLATION</dependency>
+      <dependency name="marcel" version="~> 1.0" purpose="MIME type detection">NEEDS INSTALLATION</dependency>
+    </dependencies>
+
+    <environmentVariables>
+      <required>
+        <var name="AWS_ACCESS_KEY_ID">AWS access key for S3</var>
+        <var name="AWS_SECRET_ACCESS_KEY">AWS secret key for S3</var>
+        <var name="AWS_REGION">AWS region for S3 bucket</var>
+        <var name="S3_BUCKET">S3 bucket name for insurance images</var>
+        <var name="AWS_KMS_KEY_ID">AWS KMS key ID for SSE-KMS encryption</var>
+      </required>
+    </environmentVariables>
+  </artifacts>
+
+  <constraints>
+    <constraint type="schema">Insurance model already exists with text fields card_image_front and card_image_back - migration must REMOVE these and rely on Active Storage attachments table</constraint>
+    <constraint type="encryption">Active Storage attachments are NOT encrypted via encrypts_phi - encryption handled by S3 SSE-KMS</constraint>
+    <constraint type="hipaa">S3 bucket must have HIPAA BAA and SSE-KMS encryption configured</constraint>
+    <constraint type="performance">Upload processing must complete within 5 seconds (AC9)</constraint>
+    <constraint type="security">File validation must use Marcel magic byte detection, not client-provided content_type</constraint>
+    <constraint type="security">File size validation must use server-side tempfile.size, not client-provided size</constraint>
+    <constraint type="retention">Images must be auto-deleted after 30 days max or when verification complete</constraint>
+    <constraint type="concurrency">Concurrent uploads must replace existing images, not create duplicates</constraint>
+    <constraint type="privacy">Strip EXIF metadata from images before storage</constraint>
+  </constraints>
+
+  <interfaces>
+    <graphql>
+      <mutation name="uploadInsuranceCard">
+        <arguments>
+          <arg name="sessionId" type="ID!" required="true">Onboarding session identifier</arg>
+          <arg name="frontImage" type="Upload!" required="true">Front image of insurance card</arg>
+          <arg name="backImage" type="Upload" required="false">Back image of insurance card (optional)</arg>
+        </arguments>
+        <returns>
+          <field name="insurance" type="InsuranceType!">Updated insurance record with presigned URLs</field>
+        </returns>
+        <errors>
+          <error code="UNAUTHENTICATED">Invalid or missing session token</error>
+          <error code="NOT_FOUND">Session not found</error>
+          <error code="VALIDATION_ERROR">File size exceeds 10MB or invalid file type</error>
+        </errors>
+      </mutation>
+
+      <type name="InsuranceType">
+        <existingFields>
+          - id: ID!
+          - payerName: String!
+          - subscriberName: String!
+          - memberId: String!
+          - policyNumber: String
+          - groupNumber: String
+          - verificationStatus: String!
+          - verificationResult: JSON
+          - createdAt: ISO8601DateTime!
+          - updatedAt: ISO8601DateTime!
+        </existingFields>
+        <newFields>
+          <field name="cardImageFrontUrl" type="String">Presigned URL for front image (15-min expiry)</field>
+          <field name="cardImageBackUrl" type="String">Presigned URL for back image (15-min expiry)</field>
+        </newFields>
+      </type>
+    </graphql>
+
+    <services>
+      <service name="Insurance::FileValidator">
+        <method name="validate!">
+          <params>upload: ActionDispatch::Http::UploadedFile</params>
+          <raises>GraphQL::ExecutionError (validation errors)</raises>
+          <validates>
+            - File size (max 10MB) from tempfile.size
+            - MIME type (JPEG, PNG, HEIC) using Marcel magic bytes
+          </validates>
+        </method>
+      </service>
+
+      <service name="Insurance::ImageProcessor">
+        <method name="process">
+          <params>upload: ActionDispatch::Http::UploadedFile</params>
+          <returns>{io: File, content_type: String}</returns>
+          <processing>
+            - Convert HEIC to JPEG if needed
+            - Strip EXIF metadata for privacy
+            - Return processed IO and content_type
+          </processing>
+        </method>
+      </service>
+    </services>
+
+    <jobs>
+      <job name="OcrProcessingJob">
+        <queue>insurance</queue>
+        <retry>3 attempts</retry>
+        <params>insurance_id: UUID</params>
+        <purpose>Placeholder for Story 4.2 OCR processing - updates status to in_progress</purpose>
+      </job>
+    </jobs>
+
+    <activeStorage>
+      <service name="amazon">
+        <config>
+          - access_key_id: ENV['AWS_ACCESS_KEY_ID']
+          - secret_access_key: ENV['AWS_SECRET_ACCESS_KEY']
+          - region: ENV['AWS_REGION']
+          - bucket: ENV['S3_BUCKET']
+          - server_side_encryption: aws:kms
+          - sse_customer_key: ENV['AWS_KMS_KEY_ID']
+        </config>
+      </service>
+
+      <attachments>
+        <model name="Insurance">
+          <attachment name="card_image_front" cardinality="has_one_attached">Front image of insurance card</attachment>
+          <attachment name="card_image_back" cardinality="has_one_attached">Back image of insurance card</attachment>
+        </model>
+      </attachments>
+    </activeStorage>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard name="Factory Pattern">Use FactoryBot with associations - see spec/factories/insurances.rb</standard>
+      <standard name="Model Specs">Use shoulda-matchers for associations, validations, enums - see spec/models/insurance_spec.rb</standard>
+      <standard name="PHI Encryption Tests">Verify raw DB values are encrypted - see spec/models/insurance_spec.rb lines 38-93</standard>
+      <standard name="Mutation Specs">Test GraphQL mutations with context[:current_session] - see spec/graphql/mutations/sessions/</standard>
+      <standard name="Job Specs">Test Sidekiq jobs with perform_now - see spec/jobs/session_cleanup_job_spec.rb</standard>
+      <standard name="RSpec Conventions">Use frozen_string_literal: true, descriptive contexts, expect/should syntax</standard>
+    </standards>
+
+    <locations>
+      <location path="spec/models/insurance_spec.rb">Model tests - will need Active Storage attachment tests</location>
+      <location path="spec/factories/insurances.rb">Factory - will need fixture_file_upload for images</location>
+      <location path="spec/graphql/mutations/insurance/upload_card_spec.rb">NEW - mutation tests with file uploads</location>
+      <location path="spec/services/insurance/file_validator_spec.rb">NEW - file validation service tests</location>
+      <location path="spec/services/insurance/image_processor_spec.rb">NEW - image processing service tests</location>
+      <location path="spec/jobs/ocr_processing_job_spec.rb">NEW - OCR job tests</location>
+      <location path="spec/graphql/types/insurance_type_spec.rb">NEW - GraphQL type tests for presigned URLs</location>
+    </locations>
+
+    <ideas>
+      <testIdea ac="AC1" priority="high">
+        Test uploadInsuranceCard mutation accepts frontImage (required) and backImage (optional)
+        - Valid file upload succeeds
+        - Missing frontImage raises validation error
+        - Unauthorized session raises UNAUTHENTICATED error
+      </testIdea>
+
+      <testIdea ac="AC2" priority="high">
+        Test S3 upload with SSE-KMS encryption
+        - Mock Active Storage to verify upload called
+        - Verify encryption headers in S3 request
+      </testIdea>
+
+      <testIdea ac="AC3" priority="high">
+        Test file format validation
+        - JPEG accepted
+        - PNG accepted
+        - HEIC accepted and converted to JPEG
+        - PDF rejected with VALIDATION_ERROR
+        - Validation uses Marcel magic bytes, not content_type
+      </testIdea>
+
+      <testIdea ac="AC4" priority="high">
+        Test file size validation
+        - 9MB file accepted
+        - 11MB file rejected with VALIDATION_ERROR
+        - Size checked from tempfile.size, not client-provided
+      </testIdea>
+
+      <testIdea ac="AC5" priority="medium">
+        Test image storage path
+        - Verify Active Storage blob key follows pattern
+        - Verify filename is {sessionId}_front.jpg or {sessionId}_back.jpg
+      </testIdea>
+
+      <testIdea ac="AC6" priority="high">
+        Test presigned URL generation
+        - cardImageFrontUrl present after upload
+        - cardImageBackUrl present if back image uploaded
+        - URLs expire in 15 minutes
+        - URLs return nil if no attachment
+      </testIdea>
+
+      <testIdea ac="AC7" priority="high">
+        Test Insurance record status update
+        - New insurance record created with status pending
+        - Existing insurance record status updated to pending
+      </testIdea>
+
+      <testIdea ac="AC8" priority="high">
+        Test OCR job queuing
+        - OcrProcessingJob enqueued with insurance_id
+        - Job placed in :insurance queue
+        - Job processes and updates status to in_progress
+      </testIdea>
+
+      <testIdea ac="AC9" priority="medium">
+        Test upload performance
+        - Mutation completes within 5 seconds
+        - Monitor processing time
+      </testIdea>
+
+      <testIdea ac="AC10" priority="medium">
+        Test image retention policy
+        - S3 lifecycle rule configured for 30-day retention
+        - Images purged when verification_status changes to verified
+        - Audit log created for image deletion
+      </testIdea>
+
+      <testIdea ac="AC11" priority="high">
+        Test error handling
+        - Network failure during upload raises appropriate error
+        - Invalid file type shows user-friendly error message
+        - S3 connection failure handled gracefully
+      </testIdea>
+
+      <testIdea ac="AC12" priority="high">
+        Test concurrent upload handling
+        - Uploading new front image replaces existing
+        - No duplicate attachments created
+        - Previous image purged from S3
+      </testIdea>
+
+      <testIdea ac="general" priority="high">
+        Test EXIF metadata stripping
+        - Upload image with GPS data
+        - Verify stored image has no EXIF metadata
+      </testIdea>
+
+      <testIdea ac="general" priority="high">
+        Test audit logging
+        - INSURANCE_CARD_UPLOADED audit log created
+        - Audit log includes session_id, has_front_image, has_back_image flags
+        - Never logs actual image data
+      </testIdea>
+
+      <testIdea ac="general" priority="medium">
+        Integration test full upload flow
+        - Create session
+        - Upload front and back images
+        - Verify insurance record updated
+        - Verify OCR job queued
+        - Verify presigned URLs returned
+        - Verify audit log created
+      </testIdea>
+    </ideas>
+  </tests>
+
+  <devNotes>
+    <note priority="critical">
+      EXISTING SCHEMA CONTEXT: The Insurance model and insurances table already exist with text-based card_image_front and card_image_back columns. Migration MUST remove these columns and rely on Active Storage's active_storage_attachments table.
+    </note>
+
+    <note priority="critical">
+      PREREQUISITES: Task 0 is BLOCKING. Must install Active Storage dependencies and run migrations BEFORE implementing any other tasks.
+    </note>
+
+    <note priority="high">
+      ENCRYPTION STRATEGY: Active Storage attachments are NOT encrypted via encrypts_phi. Encryption is handled by S3 SSE-KMS. Remove card_image_front/back from encrypts_phi call in Insurance model.
+    </note>
+
+    <note priority="high">
+      FILE VALIDATION: Must use Marcel gem for MIME type detection via magic bytes, not client-provided content_type. Must validate file size from tempfile.size, not client-provided size.
+    </note>
+
+    <note priority="high">
+      IMAGE PROCESSING: All images should be processed (HEIC conversion, EXIF stripping) BEFORE attaching to Active Storage, not as variants.
+    </note>
+
+    <note priority="medium">
+      PRESIGNED URLS: InsuranceType resolver methods should call card_image_front.url(expires_in: 15.minutes) on attachments. Returns nil if no attachment.
+    </note>
+
+    <note priority="medium">
+      OCR JOB: Story 4.1 creates stub job that updates status to in_progress. Actual OCR implementation is Story 4.2. Access images via insurance.card_image_front.blob.key for Textract.
+    </note>
+
+    <note priority="medium">
+      RETENTION POLICY: S3 lifecycle rule configured at bucket level for 30-day max retention. Application-level purge triggers when verification_status changes to verified or self_pay.
+    </note>
+
+    <note priority="low">
+      GRAPHQL UPLOAD: Rails GraphQL uses ActionDispatch::Http::UploadedFile for file uploads. Access tempfile via upload.tempfile.
+    </note>
+  </devNotes>
+
+  <references>
+    <reference type="docs">docs/epics.md#Story-4.1-Insurance-Card-Upload</reference>
+    <reference type="docs">docs/architecture.md#Data-Architecture</reference>
+    <reference type="docs">docs/architecture.md#Security-Architecture</reference>
+    <reference type="external">https://guides.rubyonrails.org/active_storage_overview.html</reference>
+    <reference type="external">https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html</reference>
+    <reference type="external">https://github.com/rails/marcel</reference>
+  </references>
+</story-context>

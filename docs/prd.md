@@ -351,28 +351,34 @@ This backend serves a decoupled frontend (web, mobile-first responsive) via Grap
 
 ### Notifications & Communication
 
-- **FR31:** System sends confirmation email upon session start
-- **FR32:** System sends reminder for abandoned sessions (configurable timing)
-- **FR33:** System sends completion confirmation with next steps
-- **FR34:** System notifies care team of completed onboarding
-- **FR35:** System alerts on detected risk indicators immediately
+> **Note:** The original PRD does not specify email/SMS notifications. These are nice-to-have features added for better UX. For MVP, only FR35 (risk alerts) is critical for safety.
+
+- **FR31:** ~~System sends confirmation email upon session start~~ **[DEFERRED - Post-MVP]**
+- **FR32:** ~~System sends reminder for abandoned sessions~~ **[DEFERRED - Post-MVP]**
+- **FR33:** ~~System sends completion confirmation with next steps~~ **[DEFERRED - Post-MVP]**
+- **FR34:** System notifies care team of completed onboarding (internal dashboard only, no email)
+- **FR35:** System alerts on detected risk indicators immediately (email + dashboard, no SMS)
 
 ### Admin & Operations
 
-- **FR36:** Admins can view real-time onboarding pipeline dashboard
-- **FR37:** Admins can search and filter sessions by status, date, and attributes
+> **Note:** Original PRD mentions "Support Interface" only. Full admin dashboard is nice-to-have. MVP needs minimal admin visibility.
+
+- **FR36:** Admins can view basic onboarding pipeline (list of sessions by status)
+- **FR37:** Admins can search sessions by ID, parent email **[Simplified]**
 - **FR38:** Admins can view individual session details and progress
-- **FR39:** Admins can manually update session status when needed
-- **FR40:** System generates daily/weekly onboarding analytics reports
-- **FR41:** Admins can configure AI prompts and assessment questions
+- **FR39:** ~~Admins can manually update session status~~ **[DEFERRED - Post-MVP]**
+- **FR40:** ~~System generates daily/weekly analytics reports~~ **[DEFERRED - Post-MVP]**
+- **FR41:** ~~Admins can configure AI prompts and assessment questions~~ **[DEFERRED - Post-MVP]**
 - **FR42:** System logs all admin actions for audit purposes
 
 ### Data & Compliance
 
+> **Note:** FR43, FR44, FR47 are required for HIPAA. FR45, FR46 are user rights that can be handled manually initially.
+
 - **FR43:** All PHI is encrypted at rest and in transit
 - **FR44:** System maintains complete audit log of all data access
-- **FR45:** Parents can request export of their submitted data
-- **FR46:** System supports data deletion requests with appropriate retention rules
+- **FR45:** ~~Parents can request export of their submitted data~~ **[DEFERRED - Manual process for MVP]**
+- **FR46:** ~~System supports data deletion requests~~ **[DEFERRED - Manual process for MVP]**
 - **FR47:** System enforces role-based access controls on all endpoints
 
 ---

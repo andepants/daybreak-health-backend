@@ -1,0 +1,491 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>1</storyId>
+    <title>Intercom Widget Integration</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/epics.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>Intercom chat widget integrated into the application</iWant>
+    <soThat>parents can access live support</soThat>
+    <tasks>
+- Task 1: Backend - Intercom Identity Verification Service (AC: 1, 2, 7)
+  - Create app/services/intercom/identity_service.rb
+  - Generate HMAC-SHA256 user hash for secure identity verification
+  - Use Intercom secret key from environment (INTERCOM_SECRET_KEY)
+  - Generate identity hash based on session_id or parent email
+  - Return verification hash for frontend to use
+  - Add RSpec tests for identity verification
+
+- Task 2: Backend - Intercom Configuration Initializer (AC: 1, 7)
+  - Create config/initializers/intercom.rb
+  - Configure environment-based Intercom workspace IDs
+  - Support dev/staging/prod environments
+  - Validate INTERCOM_APP_ID and INTERCOM_SECRET_KEY presence
+  - Log configuration on boot (without exposing secrets)
+  - Document environment variables in .env.example
+
+- Task 3: Backend - GraphQL API for Intercom Identity (AC: 2, 7)
+  - Create app/graphql/queries/intercom/identity_hash.rb
+  - Query: intercomIdentityHash(sessionId: ID!): String!
+  - Requires valid session authentication
+  - Returns HMAC hash for current user/session
+  - Add authorization check (only own session)
+  - Add integration tests
+
+- Task 4: Frontend Documentation - Intercom SDK Integration (AC: 1, 3, 6)
+  - Update docs/frontend/README.md with Intercom section
+  - Document Next.js/React integration steps
+  - Provide code example for Intercom SDK initialization
+  - Document identity verification flow
+  - Show graceful degradation pattern if Intercom unavailable
+  - Include mobile-responsive widget configuration
+
+- Task 5: Backend - CSP Headers Update (AC: 7)
+  - Update config/application.rb or middleware
+  - Add Content-Security-Policy headers for Intercom domains:
+    - connect-src: *.intercom.io wss://*.intercom.io
+    - script-src: *.intercom.io
+    - img-src: *.intercom.io *.intercomcdn.com
+    - font-src: *.intercom.io
+    - frame-src: *.intercom.io
+  - Configure CSP middleware with Rails SecureHeaders gem
+  - Test CSP headers don't block Intercom loading
+
+- Task 6: Environment Configuration (AC: 1, 7)
+  - Add to .env.example:
+    - INTERCOM_APP_ID (workspace ID)
+    - INTERCOM_SECRET_KEY (for identity verification)
+    - INTERCOM_ENABLED (feature flag, default: true)
+  - Document HIPAA BAA requirement in comments
+  - Add environment validation in initializer
+
+- Task 7: Frontend Integration Guide (AC: 1, 3, 4, 6)
+  - Create docs/frontend/intercom-integration.md
+  - Step-by-step SDK installation (npm install @intercom/messenger-js-sdk)
+  - Environment variable setup (NEXT_PUBLIC_INTERCOM_APP_ID)
+  - Identity verification API call example
+  - Widget boot/shutdown lifecycle
+  - Custom launcher styling to match Daybreak branding
+  - Hide/show widget programmatically based on route
+  - Error handling and fallback UI
+
+- Task 8: Security & Compliance Documentation (AC: 2, 7)
+  - Document HIPAA BAA requirement with Intercom
+  - Document PHI exclusion policy (only send IDs, not actual PHI)
+  - Create data sanitization checklist for attributes
+  - Document identity verification security model
+  - Add security testing checklist
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Given Intercom account is configured, When widget is integrated, Then Intercom JavaScript SDK is installed and initialized
+
+2. Given widget needs authentication, When identity verification is requested, Then backend provides Intercom identity verification hash using secure HMAC-SHA256
+
+3. Given onboarding pages load, When page renders, Then widget appears on onboarding pages and is styled to match Daybreak branding
+
+4. Given different deployment environments, When app is deployed, Then HIPAA-compliant Intercom plan is configured with proper BAA in place
+
+5. Given user interaction, When widget state changes, Then widget can be shown/hidden programmatically based on application state
+
+6. Given mobile users, When accessing from mobile devices, Then widget has mobile-responsive behavior
+
+7. Given security requirements, When widget loads, Then widget loads without blocking page render, CSP headers updated for Intercom domains, and graceful degradation occurs if Intercom unavailable
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" relevance="high" section="Epic 7: Support Interface - Story 7.1">
+Epic definition with full acceptance criteria and technical notes
+      </doc>
+      <doc path="docs/prd.md" relevance="medium" section="API Backend Specific Requirements">
+Architecture patterns, authentication flow, security requirements
+      </doc>
+      <doc path="docs/architecture.md" relevance="medium" section="Technology Stack">
+Rails 7 API architecture, GraphQL patterns, service layer structure
+      </doc>
+      <doc path="docs/frontend/README.md" relevance="high" section="Frontend Integration">
+Next.js frontend integration patterns, environment setup, GraphQL client usage
+      </doc>
+      <doc path=".env.example" relevance="high" section="Environment Configuration">
+Existing environment variable patterns, JWT configuration, AWS config
+      </doc>
+    </docs>
+
+    <existingCode>
+      <file path="app/services/auth/jwt_service.rb" relevance="high">
+JWT authentication pattern using HMAC - reference for Intercom HMAC implementation
+Secure secret key management from environment variables
+      </file>
+      <file path="app/services/auth/token_service.rb" relevance="medium">
+Service layer pattern for authentication - follow same structure for Intercom service
+      </file>
+      <file path="app/graphql/types/query_type.rb" relevance="high">
+GraphQL query type - add intercomIdentityHash query here
+Authorization pattern examples
+      </file>
+      <file path="app/controllers/graphql_controller.rb" relevance="medium">
+GraphQL context building with current_session extraction
+Request header patterns
+      </file>
+      <file path="config/initializers/ai_providers.rb" relevance="high">
+Example initializer with environment-based configuration
+Logging pattern for configuration validation
+      </file>
+      <file path="config/initializers/cors.rb" relevance="high">
+CORS configuration pattern - will inform CSP header setup
+Environment-based origin configuration
+      </file>
+      <file path="config/environments/production.rb" relevance="medium">
+Production configuration patterns
+SSL/security settings
+      </file>
+      <file path="app/models/onboarding_session.rb" relevance="medium">
+Session model - will be used to generate identity hash
+PHI encryption patterns (important for ensuring no PHI sent to Intercom)
+      </file>
+      <file path="app/models/parent.rb" relevance="medium">
+Parent model with encrypted email field
+Reference for what constitutes PHI that should NOT be sent to Intercom
+      </file>
+    </existingCode>
+
+    <dependencies>
+      <dependency type="gem" required="false">
+        <name>rack-attack</name>
+        <purpose>Rate limiting for Intercom identity endpoint</purpose>
+        <notes>Optional - basic rate limiting already exists</notes>
+      </dependency>
+      <dependency type="gem" required="true">
+        <name>secure_headers</name>
+        <purpose>Content Security Policy (CSP) header management</purpose>
+        <notes>Need to add to Gemfile for CSP configuration</notes>
+      </dependency>
+      <dependency type="external-service" required="true">
+        <name>Intercom</name>
+        <purpose>Live chat support widget</purpose>
+        <notes>HIPAA BAA required, workspace must be configured</notes>
+      </dependency>
+    </dependencies>
+
+    <integrationPoints>
+      <integration name="Intercom JavaScript SDK" type="frontend">
+        <endpoint>https://js.intercomcdn.com/intercom-messenger.latest.js</endpoint>
+        <authentication>App ID (public) + Identity Hash (secure)</authentication>
+        <dataFlow>Frontend → Backend (get hash) → Intercom (boot widget)</dataFlow>
+      </integration>
+
+      <integration name="Identity Verification API" type="graphql-query">
+        <endpoint>POST /graphql</endpoint>
+        <query>query IntercomIdentity($sessionId: ID!) { intercomIdentityHash(sessionId: $sessionId) }</query>
+        <authentication>JWT Bearer token</authentication>
+        <response>String (HMAC-SHA256 hash)</response>
+      </integration>
+    </integrationPoints>
+
+    <testCoverage>
+      <unit>
+        <file path="spec/services/intercom/identity_service_spec.rb">
+          - HMAC hash generation correctness
+          - Hash consistency for same input
+          - Different hashes for different users
+          - Handles missing secret key gracefully
+          - Uses correct algorithm (SHA256)
+        </file>
+
+        <file path="spec/graphql/queries/intercom/identity_hash_spec.rb">
+          - Returns hash for authenticated user
+          - Rejects unauthenticated requests
+          - Rejects access to other users' sessions
+          - Returns consistent hash for same session
+          - Handles invalid session ID
+        </file>
+      </unit>
+
+      <integration>
+        <scenario name="End-to-End Identity Verification Flow">
+          - Create onboarding session
+          - Authenticate with JWT
+          - Request Intercom identity hash
+          - Verify hash format is valid HMAC
+          - Verify hash can be used with Intercom API
+        </scenario>
+
+        <scenario name="CSP Headers Configuration">
+          - Make request to GraphQL endpoint
+          - Verify CSP headers present in response
+          - Verify Intercom domains whitelisted
+          - Verify other security headers intact
+        </scenario>
+      </integration>
+    </testCoverage>
+
+    <securityConsiderations>
+      <consideration type="hipaa-compliance">
+        <issue>PHI Exclusion from Intercom</issue>
+        <requirement>Never send actual PHI to Intercom - only session IDs and status enums</requirement>
+        <implementation>Service layer validates attributes before allowing passthrough</implementation>
+        <validation>Code review checklist, integration test asserting no PHI in payloads</validation>
+      </consideration>
+
+      <consideration type="authentication">
+        <issue>Intercom Identity Verification</issue>
+        <requirement>Prevent session hijacking via Intercom widget</requirement>
+        <implementation>HMAC-SHA256 hash using server-side secret, validated by Intercom</implementation>
+        <validation>Unit tests verify hash generation, Intercom validates on their side</validation>
+      </consideration>
+
+      <consideration type="csp">
+        <issue>Content Security Policy</issue>
+        <requirement>Allow Intercom domains without opening XSS vulnerabilities</requirement>
+        <implementation>Whitelist specific Intercom domains only (*.intercom.io, *.intercomcdn.com)</implementation>
+        <validation>CSP violation monitoring, security header testing</validation>
+      </consideration>
+
+      <consideration type="secrets">
+        <issue>Secret Key Management</issue>
+        <requirement>INTERCOM_SECRET_KEY must be kept secret, rotated regularly</requirement>
+        <implementation>Environment variables, AWS Secrets Manager in production</implementation>
+        <validation>Never log secret, validate presence on boot, document rotation procedure</validation>
+      </consideration>
+    </securityConsiderations>
+
+    <environmentVariables>
+      <variable name="INTERCOM_APP_ID" required="true" visibility="public">
+        <description>Intercom workspace/app ID (public, safe for frontend)</description>
+        <example>abc123xyz</example>
+        <environment>all (dev/staging/prod have different workspace IDs)</environment>
+      </variable>
+
+      <variable name="INTERCOM_SECRET_KEY" required="true" visibility="secret">
+        <description>Intercom secret key for identity verification (HMAC)</description>
+        <example>your-secret-key-from-intercom-settings</example>
+        <environment>all (different per workspace)</environment>
+        <security>Must be kept secret, use AWS Secrets Manager in prod</security>
+      </variable>
+
+      <variable name="INTERCOM_ENABLED" required="false" visibility="public">
+        <description>Feature flag to enable/disable Intercom integration</description>
+        <example>true</example>
+        <default>true</default>
+        <environment>all (can disable in dev/test)</environment>
+      </variable>
+
+      <variable name="FRONTEND_URL" required="true" visibility="public">
+        <description>Frontend URL for CORS (already exists, used for documentation)</description>
+        <example>http://localhost:3001</example>
+        <environment>all</environment>
+      </variable>
+    </environmentVariables>
+
+    <frontendIntegration>
+      <framework>Next.js / React</framework>
+      <package>@intercom/messenger-js-sdk</package>
+
+      <setup>
+1. Install package: npm install @intercom/messenger-js-sdk
+2. Add environment variable: NEXT_PUBLIC_INTERCOM_APP_ID
+3. Create Intercom provider component
+4. Initialize on app mount with identity hash from backend
+5. Configure boot settings (hide default launcher, custom styling)
+6. Show/hide based on routes (visible on onboarding flow only)
+      </setup>
+
+      <codePattern>
+```typescript
+// lib/intercom.ts
+import { Intercom } from '@intercom/messenger-js-sdk';
+
+export async function initializeIntercom(sessionId: string) {
+  const appId = process.env.NEXT_PUBLIC_INTERCOM_APP_ID;
+  if (!appId) return; // Graceful degradation
+
+  try {
+    // Get identity verification hash from backend
+    const { data } = await apolloClient.query({
+      query: INTERCOM_IDENTITY_HASH_QUERY,
+      variables: { sessionId }
+    });
+
+    Intercom({
+      app_id: appId,
+      user_hash: data.intercomIdentityHash,
+      hide_default_launcher: true, // Custom launcher
+      custom_launcher_selector: '#support-button',
+      // PHI-safe attributes only
+      user_id: sessionId,
+      created_at: Math.floor(Date.now() / 1000)
+    });
+  } catch (error) {
+    console.warn('Intercom initialization failed:', error);
+    // Show fallback support UI
+  }
+}
+
+// Show/hide based on route
+export function showIntercom() {
+  if (window.Intercom) {
+    window.Intercom('show');
+  }
+}
+```
+      </codePattern>
+
+      <styling>
+- Widget color: Match Daybreak brand primary color
+- Widget position: Bottom right (default, configurable)
+- Custom launcher: Optional button in header/footer
+- Mobile: Responsive, full-screen on mobile
+- Z-index: Ensure above modals but below critical UI
+      </styling>
+    </frontendIntegration>
+
+    <apiExamples>
+      <example name="Get Intercom Identity Hash">
+        <graphql>
+query GetIntercomIdentity($sessionId: ID!) {
+  intercomIdentityHash(sessionId: $sessionId)
+}
+        </graphql>
+        <variables>
+{
+  "sessionId": "cm4cxe7sf0000mkqt5u6bv123"
+}
+        </variables>
+        <response>
+{
+  "data": {
+    "intercomIdentityHash": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6"
+  }
+}
+        </response>
+        <headers>
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        </headers>
+      </example>
+    </apiExamples>
+
+    <deploymentNotes>
+      <note priority="critical">
+HIPAA BAA REQUIREMENT: Before deploying to production, ensure Business Associate Agreement (BAA) is signed with Intercom. Only HIPAA-compliant Intercom plans support BAA.
+      </note>
+
+      <note priority="high">
+WORKSPACE CONFIGURATION: Create separate Intercom workspaces for dev, staging, and production. Each environment needs its own INTERCOM_APP_ID and INTERCOM_SECRET_KEY.
+      </note>
+
+      <note priority="medium">
+CSP TESTING: After deploying CSP headers, test in browser console for CSP violations. Chrome DevTools → Console will show any blocked resources.
+      </note>
+
+      <note priority="low">
+ANALYTICS: Consider setting up Intercom analytics to track support request patterns. This data (story 7.3) informs UX improvements.
+      </note>
+    </deploymentNotes>
+
+    <references>
+      <reference type="external-doc">
+        <title>Intercom Identity Verification</title>
+        <url>https://developers.intercom.com/docs/identity-verification</url>
+        <notes>Official docs on HMAC identity verification for secure mode</notes>
+      </reference>
+
+      <reference type="external-doc">
+        <title>Intercom JavaScript SDK</title>
+        <url>https://developers.intercom.com/installing-intercom/docs/intercom-javascript</url>
+        <notes>SDK initialization, boot settings, API methods</notes>
+      </reference>
+
+      <reference type="external-doc">
+        <title>Content Security Policy (CSP)</title>
+        <url>https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP</url>
+        <notes>MDN reference for CSP directive syntax</notes>
+      </reference>
+
+      <reference type="gem">
+        <title>secure_headers gem</title>
+        <url>https://github.com/github/secure_headers</url>
+        <notes>GitHub's gem for managing security headers in Rails</notes>
+      </reference>
+
+      <reference type="internal">
+        <title>Story 7.2: Session Context Passing</title>
+        <path>docs/epics.md</path>
+        <notes>Next story - will use identity hash and pass session metadata to Intercom</notes>
+      </reference>
+
+      <reference type="internal">
+        <title>Story 7.3: Support Request Tracking</title>
+        <path>docs/epics.md</path>
+        <notes>Future story - tracks support requests for analytics</notes>
+      </reference>
+    </references>
+  </artifacts>
+
+  <technicalNotes>
+    <note category="architecture">
+This story focuses on the foundational integration - installing and authenticating the Intercom widget. The backend provides identity verification only. Story 7.2 will add session context passing (metadata about onboarding progress), and Story 7.3 will add support request tracking.
+    </note>
+
+    <note category="security">
+Identity verification uses HMAC-SHA256 to prevent session hijacking. The hash is generated server-side using: HMAC-SHA256(user_identifier, INTERCOM_SECRET_KEY). This ensures only authenticated users can impersonate themselves in Intercom, preventing malicious users from pretending to be someone else.
+    </note>
+
+    <note category="frontend">
+The Intercom SDK should be loaded asynchronously and initialized only after user authentication is established. Use React useEffect with session dependency. Provide graceful degradation (show email/phone support options) if Intercom fails to load or is disabled.
+    </note>
+
+    <note category="hipaa">
+CRITICAL: Never send actual PHI to Intercom. Only send: session_id (opaque identifier), status enum values (e.g., "insurance_pending"), phase names (e.g., "Child Information"), and error states. Do NOT send: names, email, phone, DOB, medical info, insurance details. This will be enforced in Story 7.2's context passing implementation.
+    </note>
+
+    <note category="testing">
+Integration testing should mock Intercom API responses. Use VCR cassettes to record actual Intercom API interactions for validation, but don't commit real secrets. Create separate test workspace in Intercom for safe testing.
+    </note>
+
+    <note category="performance">
+Intercom SDK loads asynchronously and should not block page render. Use async/defer script tags or dynamic import. Monitor bundle size impact - Intercom SDK is ~50KB gzipped. Lazy load only when user enters onboarding flow to minimize impact on initial page load.
+    </note>
+
+    <note category="mobile">
+Intercom has native mobile SDKs for iOS/Android. This story focuses on web (Next.js). Future mobile app (post-MVP per PRD) should use native Intercom SDKs for better UX. Web widget works on mobile browsers but native is preferred for apps.
+    </note>
+
+    <note category="branding">
+Intercom allows customization: primary color, widget position, custom launcher button, welcome message, avatar. Work with design team to match Daybreak brand. Colors should match existing design system. Consider accessibility (WCAG contrast ratios).
+    </note>
+  </technicalNotes>
+
+  <relatedStories>
+    <story id="7-2" relationship="next-story">
+      <title>Session Context Passing</title>
+      <description>Builds on this foundation by passing session metadata to Intercom for agent context</description>
+      <blockedBy>7-1</blockedBy>
+    </story>
+
+    <story id="7-3" relationship="next-story">
+      <title>Support Request Tracking</title>
+      <description>Tracks support interactions for analytics, requires 7-1 and 7-2 complete</description>
+      <blockedBy>7-1, 7-2</blockedBy>
+    </story>
+
+    <story id="3-5" relationship="related">
+      <title>Human Escalation Request</title>
+      <description>Users can request human help - Intercom is one channel for fulfilling this</description>
+      <status>done</status>
+    </story>
+
+    <story id="2-6" relationship="foundation">
+      <title>Authentication & Authorization Foundation</title>
+      <description>JWT authentication pattern reused for Intercom identity verification</description>
+      <status>done</status>
+    </story>
+  </relatedStories>
+</story-context>

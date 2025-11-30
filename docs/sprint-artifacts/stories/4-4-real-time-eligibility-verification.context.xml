@@ -1,0 +1,656 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="4-4-real-time-eligibility-verification" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>4</storyId>
+    <title>Real-Time Eligibility Verification</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/4-4-real-time-eligibility-verification.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to know immediately if my insurance will cover services</iWant>
+    <soThat>I understand my financial situation before proceeding</soThat>
+
+    <userStoryDetails>
+      <requirementsContext>
+        This story implements FR23 (Eligibility verification) from the PRD. It enables real-time verification of insurance coverage by integrating with external eligibility APIs, providing parents with immediate feedback about their coverage for mental health services. This reduces uncertainty and abandonment during onboarding.
+      </requirementsContext>
+
+      <functionalRequirementsCovered>
+        <requirement id="FR23">System performs real-time insurance eligibility verification</requirement>
+      </functionalRequirementsCovered>
+
+      <keyArchitectureConstraints>
+        <constraint>Adapter pattern for multiple insurance payer integrations</constraint>
+        <constraint>Sidekiq-based async processing with progress updates via GraphQL subscriptions</constraint>
+        <constraint>Generic EDI 270/271 transaction support for standard payers</constraint>
+        <constraint>Graceful timeout handling with retry mechanisms</constraint>
+        <constraint>Results cached for 24 hours to reduce API calls and costs</constraint>
+        <constraint>Categorized failure reasons for user-friendly error handling</constraint>
+      </keyArchitectureConstraints>
+    </userStoryDetails>
+
+    <tasks>
+      <task id="1" status="pending">Create Eligibility Verification Service Architecture (base adapter, factory, timeout/retry)</task>
+      <task id="2" status="pending">Implement EDI 270/271 Transaction Support (message building and parsing)</task>
+      <task id="3" status="pending">Create Verification Mutation (verifyEligibility with caching)</task>
+      <task id="4" status="pending">Implement Sidekiq Verification Job (async processing with adapter)</task>
+      <task id="5" status="pending">Define Verification Result Schema (JSONB structure and helper methods)</task>
+      <task id="6" status="pending">Implement Mental Health Service Verification (service-specific coverage)</task>
+      <task id="7" status="pending">Implement Result Caching (Redis with 24-hour TTL)</task>
+      <task id="8" status="pending">Implement Error Categorization (API error code mapping)</task>
+      <task id="9" status="pending">Create GraphQL Subscription for Status Updates (eligibilityStatusChanged)</task>
+      <task id="10" status="pending">Add Progress Updates for Long-Running Verifications (real-time status)</task>
+      <task id="11" status="pending">Handle Timeout and Retry Logic (30s timeout, 3 retries)</task>
+      <task id="12" status="pending">Create Payer-Specific Adapters (factory selection logic)</task>
+      <task id="13" status="pending">Add Audit Logging (all verification events)</task>
+      <task id="14" status="pending">Update Insurance Model (helper methods and scopes)</task>
+      <task id="15" status="pending">Integration Testing (full flow with mocked API)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">
+      <given>insurance information is provided</given>
+      <when>eligibility check is triggered</when>
+      <then>verifyEligibility mutation initiates verification process</then>
+    </criterion>
+
+    <criterion id="AC2">
+      <given>verification initiated</given>
+      <when>external eligibility API is called</when>
+      <then>request includes insurance details: member ID, group number, payer, subscriber info, service dates</then>
+    </criterion>
+
+    <criterion id="AC3">
+      <given>eligibility API responds successfully</given>
+      <when>results are returned</when>
+      <then>verification result includes: eligible (boolean), copay amount, deductible amount, coinsurance percentage, coverage details</then>
+    </criterion>
+
+    <criterion id="AC4">
+      <given>successful verification</given>
+      <when>coverage is confirmed</when>
+      <then>results specifically indicate coverage for mental health services (not just general coverage)</then>
+    </criterion>
+
+    <criterion id="AC5">
+      <given>verification completes</given>
+      <when>status is updated</when>
+      <then>verification_status becomes one of: VERIFIED, FAILED, MANUAL_REVIEW</then>
+    </criterion>
+
+    <criterion id="AC6">
+      <given>verification results received</given>
+      <when>results are stored</when>
+      <then>results are cached for 24 hours to prevent duplicate API calls</then>
+    </criterion>
+
+    <criterion id="AC7">
+      <given>verification fails</given>
+      <when>error occurs</when>
+      <then>failure reason is categorized: invalid_member_id, coverage_not_active, service_not_covered, network_error, timeout, unknown</then>
+    </criterion>
+
+    <criterion id="AC8">
+      <given>verification initiated</given>
+      <when>processing</when>
+      <then>verification completes within 30 seconds (timeout threshold)</then>
+    </criterion>
+
+    <criterion id="AC9">
+      <given>verification status changes</given>
+      <when>update occurs</when>
+      <then>subscription eligibilityStatusChanged fires with complete results to notify client in real-time</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md" relevance="high">
+        <section>FR23: Real-time insurance eligibility verification</section>
+        <section>Non-Functional Requirements: Performance (30s timeout), Reliability (graceful degradation)</section>
+        <section>Integration: Insurance Eligibility API (MVP priority)</section>
+      </doc>
+
+      <doc path="docs/epics.md" relevance="high">
+        <section>Epic 4: Insurance Verification - Story 4.4 definition</section>
+        <section>FR Coverage Map: FR23 mapped to Epic 4, Story 4.4</section>
+        <section>Dependencies: Story 4.3 (Manual Insurance Entry), Epic 2 (Session auth)</section>
+      </doc>
+
+      <doc path="docs/architecture.md" relevance="high">
+        <section>Service Pattern: app/services/ structure for business logic</section>
+        <section>Background Jobs: Sidekiq configuration and patterns</section>
+        <section>GraphQL Subscriptions: Action Cable for real-time updates</section>
+        <section>Technology Stack: Redis for caching, AWS integration patterns</section>
+      </doc>
+    </docs>
+
+    <code>
+      <existingFiles>
+        <file path="app/models/insurance.rb" relevance="critical">
+          <purpose>Insurance model with verification_status enum, PHI encryption via Encryptable concern</purpose>
+          <keyFeatures>
+            <feature>Enum: verification_status with values: pending, in_progress, verified, failed, manual_review, self_pay</feature>
+            <feature>PHI encryption: subscriber_name, member_id, policy_number, group_number</feature>
+            <feature>Associations: belongs_to :onboarding_session</feature>
+            <feature>Missing: verification_result JSONB field (needs migration)</feature>
+            <feature>Missing: helper methods for accessing verification results</feature>
+          </keyFeatures>
+        </file>
+
+        <file path="app/services/base_service.rb" relevance="high">
+          <purpose>Base class for all service objects with class-level call method</purpose>
+          <pattern>
+            class MyService &lt; BaseService
+              def call; end  # implementation
+            end
+            # Usage: MyService.call(args)
+          </pattern>
+        </file>
+
+        <file path="app/graphql/mutations/conversation/send_message.rb" relevance="high">
+          <purpose>Example mutation showing: argument validation, session authorization, GraphQL subscriptions, audit logging</purpose>
+          <keyPatterns>
+            <pattern>GraphQL::Schema::Mutation inheritance</pattern>
+            <pattern>argument and field definitions with descriptions</pattern>
+            <pattern>Session extraction from JWT context: context[:current_session_id]</pattern>
+            <pattern>Authorization: verify session ownership</pattern>
+            <pattern>Subscription trigger: DaybreakHealthBackendSchema.subscriptions.trigger</pattern>
+            <pattern>Audit logging: AuditLog.create! with action, resource, details</pattern>
+            <pattern>Error handling: rescue GraphQL::ExecutionError, StandardError</pattern>
+            <pattern>PHI-safe logging: never log message content</pattern>
+          </keyPatterns>
+        </file>
+
+        <file path="app/services/ai/client.rb" relevance="medium">
+          <purpose>Provider pattern example: agnostic client delegates to provider implementations</purpose>
+          <pattern>Similar to needed adapter pattern for insurance payers</pattern>
+        </file>
+      </existingFiles>
+
+      <filesToCreate>
+        <file path="app/services/insurance/eligibility/base_adapter.rb">Base adapter class defining interface</file>
+        <file path="app/services/insurance/eligibility/edi_adapter.rb">EDI 270/271 implementation</file>
+        <file path="app/services/insurance/eligibility/adapter_factory.rb">Payer-to-adapter selection</file>
+        <file path="app/graphql/mutations/insurance/verify_eligibility.rb">GraphQL mutation</file>
+        <file path="app/jobs/eligibility_verification_job.rb">Sidekiq async job</file>
+        <file path="app/graphql/subscriptions/eligibility_status_changed.rb">Real-time subscription</file>
+        <file path="spec/services/insurance/eligibility/base_adapter_spec.rb">Base adapter tests</file>
+        <file path="spec/services/insurance/eligibility/edi_adapter_spec.rb">EDI adapter tests</file>
+        <file path="spec/services/insurance/eligibility/adapter_factory_spec.rb">Factory tests</file>
+        <file path="spec/graphql/mutations/insurance/verify_eligibility_spec.rb">Mutation tests</file>
+        <file path="spec/jobs/eligibility_verification_job_spec.rb">Job tests</file>
+        <file path="spec/graphql/subscriptions/eligibility_status_changed_spec.rb">Subscription tests</file>
+      </filesToCreate>
+
+      <filesToModify>
+        <file path="app/models/insurance.rb">Add verification result helper methods and scopes</file>
+        <file path="app/graphql/types/mutation_type.rb">Register verify_eligibility mutation</file>
+        <file path="app/graphql/types/subscription_type.rb">Register eligibility_status_changed subscription</file>
+        <file path="app/graphql/types/insurance_type.rb">Add verification_result fields</file>
+        <file path="config/sidekiq.yml">Add :insurance_verification queue</file>
+      </filesToModify>
+    </code>
+
+    <dependencies>
+      <gemDependencies source="Gemfile">
+        <gem name="rails" version="~> 7.2.3" usage="Framework foundation" />
+        <gem name="pg" version="~> 1.1" usage="PostgreSQL database" />
+        <gem name="redis" version="~> 5.0" usage="Caching verification results (24-hour TTL)" />
+        <gem name="sidekiq" version="~> 7.2" usage="Background job processing for async verification" />
+        <gem name="graphql" version="~> 2.2" usage="API and subscriptions" />
+        <gem name="jwt" version="~> 2.7" usage="Session authentication" />
+        <gem name="pundit" version="~> 2.3" usage="Authorization (session ownership)" />
+      </gemDependencies>
+
+      <additionalDependencies>
+        <dependency type="external">
+          <name>EDI Clearinghouse API</name>
+          <purpose>Insurance eligibility verification via EDI 270/271 transactions</purpose>
+          <credentials>API endpoint and credentials needed (ENV vars)</credentials>
+          <notes>Test environment for development/staging required</notes>
+        </dependency>
+
+        <dependency type="configuration">
+          <name>Provider NPI Number</name>
+          <purpose>Required for EDI 270 requests (identify provider)</purpose>
+          <location>Rails.application.credentials.npi_number</location>
+        </dependency>
+
+        <dependency type="prerequisite">
+          <name>Story 4.3: Manual Insurance Entry</name>
+          <reason>Insurance data must exist before verification</reason>
+        </dependency>
+
+        <dependency type="prerequisite">
+          <name>Story 1.4: Docker with Redis</name>
+          <reason>Redis required for caching</reason>
+        </dependency>
+      </additionalDependencies>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <technical>
+      <constraint type="performance">
+        <description>Verification must complete within 30 seconds (timeout threshold)</description>
+        <implementation>Timeout.timeout(30.seconds) wrapper in adapter</implementation>
+        <acceptanceCriteria>AC8</acceptanceCriteria>
+      </constraint>
+
+      <constraint type="performance">
+        <description>Cache results for 24 hours to reduce API calls and costs</description>
+        <implementation>Rails.cache.write with expires_in: 24.hours</implementation>
+        <acceptanceCriteria>AC6</acceptanceCriteria>
+      </constraint>
+
+      <constraint type="reliability">
+        <description>Graceful timeout handling with retry mechanisms</description>
+        <implementation>Sidekiq retry: 3 attempts with exponential backoff</implementation>
+        <acceptanceCriteria>AC8</acceptanceCriteria>
+      </constraint>
+
+      <constraint type="architecture">
+        <description>Adapter pattern for multiple insurance payer integrations</description>
+        <implementation>BaseAdapter interface, AdapterFactory for selection, EdiAdapter generic implementation</implementation>
+        <rationale>Support future payer-specific integrations (Aetna API, UnitedHealthcare API)</rationale>
+      </constraint>
+    </technical>
+
+    <security>
+      <constraint type="phi">
+        <description>Never log member IDs, group numbers, or insurance card data</description>
+        <implementation>Audit logs include only verification status, error category, API response reference ID</implementation>
+        <requirement>HIPAA compliance</requirement>
+      </constraint>
+
+      <constraint type="authorization">
+        <description>Only allow verification of insurance records owned by current session</description>
+        <implementation>Verify insurance.onboarding_session_id == context[:current_session_id]</implementation>
+        <acceptanceCriteria>AC1</acceptanceCriteria>
+      </constraint>
+
+      <constraint type="encryption">
+        <description>All PHI fields encrypted at rest</description>
+        <implementation>Encryptable concern already applied to Insurance model</implementation>
+        <requirement>FR43</requirement>
+      </constraint>
+    </security>
+
+    <business>
+      <constraint type="cost">
+        <description>Minimize eligibility API calls (billed per transaction)</description>
+        <implementation>24-hour cache, check cache before API call</implementation>
+        <acceptanceCriteria>AC6</acceptanceCriteria>
+      </constraint>
+
+      <constraint type="compliance">
+        <description>Results must specifically verify mental health coverage (not just general coverage)</description>
+        <implementation>Query EDI 271 for service type MH (Mental Health) or CPT codes 90791-90899</implementation>
+        <acceptanceCriteria>AC4</acceptanceCriteria>
+      </constraint>
+    </business>
+  </constraints>
+
+  <interfaces>
+    <graphql>
+      <mutation name="verifyEligibility">
+        <description>Initiates insurance eligibility verification</description>
+        <arguments>
+          <argument name="insuranceId" type="ID" required="true">Insurance record to verify</argument>
+        </arguments>
+        <returns>
+          <field name="insurance" type="InsuranceType">Updated insurance record with status</field>
+          <field name="cached" type="Boolean">Whether result was returned from cache</field>
+        </returns>
+        <authorization>Session must own insurance record</authorization>
+        <acceptanceCriteria>AC1</acceptanceCriteria>
+      </mutation>
+
+      <subscription name="eligibilityStatusChanged">
+        <description>Real-time updates when verification status changes</description>
+        <arguments>
+          <argument name="sessionId" type="ID" required="true">Session to monitor</argument>
+        </arguments>
+        <returns>
+          <field name="insurance" type="InsuranceType">Updated insurance with results</field>
+          <field name="progress" type="ProgressType" nullable="true">Progress updates during verification</field>
+        </returns>
+        <triggerPoints>
+          <trigger>Job started - progress 0%</trigger>
+          <trigger>API called - progress 33%</trigger>
+          <trigger>Parsing results - progress 66%</trigger>
+          <trigger>Complete - progress 100%</trigger>
+        </triggerPoints>
+        <acceptanceCriteria>AC9</acceptanceCriteria>
+      </subscription>
+    </graphql>
+
+    <externalAPI>
+      <api name="EDI Clearinghouse">
+        <protocol>EDI 270/271 (X12 standard)</protocol>
+        <endpoint>Configured via ENV variables</endpoint>
+
+        <request type="EDI 270">
+          <description>Eligibility Inquiry</description>
+          <requiredSegments>
+            <segment name="ST">Transaction Set Header</segment>
+            <segment name="BHT">Beginning of Hierarchical Transaction</segment>
+            <segment name="HL">Hierarchical Level (Payer, Provider, Subscriber)</segment>
+            <segment name="NM1">Name segments (Payer, Provider, Subscriber)</segment>
+            <segment name="REF">Reference IDs (Member ID, Group Number)</segment>
+            <segment name="DTP">Service Date</segment>
+            <segment name="EQ">Eligibility Inquiry (service type 30 = health benefit coverage)</segment>
+            <segment name="SE">Transaction Set Trailer</segment>
+          </requiredSegments>
+          <acceptanceCriteria>AC2</acceptanceCriteria>
+        </request>
+
+        <response type="EDI 271">
+          <description>Eligibility Response</description>
+          <successSegments>
+            <segment name="EB">Eligibility/Benefit Information (copay, deductible, coinsurance)</segment>
+          </successSegments>
+          <errorSegments>
+            <segment name="AAA">Request Validation (error codes)</segment>
+          </errorSegments>
+          <acceptanceCriteria>AC3, AC7</acceptanceCriteria>
+        </response>
+      </api>
+    </externalAPI>
+
+    <cache>
+      <implementation>Rails.cache (Redis backend)</implementation>
+      <keyFormat>insurance:eligibility:{insurance_id}</keyFormat>
+      <ttl>24 hours (86400 seconds)</ttl>
+      <valueStructure>Complete verification_result JSONB</valueStructure>
+      <invalidation>
+        <trigger>Insurance data update (subscriber, member ID, group number change)</trigger>
+      </invalidation>
+      <acceptanceCriteria>AC6</acceptanceCriteria>
+    </cache>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard source="spec/models/insurance_spec.rb">
+        <pattern>RSpec.describe ModelName, type: :model</pattern>
+        <pattern>Shoulda matchers for associations and validations</pattern>
+        <pattern>PHI encryption tests: raw DB value != decrypted value</pattern>
+        <pattern>UUID primary key validation: match regex pattern</pattern>
+        <pattern>Timestamp tests: created_at, updated_at presence</pattern>
+      </standard>
+
+      <standard source="spec/services/ai/client_spec.rb">
+        <pattern>Service specs use let blocks for test data setup</pattern>
+        <pattern>Mock external dependencies: instance_double for provider</pattern>
+        <pattern>Validate input parameters before processing</pattern>
+        <pattern>Test error handling: raise specific errors (RateLimitError, ApiError)</pattern>
+        <pattern>Performance tests: measure p95 latency (< 2s for AI)</pattern>
+      </standard>
+
+      <standard source="spec/graphql/mutations/conversation/send_message_spec.rb">
+        <pattern>GraphQL mutation specs test resolve method directly</pattern>
+        <pattern>Mock context: { current_session_id:, ip_address:, user_agent: }</pattern>
+        <pattern>Test authorization: session ownership validation</pattern>
+        <pattern>Test validation: session status checks</pattern>
+        <pattern>Test audit logging: verify AuditLog.create! called</pattern>
+        <pattern>Test subscriptions: verify DaybreakHealthBackendSchema.subscriptions.trigger</pattern>
+        <pattern>Test error scenarios: return errors array with messages</pattern>
+      </standard>
+
+      <testingPrinciples>
+        <principle>Always mock external API calls (EDI clearinghouse)</principle>
+        <principle>Test both success and failure paths</principle>
+        <principle>Verify audit logs created for all actions</principle>
+        <principle>Test timeout and retry behavior with time mocking</principle>
+        <principle>Test cache hit/miss scenarios</principle>
+        <principle>Never include actual PHI in test fixtures</principle>
+        <principle>Use factories (FactoryBot) for test data creation</principle>
+      </testingPrinciples>
+    </standards>
+
+    <locations>
+      <location>spec/services/insurance/eligibility/</location>
+      <location>spec/graphql/mutations/insurance/</location>
+      <location>spec/graphql/subscriptions/</location>
+      <location>spec/jobs/</location>
+      <location>spec/integration/</location>
+    </locations>
+
+    <ideas>
+      <testSuite name="Adapter Pattern Tests" acceptanceCriteria="AC1, AC2">
+        <test>BaseAdapter interface defines verify_eligibility method</test>
+        <test>BaseAdapter raises NotImplementedError for abstract methods</test>
+        <test>BaseAdapter build_verification_result formats response correctly</test>
+        <test>BaseAdapter determine_status logic for eligible, error, nil cases</test>
+        <test>AdapterFactory selects correct adapter based on payer</test>
+        <test>AdapterFactory falls back to EdiAdapter for unknown payers</test>
+      </testSuite>
+
+      <testSuite name="EDI Transaction Tests" acceptanceCriteria="AC2, AC3, AC7">
+        <test>EdiAdapter build_edi_270 includes all required segments</test>
+        <test>EdiAdapter maps insurance fields to EDI elements (member ID → REF*0F)</test>
+        <test>EdiAdapter parse_edi_271 extracts eligibility data from EB segments</test>
+        <test>EdiAdapter handles AAA error segments with proper categorization</test>
+        <test>EdiAdapter maps error codes to categories (AAA42 → invalid_member_id)</test>
+        <test>EdiAdapter handles network errors and returns retryable flag</test>
+      </testSuite>
+
+      <testSuite name="Mental Health Coverage Tests" acceptanceCriteria="AC4">
+        <test>Extract mental_health_covered from service type MH</test>
+        <test>Extract mental_health_covered from CPT codes 90791-90899</test>
+        <test>Handle general coverage without mental health (mental_health_covered: false)</test>
+        <test>Flag for manual review if mental health coverage unclear</test>
+      </testSuite>
+
+      <testSuite name="Mutation Tests" acceptanceCriteria="AC1, AC6">
+        <test>verifyEligibility creates verification job for insurance record</test>
+        <test>verifyEligibility returns cached result if fresh (within 24 hours)</test>
+        <test>verifyEligibility raises error if insurance not found</test>
+        <test>verifyEligibility raises error if session doesn't own insurance</test>
+        <test>verifyEligibility creates audit log ELIGIBILITY_VERIFICATION_INITIATED</test>
+        <test>verifyEligibility creates audit log ELIGIBILITY_CACHE_HIT on cache hit</test>
+      </testSuite>
+
+      <testSuite name="Job Tests" acceptanceCriteria="AC2, AC3, AC5, AC8">
+        <test>EligibilityVerificationJob selects adapter via factory</test>
+        <test>EligibilityVerificationJob calls adapter verify_eligibility</test>
+        <test>EligibilityVerificationJob updates verification_result JSONB</test>
+        <test>EligibilityVerificationJob updates verification_status enum</test>
+        <test>EligibilityVerificationJob caches result with 24-hour TTL</test>
+        <test>EligibilityVerificationJob triggers eligibilityStatusChanged subscription</test>
+        <test>EligibilityVerificationJob creates audit log on success</test>
+        <test>EligibilityVerificationJob creates audit log on failure</test>
+        <test>EligibilityVerificationJob handles timeout gracefully (30s)</test>
+        <test>EligibilityVerificationJob retries 3 times with exponential backoff</test>
+        <test>EligibilityVerificationJob sets status to MANUAL_REVIEW after max retries</test>
+      </testSuite>
+
+      <testSuite name="Subscription Tests" acceptanceCriteria="AC9">
+        <test>eligibilityStatusChanged subscription authorizes session ownership</test>
+        <test>eligibilityStatusChanged subscription returns insurance with results</test>
+        <test>eligibilityStatusChanged subscription filters events by session</test>
+        <test>eligibilityStatusChanged subscription includes progress updates</test>
+      </testSuite>
+
+      <testSuite name="Caching Tests" acceptanceCriteria="AC6">
+        <test>Cache key format: insurance:eligibility:{insurance_id}</test>
+        <test>Cache stores complete verification_result</test>
+        <test>Cache expires after 24 hours</test>
+        <test>Cache invalidated on insurance data update</test>
+        <test>Cache hit returns result without API call</test>
+        <test>Cache miss triggers API call and stores result</test>
+      </testSuite>
+
+      <testSuite name="Integration Tests" acceptanceCriteria="All">
+        <test>Full flow: mutation → job → adapter → result → subscription</test>
+        <test>Successful verification with all coverage details</test>
+        <test>Failed verification with categorized error</test>
+        <test>Cached result prevents duplicate API calls</test>
+        <test>Timeout triggers retry and eventual manual review</test>
+        <test>Mental health coverage specifically detected</test>
+        <test>Concurrent verification attempts (idempotency)</test>
+      </testSuite>
+    </ideas>
+  </tests>
+
+  <implementation>
+    <devNotes>
+      <architecturePatterns>
+        <pattern name="Adapter Pattern">
+          <description>BaseAdapter defines interface, EdiAdapter implements EDI 270/271, AdapterFactory selects based on payer</description>
+          <benefit>Support multiple payers (future: Aetna API, UnitedHealthcare API) without changing job logic</benefit>
+          <files>
+            <file>app/services/insurance/eligibility/base_adapter.rb</file>
+            <file>app/services/insurance/eligibility/edi_adapter.rb</file>
+            <file>app/services/insurance/eligibility/adapter_factory.rb</file>
+          </files>
+        </pattern>
+
+        <pattern name="Service Pattern">
+          <description>Business logic in services/, not controllers or models</description>
+          <benefit>Testable, reusable, single responsibility</benefit>
+          <files>All files in app/services/insurance/eligibility/</files>
+        </pattern>
+
+        <pattern name="Job Pattern">
+          <description>Long-running operations in Sidekiq jobs with progress updates</description>
+          <benefit>Async processing, retry logic, progress tracking via subscriptions</benefit>
+          <files>app/jobs/eligibility_verification_job.rb</files>
+        </pattern>
+      </architecturePatterns>
+
+      <ediTransactionDetails>
+        <edi270>
+          <description>Eligibility Inquiry Request</description>
+          <segments>
+            <segment name="ST">Transaction Set Header (270, control number)</segment>
+            <segment name="BHT">Transaction metadata (0022, 13, trace ID, date, time)</segment>
+            <segment name="HL">Information Source - Payer (level 1)</segment>
+            <segment name="NM1">Payer Name (PR, payer_name, payer_id)</segment>
+            <segment name="HL">Information Receiver - Provider (level 2)</segment>
+            <segment name="NM1">Provider Name (1P, DAYBREAK HEALTH, NPI)</segment>
+            <segment name="HL">Subscriber - Patient (level 3)</segment>
+            <segment name="NM1">Subscriber Name (IL, last_name, first_name)</segment>
+            <segment name="REF">Member ID (0F, member_id)</segment>
+            <segment name="REF">Group Number (1L, group_number)</segment>
+            <segment name="DTP">Service Date (291, D8, YYYYMMDD)</segment>
+            <segment name="EQ">Eligibility Inquiry (30 = health benefit coverage)</segment>
+            <segment name="SE">Transaction Set Trailer (segment count, control number)</segment>
+          </segments>
+        </edi270>
+
+        <edi271>
+          <description>Eligibility Response</description>
+          <successSegments>
+            <segment name="EB">Eligibility/Benefit Information
+              <element name="EB01">Eligibility code (1 = active coverage)</element>
+              <element name="EB03">Service type (MH = mental health, 30 = health)</element>
+              <element name="EB06">Time period qualifier</element>
+              <element name="EB09">Copay percentage or amount</element>
+            </segment>
+          </successSegments>
+          <errorSegments>
+            <segment name="AAA">Request Validation
+              <errorCode code="42">Invalid member ID (AAA42 → invalid_member_id)</errorCode>
+              <errorCode code="56">Coverage not active (AAA56 → coverage_not_active)</errorCode>
+              <errorCode code="58">Service not covered (AAA58 → service_not_covered)</errorCode>
+              <errorCode code="72">Network error (AAA72 → network_error, retryable)</errorCode>
+            </segment>
+          </errorSegments>
+        </edi271>
+      </ediTransactionDetails>
+
+      <verificationResultSchema>
+        <jsonbStructure>
+          {
+            "status": "VERIFIED" | "FAILED" | "MANUAL_REVIEW",
+            "eligible": true/false,
+            "coverage": {
+              "mental_health_covered": true/false,
+              "copay": { "amount": 25.00, "currency": "USD" },
+              "deductible": { "amount": 500.00, "currency": "USD", "met": 100.00 },
+              "coinsurance": { "percentage": 20 },
+              "effective_date": "2024-01-01",
+              "termination_date": null
+            },
+            "error": {
+              "code": "INVALID_MEMBER_ID",
+              "category": "invalid_member_id",
+              "message": "Member ID not found",
+              "retryable": true
+            },
+            "verified_at": "2024-11-29T10:30:00Z",
+            "api_response_id": "ref-12345"
+          }
+        </jsonbStructure>
+
+        <helperMethods>
+          <method name="verified?">verification_status == 'verified'</method>
+          <method name="failed?">verification_status == 'failed'</method>
+          <method name="needs_manual_review?">verification_status == 'manual_review'</method>
+          <method name="eligible?">verification_result&amp;.dig('eligible') == true</method>
+          <method name="mental_health_covered?">verification_result&amp;.dig('coverage', 'mental_health_covered') == true</method>
+          <method name="copay_amount">verification_result&amp;.dig('coverage', 'copay', 'amount')</method>
+          <method name="deductible_amount">verification_result&amp;.dig('coverage', 'deductible', 'amount')</method>
+          <method name="coinsurance_percentage">verification_result&amp;.dig('coverage', 'coinsurance', 'percentage')</method>
+          <method name="error_category">verification_result&amp;.dig('error', 'category')</method>
+          <method name="can_retry_verification?">failed? and error retryable</method>
+          <method name="cached_result_valid?">verified_at within 24 hours</method>
+        </helperMethods>
+      </verificationResultSchema>
+
+      <securityConsiderations>
+        <phi>
+          <rule>Never log member IDs, group numbers, subscriber names</rule>
+          <rule>Encrypt all insurance data at rest (Encryptable concern)</rule>
+          <rule>Audit log access without exposing PHI (log existence, not values)</rule>
+        </phi>
+
+        <apiSecurity>
+          <rule>Store EDI API credentials in Rails credentials or AWS Secrets Manager</rule>
+          <rule>Use HTTPS for all API communications</rule>
+          <rule>Validate and sanitize all API responses before storage</rule>
+        </apiSecurity>
+
+        <authorization>
+          <rule>Verify session ownership before allowing verification</rule>
+          <rule>Only allow verification of insurance records owned by current session</rule>
+          <rule>Rate limit verification attempts to prevent abuse</rule>
+        </authorization>
+
+        <caching>
+          <rule>Cache verification results in Redis with encryption</rule>
+          <rule>Use secure cache keys that don't expose PHI</rule>
+          <rule>Invalidate cache on insurance data updates</rule>
+        </caching>
+      </securityConsiderations>
+    </devNotes>
+  </implementation>
+
+  <references>
+    <epic>Epic 4: Insurance Verification</epic>
+    <story>Story 4.4: Real-Time Eligibility Verification</story>
+    <functionalRequirements>
+      <fr id="FR23">System performs real-time insurance eligibility verification</fr>
+    </functionalRequirements>
+    <relatedStories>
+      <story id="4.1" status="drafted">Insurance Card Upload (provides insurance data)</story>
+      <story id="4.2" status="drafted">OCR Insurance Card Extraction (provides extracted data)</story>
+      <story id="4.3" status="drafted">Manual Insurance Entry (prerequisite - insurance data must exist)</story>
+      <story id="4.5" status="drafted">Verification Status Communication (displays results)</story>
+      <story id="4.6" status="drafted">Self-Pay Option (fallback if verification fails)</story>
+    </relatedStories>
+    <externalDocumentation>
+      <doc>EDI 270/271 Standard: https://www.cms.gov/regulations-and-guidance/administrative-simplification/hipaa-aca/eligibility-benefit-inquiry-and-response</doc>
+      <doc>X12 EDI Standard Documentation</doc>
+    </externalDocumentation>
+  </references>
+</story-context>

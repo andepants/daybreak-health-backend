@@ -1,0 +1,306 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>2</storyId>
+    <title>Abandoned Session Reminder</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/6-2-abandoned-session-reminder.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to receive a reminder if I don't complete onboarding</iWant>
+    <soThat>I'm encouraged to return and finish</soThat>
+    <tasks>
+      - Task 1: Add reminder tracking to OnboardingSession model (AC: #1)
+        - Add migration for reminders_sent integer field (default: 0)
+        - Add migration for last_activity_at timestamp field
+        - Add migration for reminder_preferences JSONB field (for unsubscribe)
+        - Update model with validations and scopes for eligible sessions
+        - Add scope needs_reminder filtering by status, last_activity, reminders_sent
+        - Write model specs for reminder eligibility logic
+
+      - Task 2: Create scheduled job to check for abandoned sessions (AC: #1)
+        - Create AbandonedSessionReminderJob in app/jobs/
+        - Implement logic to find sessions needing reminders
+        - Calculate which reminder tier (1st, 2nd, or final) to send
+        - Deduplication: skip if activity within 1 hour
+        - Queue email delivery job for each eligible session
+        - Update reminders_sent counter after queueing
+        - Configure Sidekiq-cron to run job every hour
+        - Write job specs with time travel for reminder timing
+
+      - Task 3: Create reminder email templates (AC: #1, #2)
+        - Create SessionReminderMailer in app/mailers/
+        - Implement first_reminder email method with caring tone
+        - Implement second_reminder email method with urgency
+        - Implement final_reminder email method with expiration warning
+        - Create view templates in app/views/session_reminder_mailer/
+        - Include progress summary (current phase, % complete)
+        - Include session recovery link via Auth::RecoveryTokenService
+        - Include support contact information
+        - Add unsubscribe link to all templates
+        - Ensure mobile-responsive design
+        - Write mailer specs for all templates
+
+      - Task 4: Implement unsubscribe mechanism (AC: #3)
+        - Create unsubscribeFromReminders mutation in GraphQL
+        - Update reminder_preferences JSONB to store opt-out
+        - Add unsubscribe token validation (secure, time-limited)
+        - Create unsubscribe confirmation page/response
+        - Filter out opted-out sessions in reminder job
+        - Audit log unsubscribe actions
+        - Write specs for unsubscribe flow
+
+      - Task 5: Update session activity tracking (AC: #1)
+        - Modify UpdateSessionProgress mutation to update last_activity_at
+        - Modify SendMessage mutation to update last_activity_at
+        - Add callback to automatically update timestamp on session changes
+        - Write integration specs for activity tracking
+
+      - Task 6: Configure reminder timing via environment variables (AC: #1)
+        - Add env vars: REMINDER_HOURS_1, REMINDER_HOURS_2, REMINDER_HOURS_FINAL
+        - Update .env.example with default values (2, 24, 72)
+        - Document configuration in dev setup guide
+        - Use env vars in reminder job for tier calculation
+
+      - Task 7: Integration with session cleanup (AC: #1)
+        - Ensure SessionCleanupJob (Story 2.4) skips sessions with pending reminders
+        - Coordinate final reminder timing with expiration threshold
+        - Update cleanup job to respect reminder schedule
+        - Write integration specs for cleanup + reminder interaction
+
+      - Task 8: Testing and validation (All ACs)
+        - Write integration spec for complete reminder flow
+        - Test reminder deduplication (no re-send within 1 hour)
+        - Test reminder cap (max 3 reminders)
+        - Test opt-out prevents future reminders
+        - Test completed/abandoned sessions don't trigger reminders
+        - Test email delivery and content
+        - Test recovery link functionality from reminder email
+        - Manual QA: Verify email rendering in multiple clients
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: Given a session is IN_PROGRESS but inactive
+         When configured reminder threshold is reached
+         Then:
+         - Reminder email sent at configurable intervals:
+           - First reminder: 2 hours after last activity
+           - Second reminder: 24 hours after last activity
+           - Final reminder: 72 hours before expiration
+         - Email includes:
+           - "We noticed you haven't finished..."
+           - Progress summary (where they left off)
+           - Recovery link
+           - Support offer
+         - No reminder sent if session completed or explicitly abandoned
+         - Reminder count tracked (max 3)
+
+    AC2: Given reminders are sent
+         Then reminders are helpful, not annoying
+
+    AC3: Given a reminder email is sent
+         Then unsubscribe option available (marks session preference)
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR32: Abandoned Session Reminder</section>
+        <snippet>System sends reminder for abandoned sessions (configurable timing). Note: PRD marks FR32 as DEFERRED - Post-MVP, but this story implements it for better UX.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Background Jobs (Sidekiq)</section>
+        <snippet>Sidekiq configured with queues: critical, default, low. Jobs use exponential backoff retry. Email delivery jobs should queue to default.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Email</section>
+        <snippet>AWS SES for transactional emails. Action Mailer for email templates. All emails logged to audit trail.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 6.2: Abandoned Session Reminder</section>
+        <snippet>Configurable reminder intervals (2 hours, 24 hours, 72 hours before expiration). Email includes progress summary, recovery link, support offer. Unsubscribe option required. Max 3 reminders per session.</snippet>
+      </artifact>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-161</lines>
+        <reason>Core session model that needs reminder tracking fields and scopes. Already has expires_at and status fields needed for reminder logic.</reason>
+      </artifact>
+      <artifact>
+        <path>app/jobs/session_cleanup_job.rb</path>
+        <kind>job</kind>
+        <symbol>SessionCleanupJob</symbol>
+        <lines></lines>
+        <reason>Existing cleanup job that needs coordination with reminder system to avoid expiring sessions with pending reminders.</reason>
+      </artifact>
+      <artifact>
+        <path>app/jobs/session_recovery_email_job.rb</path>
+        <kind>job</kind>
+        <symbol>SessionRecoveryEmailJob</symbol>
+        <lines>1-72</lines>
+        <reason>Example job showing pattern for email sending via Sidekiq. Uses Auth::RecoveryTokenService for magic links. Pattern to follow for reminder emails.</reason>
+      </artifact>
+      <artifact>
+        <path>app/mailers/parent_mailer.rb</path>
+        <kind>mailer</kind>
+        <symbol>ParentMailer</symbol>
+        <lines>1-29</lines>
+        <reason>Existing mailer for parent-facing emails. Should add reminder email methods here (first_reminder, second_reminder, final_reminder).</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/auth/recovery_token_service.rb</path>
+        <kind>service</kind>
+        <symbol>Auth::RecoveryTokenService</symbol>
+        <lines>1-70</lines>
+        <reason>Service for generating secure recovery tokens with 15-minute TTL. Use this to generate recovery links in reminder emails.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/mutations/sessions/update_session_progress.rb</path>
+        <kind>mutation</kind>
+        <symbol>Mutations::Sessions::UpdateSessionProgress</symbol>
+        <lines>51-128</lines>
+        <reason>Mutation that updates session progress. Need to add last_activity_at timestamp update here (currently only extends expiration).</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/mutations/conversation/send_message.rb</path>
+        <kind>mutation</kind>
+        <symbol>Mutations::Conversation::SendMessage</symbol>
+        <lines>39-116</lines>
+        <reason>Mutation for sending messages. Need to add last_activity_at timestamp update here as messages indicate active session.</reason>
+      </artifact>
+      <artifact>
+        <path>config/sidekiq.yml</path>
+        <kind>config</kind>
+        <symbol></symbol>
+        <lines>1-24</lines>
+        <reason>Sidekiq configuration. Need to add sidekiq-cron schedule for AbandonedSessionReminderJob to run hourly.</reason>
+      </artifact>
+      <artifact>
+        <path>.env.example</path>
+        <kind>config</kind>
+        <symbol></symbol>
+        <lines>1-60</lines>
+        <reason>Environment configuration template. Need to add REMINDER_HOURS_1, REMINDER_HOURS_2, REMINDER_HOURS_FINAL variables.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <ruby>
+        <gem name="rails" version="~> 7.2.3">Core framework</gem>
+        <gem name="sidekiq" version="~> 7.2">Background job processing</gem>
+        <gem name="sidekiq-cron" version="~> 1.9">Scheduled job support for hourly reminder checks</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL API for unsubscribe mutation</gem>
+        <gem name="redis" version="~> 5.0">Redis for recovery tokens</gem>
+      </ruby>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - PHI Protection: Progress summary in emails must be generic ("Parent Information complete"), not include specific PHI (names, DOB, etc.)
+    - Reminder Timing: Use environment variables for configurability (REMINDER_HOURS_1=2, REMINDER_HOURS_2=24, REMINDER_HOURS_FINAL=72)
+    - Deduplication: Check last_activity_at before sending - skip if any activity in last 1 hour to prevent spam
+    - Max Reminders: Track reminders_sent count, cap at 3 total reminders per session
+    - Session States: Only send reminders for IN_PROGRESS sessions, skip COMPLETED, ABANDONED, EXPIRED, SUBMITTED
+    - Unsubscribe Security: Use cryptographically secure tokens with time limit (30 days validity)
+    - Recovery Links: Reuse existing Auth::RecoveryTokenService (15-minute expiration, one-time use)
+    - Email Design: Mobile-responsive, caring tone progression (gentle → encouraging → urgent), always include support contact
+    - Audit Logging: Log all reminder sends, unsubscribe actions, reminder preference changes
+    - Integration: Coordinate with SessionCleanupJob to not expire sessions with pending final reminders
+    - Idempotent Jobs: Reminder job should handle retries gracefully, check reminders_sent before incrementing
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>OnboardingSession.needs_reminder</name>
+      <kind>ActiveRecord scope</kind>
+      <signature>scope :needs_reminder, -> { where(status: :in_progress).where('last_activity_at < ?', 1.hour.ago).where('reminders_sent < ?', 3).where("reminder_preferences->>'opted_out' IS NULL OR reminder_preferences->>'opted_out' = 'false'") }</signature>
+      <path>app/models/onboarding_session.rb</path>
+    </interface>
+    <interface>
+      <name>SessionReminderMailer.first_reminder</name>
+      <kind>Action Mailer method</kind>
+      <signature>def first_reminder(parent:, recovery_url:, progress_summary:)</signature>
+      <path>app/mailers/session_reminder_mailer.rb</path>
+    </interface>
+    <interface>
+      <name>SessionReminderMailer.second_reminder</name>
+      <kind>Action Mailer method</kind>
+      <signature>def second_reminder(parent:, recovery_url:, progress_summary:)</signature>
+      <path>app/mailers/session_reminder_mailer.rb</path>
+    </interface>
+    <interface>
+      <name>SessionReminderMailer.final_reminder</name>
+      <kind>Action Mailer method</kind>
+      <signature>def final_reminder(parent:, recovery_url:, progress_summary:, expires_at:)</signature>
+      <path>app/mailers/session_reminder_mailer.rb</path>
+    </interface>
+    <interface>
+      <name>AbandonedSessionReminderJob.perform</name>
+      <kind>Sidekiq job</kind>
+      <signature>def perform()</signature>
+      <path>app/jobs/abandoned_session_reminder_job.rb</path>
+    </interface>
+    <interface>
+      <name>Mutations::Sessions::UnsubscribeFromReminders</name>
+      <kind>GraphQL mutation</kind>
+      <signature>mutation { unsubscribeFromReminders(sessionId: ID!, token: String!) { session { id reminderPreferences } errors } }</signature>
+      <path>app/graphql/mutations/sessions/unsubscribe_from_reminders.rb</path>
+    </interface>
+    <interface>
+      <name>Auth::RecoveryTokenService.generate</name>
+      <kind>Service method</kind>
+      <signature>def self.generate(session_id) -> String</signature>
+      <path>app/services/auth/recovery_token_service.rb</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      RSpec testing framework with FactoryBot for fixtures and Shoulda Matchers for model tests.
+      Test organization: spec/models/, spec/jobs/, spec/mailers/, spec/graphql/mutations/, spec/integration/.
+      Use time travel helpers (travel_to, travel) for testing reminder timing.
+      Email specs test both delivery and content, use email_spec gem matchers if available.
+      Integration specs test complete flows across multiple components.
+    </standards>
+
+    <locations>
+      - spec/models/onboarding_session_spec.rb (add reminder scope tests)
+      - spec/jobs/abandoned_session_reminder_job_spec.rb (new file)
+      - spec/mailers/session_reminder_mailer_spec.rb (new file)
+      - spec/graphql/mutations/sessions/unsubscribe_from_reminders_spec.rb (new file)
+      - spec/integration/abandoned_session_reminder_flow_spec.rb (new file)
+    </locations>
+
+    <ideas>
+      - Test reminder eligibility scope filters correctly (status, activity, count, opt-out)
+      - Test reminder tier calculation (1st at 2 hours, 2nd at 24 hours, final at 72 hours before expiration)
+      - Test deduplication: no reminder if activity within 1 hour
+      - Test reminder cap: max 3 reminders per session
+      - Test opt-out flow: unsubscribe token validation, preference update, audit logging
+      - Test email content: all required elements present (progress, recovery link, support, unsubscribe)
+      - Test recovery link generation and validity
+      - Test activity tracking: last_activity_at updated on UpdateSessionProgress and SendMessage
+      - Test cleanup job coordination: sessions with pending reminders not expired prematurely
+      - Test idempotency: job can retry without duplicating reminders
+      - Test completed/abandoned sessions excluded from reminders
+      - Test email rendering in text and HTML formats
+    </ideas>
+  </tests>
+</story-context>

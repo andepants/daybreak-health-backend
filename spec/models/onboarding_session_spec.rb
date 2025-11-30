@@ -326,4 +326,107 @@ RSpec.describe OnboardingSession, type: :model do
       end
     end
   end
+
+  # AC 3.5: Human Escalation Request
+  describe 'escalation fields' do
+    let(:session) { create(:onboarding_session) }
+
+    describe 'needs_human_contact' do
+      it 'defaults to false' do
+        expect(session.needs_human_contact).to be false
+      end
+
+      it 'can be set to true' do
+        session.update!(needs_human_contact: true, escalation_requested_at: Time.current)
+        expect(session.needs_human_contact).to be true
+      end
+    end
+
+    describe 'escalation_requested_at' do
+      it 'can be nil by default' do
+        expect(session.escalation_requested_at).to be_nil
+      end
+
+      it 'can store a timestamp' do
+        timestamp = Time.current
+        session.update!(needs_human_contact: true, escalation_requested_at: timestamp)
+        expect(session.escalation_requested_at).to be_within(1.second).of(timestamp)
+      end
+
+      # AC 3.5.2,3.5.3: Validation ensures escalation_requested_at is set when needs_human_contact is true
+      it 'is required when needs_human_contact is true' do
+        session.needs_human_contact = true
+        session.escalation_requested_at = nil
+        expect(session).not_to be_valid
+        expect(session.errors[:escalation_requested_at]).to include("can't be blank")
+      end
+
+      it 'is not required when needs_human_contact is false' do
+        session.needs_human_contact = false
+        session.escalation_requested_at = nil
+        expect(session).to be_valid
+      end
+    end
+
+    describe 'escalation_reason' do
+      # AC 3.5.7: Escalation reason is encrypted as PHI
+      it 'can store escalation reason' do
+        reason = 'I need urgent help'
+        session.update!(
+          needs_human_contact: true,
+          escalation_requested_at: Time.current,
+          escalation_reason: reason
+        )
+        expect(session.escalation_reason).to eq(reason)
+      end
+
+      it 'encrypts escalation reason (PHI)' do
+        reason = 'Personal sensitive information'
+        session.update!(
+          needs_human_contact: true,
+          escalation_requested_at: Time.current,
+          escalation_reason: reason
+        )
+
+        # Raw database value should be encrypted (not readable)
+        raw_value = ActiveRecord::Base.connection.select_value(
+          "SELECT escalation_reason FROM onboarding_sessions WHERE id = '#{session.id}'"
+        )
+        expect(raw_value).not_to eq(reason)
+        expect(raw_value).not_to be_nil
+
+        # But the model attribute should decrypt it
+        expect(session.reload.escalation_reason).to eq(reason)
+      end
+
+      it 'can be nil (reason is optional)' do
+        session.update!(needs_human_contact: true, escalation_requested_at: Time.current)
+        expect(session.escalation_reason).to be_nil
+        expect(session).to be_valid
+      end
+    end
+
+    # AC 3.5.2,3.5.3: Scope to filter sessions needing human contact
+    describe '.needs_human_contact scope' do
+      let!(:escalated_session1) do
+        create(:onboarding_session, needs_human_contact: true, escalation_requested_at: Time.current)
+      end
+      let!(:escalated_session2) do
+        create(:onboarding_session,
+               needs_human_contact: true,
+               escalation_requested_at: 1.hour.ago,
+               escalation_reason: 'Need help')
+      end
+      let!(:normal_session) { create(:onboarding_session, needs_human_contact: false) }
+
+      it 'returns only sessions with needs_human_contact true' do
+        expect(OnboardingSession.needs_human_contact).to include(escalated_session1, escalated_session2)
+        expect(OnboardingSession.needs_human_contact).not_to include(normal_session)
+      end
+
+      it 'returns correct count' do
+        expect(OnboardingSession.needs_human_contact.count).to eq(2)
+      end
+    end
+  end
 end

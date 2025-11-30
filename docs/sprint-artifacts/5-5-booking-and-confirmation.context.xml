@@ -1,0 +1,378 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>5</storyId>
+    <title>Booking and Confirmation</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/epics.md#story-55-booking--confirmation</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to book an appointment with my chosen therapist</iWant>
+    <soThat>my child can begin therapy</soThat>
+    <tasks>
+- Task 1: Create Appointment Model with Proper Constraints (AC: 3, 8)
+  - Create migration for appointments table with UUID primary key
+  - Fields: therapist_id (UUID), onboarding_session_id (UUID), appointment_datetime, duration_minutes, status (enum: scheduled, confirmed, cancelled, completed, no_show)
+  - Add unique index on (therapist_id, appointment_datetime) to prevent double-booking at DB level
+  - Add foreign keys to therapists and onboarding_sessions tables
+  - Add check constraint: appointment_datetime must be in future
+  - Create app/models/appointment.rb with Auditable concern
+  - Add belongs_to :therapist, belongs_to :onboarding_session associations
+  - Add status enum with validations
+  - Add model validations and RSpec tests
+
+- Task 2: Create Therapist Model (Prerequisite for Story 5.5) (AC: 1)
+  - Create migration for therapists table with UUID primary key
+  - Fields: name, credentials, bio, photo_url, active (boolean), languages (array), specializations (jsonb)
+  - Create app/models/therapist.rb with basic validations
+  - Create app/models/therapist_availability.rb for recurring slots
+  - Create app/models/therapist_time_off.rb for exceptions
+  - Add has_many :appointments, has_many :therapist_availabilities associations
+  - Seed test data from docs/test-cases/clinicians_anonymized.csv
+  - Add RSpec tests for model validations
+
+- Task 3: Create BookingService with Transaction + Row Locking (AC: 2, 8)
+  - Create app/services/scheduling/booking_service.rb
+  - Implement #book_appointment(session_id:, therapist_id:, appointment_datetime:, duration:)
+  - Use database transaction with pessimistic locking (lock!)
+  - Verify slot availability within transaction (prevent race conditions)
+  - Check for existing appointment at same time for therapist
+  - Create appointment record with status: scheduled
+  - Update session status to appointment_booked (add to OnboardingSession enum)
+  - Return success/failure result with appointment details
+  - Add comprehensive RSpec tests including race condition scenarios
+
+- Task 4: Create BookAppointment GraphQL Mutation (AC: 1, 4, 5, 6)
+  - Create app/graphql/mutations/scheduling/book_appointment.rb
+  - Accept sessionId, therapistId, appointmentDatetime, duration arguments
+  - Validate inputs: datetime in future, therapist exists and active
+  - Call BookingService#book_appointment
+  - On success: return appointment confirmation with therapist details
+  - On failure: return clear error message (slot unavailable, invalid time, etc.)
+  - Trigger SlotUpdated subscription for real-time UI updates
+  - Create audit log entry: APPOINTMENT_BOOKED
+  - Add mutation integration tests
+
+- Task 5: Create AppointmentType GraphQL Type (AC: 4)
+  - Create app/graphql/types/appointment_type.rb
+  - Define fields: id, therapist, appointmentDatetime, duration, status, createdAt
+  - Include nested TherapistType for therapist details
+  - Add confirmation_number field (generated from appointment ID)
+  - Add to OnboardingSessionType as appointment field
+
+- Task 6: Create TherapistType GraphQL Type (AC: 1, 4)
+  - Create app/graphql/types/therapist_type.rb
+  - Define fields: id, name, credentials, bio, photoUrl, specializations, languages
+  - Used by AppointmentType and future matching recommendations (Story 5.4)
+
+- Task 7: Add appointment_booked Status to OnboardingSession (AC: 5)
+  - Update OnboardingSession status enum to include appointment_booked: 7
+  - Update SessionStateMachine concern to allow transition from assessment_complete to appointment_booked
+  - Add validation: session can only book if assessment_complete status
+  - Add RSpec tests for state transitions
+
+- Task 8: Create SlotUpdated GraphQL Subscription (AC: real-time)
+  - Create app/graphql/subscriptions/slot_updated.rb
+  - Subscribe by therapist_id and date range
+  - Trigger when appointment booked/cancelled for real-time slot updates
+  - Return updated slot availability status
+  - Add subscription integration tests
+
+- Task 9: Implement Therapist Notification (AC: 6)
+  - Create app/jobs/therapist_booking_notification_job.rb
+  - Enqueue job after successful booking (async)
+  - Internal notification only (email to therapist - simplified)
+  - Include appointment details: patient name, time, duration
+  - Add job spec with mock email delivery
+
+- Task 10: Implement Parent Confirmation (AC: 7)
+  - Create app/jobs/appointment_confirmation_job.rb
+  - Enqueue job after successful booking (async)
+  - Send confirmation email to parent if email available
+  - Include appointment details, therapist info, calendar invite
+  - Add job spec with mock email delivery
+
+- Task 11: Add Cancel/Reschedule Capability (AC: 9)
+  - Create app/graphql/mutations/scheduling/cancel_appointment.rb
+  - Create app/graphql/mutations/scheduling/reschedule_appointment.rb
+  - Implement cancellation policy checks (e.g., 24 hours notice)
+  - Use same transaction + locking pattern for reschedule
+  - Update session status appropriately
+  - Trigger notifications for cancellation/reschedule
+  - Add mutation tests
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Given parent has selected a therapist and time slot, When booking is submitted via bookAppointment mutation, Then appointment is created with therapist_id, session_id, datetime, duration, and status
+
+2. Given concurrent booking attempts for same slot, When multiple parents try to book same time, Then slot availability is verified with database row locking to prevent race conditions
+
+3. Given appointment creation, When stored in database, Then appointment record includes: therapist_id, session_id, datetime, duration_minutes, status (enum)
+
+4. Given successful booking, When mutation completes, Then confirmation is shown to parent with appointment details (therapist, time, location/virtual link)
+
+5. Given successful booking, When appointment is created, Then session status is updated to APPOINTMENT_BOOKED
+
+6. Given successful booking, When appointment is confirmed, Then therapist is notified of new booking (internal notification system)
+
+7. Given successful booking, When parent has email on file, Then parent receives confirmation email with appointment details
+
+8. Given booking operation, When creating appointment, Then booking is atomic using database transaction (no double-booking possible)
+
+9. Given booked appointment, When parent requests cancel or reschedule, Then parent can cancel/reschedule within policy constraints (e.g., 24-hour notice)
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Epic 5: Enhanced Scheduling Module</section>
+        <snippet>Story 5.5: Booking and Confirmation enables parents to book appointments with chosen therapists after assessment completion. Features include slot verification, atomic booking to prevent double-booking, confirmation flow, and status updates. Session status transitions to APPOINTMENT_BOOKED upon successful booking.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 5: Enhanced Scheduling Module - Story 5.5</section>
+        <snippet>Story 5.5 implements appointment booking with race condition prevention. Technical approach: Appointment model with proper constraints, database transaction with row locking for slot reservation, BookingService handles confirmation flow, GraphQL subscription for real-time slot updates. Session status updated to APPOINTMENT_BOOKED. Prerequisites: Story 5.4 (Matching Recommendations API).</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 5: Test Data Reference</section>
+        <snippet>Test data files in docs/test-cases/: clinicians_anonymized.csv for therapist profiles/credentials/specializations, clinician_availabilities.csv for therapist availability slots. Use for seeding therapists and testing booking scenarios.</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Non-Functional Requirements - Performance</section>
+        <snippet>API Response Time: p95 less than 500ms for conversational feel. Concurrent Sessions: 1000+ to handle traffic spikes. Scalability: Horizontal scaling capability, database connection pooling with auto-scaling, stateless API design enabling load balancing.</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>HIPAA Compliance Requirements</section>
+        <snippet>All PHI encrypted at rest (AES-256) and in transit (TLS 1.3). Role-based access with minimum necessary principle. Complete audit trail of all PHI access. Business Associate Agreements with all vendors.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-161</lines>
+        <reason>OnboardingSession model with status enum and SessionStateMachine concern. Need to add appointment_booked status (AC5) and validate transition from assessment_complete. Foundation for linking appointments to sessions.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/auditable.rb</path>
+        <kind>concern</kind>
+        <symbol>Auditable</symbol>
+        <lines>1-129</lines>
+        <reason>Auditable concern for automatic audit logging with PHI redaction. Appointment model will include this concern to log APPOINTMENT_BOOKED, APPOINTMENT_CANCELLED actions while protecting patient data.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/encryptable.rb</path>
+        <kind>concern</kind>
+        <symbol>Encryptable</symbol>
+        <lines>1-14</lines>
+        <reason>Encryptable concern provides encrypts_phi for PHI encryption. Not directly used by Appointment model (appointment times are not PHI), but important for associated Parent/Child data access patterns.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/session_state_machine.rb</path>
+        <kind>concern</kind>
+        <symbol>SessionStateMachine</symbol>
+        <lines>referenced</lines>
+        <reason>SessionStateMachine concern manages OnboardingSession status transitions. Need to add transition from assessment_complete to appointment_booked for AC5.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/mutations/conversation/send_message.rb</path>
+        <kind>mutation</kind>
+        <symbol>Mutations::Conversation::SendMessage</symbol>
+        <lines>1-566</lines>
+        <reason>Example GraphQL mutation showing patterns for: argument handling, session authorization, error handling, subscription triggering, audit logging. BookAppointment mutation will follow similar patterns.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/subscriptions/message_received.rb</path>
+        <kind>subscription</kind>
+        <symbol>Subscriptions::MessageReceived</symbol>
+        <lines>1-118</lines>
+        <reason>Example GraphQL subscription showing patterns for: subscription authorization, session ownership verification, real-time updates. SlotUpdated subscription will follow similar patterns for real-time slot availability.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/onboarding_session_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>Types::OnboardingSessionType</symbol>
+        <lines>1-52</lines>
+        <reason>OnboardingSession GraphQL type. Need to add appointment field (Types::AppointmentType) to expose booked appointment details to parent.</reason>
+      </artifact>
+      <artifact>
+        <path>db/schema.rb</path>
+        <kind>schema</kind>
+        <symbol>ActiveRecord::Schema</symbol>
+        <lines>1-177</lines>
+        <reason>Current database schema showing UUID primary keys, foreign key constraints, unique indexes, and enum patterns. Appointment migration will follow these conventions.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <version>3.3.x</version>
+        <gem name="rails" version="~> 7.2.3">Rails 7 API framework with built-in encryption</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL server implementation</gem>
+        <gem name="sidekiq" version="~> 7.2">Background job processing for async notifications</gem>
+        <gem name="redis" version="~> 5.0">Action Cable backend for subscriptions</gem>
+        <gem name="pg" version="~> 1.1">PostgreSQL database with UUID support</gem>
+        <gem name="pundit" version="~> 2.3">Authorization policies</gem>
+        <gem name="rspec-rails" version="~> 6.1">Testing framework</gem>
+        <gem name="factory_bot_rails" version="~> 6.4">Test fixtures</gem>
+      </ruby>
+      <database>
+        <postgresql version="16.x">
+          <extension>pgcrypto</extension>
+          <extension>plpgsql</extension>
+        </postgresql>
+      </database>
+      <environment>
+        <var name="REDIS_URL">Redis connection for Action Cable and Sidekiq</var>
+        <var name="DATABASE_URL">PostgreSQL connection string</var>
+      </environment>
+      <testdata>
+        <file path="docs/test-cases/clinicians_anonymized.csv">Therapist profiles for seeding Therapist model</file>
+        <file path="docs/test-cases/clinician_availabilities.csv">Therapist availability slots for seeding availability</file>
+      </testdata>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Atomic Booking: MUST use database transaction with pessimistic row locking to prevent double-booking race conditions</constraint>
+    <constraint>No Double-Booking: MUST enforce unique index on (therapist_id, appointment_datetime) at database level</constraint>
+    <constraint>Future Appointments Only: MUST validate appointment_datetime is in future at both application and database levels</constraint>
+    <constraint>Session Status: Session MUST be in assessment_complete status before booking appointment</constraint>
+    <constraint>State Transition: Session status MUST transition to appointment_booked only after successful appointment creation</constraint>
+    <constraint>Audit Logging: MUST log APPOINTMENT_BOOKED, APPOINTMENT_CANCELLED actions with appointment details</constraint>
+    <constraint>Authorization: Parent can only book appointments for their own session (verify session ownership)</constraint>
+    <constraint>Real-Time Updates: MUST trigger SlotUpdated subscription when appointment booked/cancelled for UI sync</constraint>
+    <constraint>Performance: Booking mutation MUST complete within 500ms (p95) including database transaction</constraint>
+    <constraint>Error Handling: MUST return clear error messages for: slot unavailable, invalid time, therapist inactive, unauthorized</constraint>
+    <constraint>Async Notifications: Therapist and parent notifications MUST be async via Sidekiq (don't block booking)</constraint>
+    <constraint>Idempotency: Booking same slot twice MUST return error, not create duplicate (idempotent via unique constraint)</constraint>
+    <constraint>Testing: MUST test race condition scenarios with concurrent booking attempts for same slot</constraint>
+    <constraint>Testing: MUST achieve 90%+ test coverage for BookingService and mutations</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Scheduling::BookingService#book_appointment</name>
+      <kind>service_method</kind>
+      <signature>book_appointment(session_id:, therapist_id:, appointment_datetime:, duration:) -> Result</signature>
+      <path>app/services/scheduling/booking_service.rb</path>
+      <description>Core booking service using database transaction with row locking. Verifies slot availability, creates appointment, updates session status atomically. Returns Result object with success/failure and appointment details.</description>
+    </interface>
+    <interface>
+      <name>Mutations::Scheduling::BookAppointment</name>
+      <kind>graphql_mutation</kind>
+      <signature>bookAppointment(sessionId: ID!, therapistId: ID!, appointmentDatetime: ISO8601DateTime!, duration: Int!): BookAppointmentPayload!</signature>
+      <path>app/graphql/mutations/scheduling/book_appointment.rb</path>
+      <description>GraphQL mutation for booking appointments. Validates inputs, calls BookingService, triggers subscriptions and notifications, returns confirmation details.</description>
+    </interface>
+    <interface>
+      <name>Mutations::Scheduling::CancelAppointment</name>
+      <kind>graphql_mutation</kind>
+      <signature>cancelAppointment(appointmentId: ID!, reason: String): CancelAppointmentPayload!</signature>
+      <path>app/graphql/mutations/scheduling/cancel_appointment.rb</path>
+      <description>GraphQL mutation for cancelling appointments. Checks cancellation policy (24-hour notice), updates appointment status, triggers notifications.</description>
+    </interface>
+    <interface>
+      <name>Mutations::Scheduling::RescheduleAppointment</name>
+      <kind>graphql_mutation</kind>
+      <signature>rescheduleAppointment(appointmentId: ID!, newDatetime: ISO8601DateTime!): RescheduleAppointmentPayload!</signature>
+      <path>app/graphql/mutations/scheduling/reschedule_appointment.rb</path>
+      <description>GraphQL mutation for rescheduling appointments. Combines cancel + book in single transaction with row locking.</description>
+    </interface>
+    <interface>
+      <name>Subscriptions::SlotUpdated</name>
+      <kind>graphql_subscription</kind>
+      <signature>slotUpdated(therapistId: ID!, dateRange: DateRangeInput!): SlotAvailability!</signature>
+      <path>app/graphql/subscriptions/slot_updated.rb</path>
+      <description>GraphQL subscription for real-time slot availability updates. Fires when appointments booked/cancelled for specified therapist and date range.</description>
+    </interface>
+    <interface>
+      <name>Types::AppointmentType</name>
+      <kind>graphql_type</kind>
+      <signature>id, therapist, appointmentDatetime, duration, status, confirmationNumber, createdAt</signature>
+      <path>app/graphql/types/appointment_type.rb</path>
+      <description>GraphQL type definition for Appointment model. Exposes appointment details with nested therapist information.</description>
+    </interface>
+    <interface>
+      <name>Types::TherapistType</name>
+      <kind>graphql_type</kind>
+      <signature>id, name, credentials, bio, photoUrl, specializations, languages, active</signature>
+      <path>app/graphql/types/therapist_type.rb</path>
+      <description>GraphQL type definition for Therapist model. Used in appointment confirmations and matching recommendations.</description>
+    </interface>
+    <interface>
+      <name>TherapistBookingNotificationJob</name>
+      <kind>background_job</kind>
+      <signature>perform(appointment_id)</signature>
+      <path>app/jobs/therapist_booking_notification_job.rb</path>
+      <description>Sidekiq job for notifying therapist of new appointment booking. Sends email with appointment details asynchronously.</description>
+    </interface>
+    <interface>
+      <name>AppointmentConfirmationJob</name>
+      <kind>background_job</kind>
+      <signature>perform(appointment_id)</signature>
+      <path>app/jobs/appointment_confirmation_job.rb</path>
+      <description>Sidekiq job for sending appointment confirmation to parent. Includes calendar invite and appointment details.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Rails project uses RSpec for testing with Factory Bot for fixtures and Shoulda Matchers for model testing. Test structure follows Rails conventions with spec/models/, spec/services/, spec/graphql/, and spec/jobs/ directories. Database constraints must be tested at both application and database levels. Transaction and locking behavior requires integration tests with actual database. Race condition scenarios must be tested with concurrent threads. Performance requirements (p95 less than 500ms) should be verified with benchmark tests. Notification jobs should use mock email delivery. Test coverage target: 90%+ for all new code.
+    </standards>
+    <locations>
+      <location>spec/models/appointment_spec.rb</location>
+      <location>spec/models/therapist_spec.rb</location>
+      <location>spec/factories/appointments.rb</location>
+      <location>spec/factories/therapists.rb</location>
+      <location>spec/services/scheduling/booking_service_spec.rb</location>
+      <location>spec/graphql/mutations/scheduling/book_appointment_spec.rb</location>
+      <location>spec/graphql/mutations/scheduling/cancel_appointment_spec.rb</location>
+      <location>spec/graphql/mutations/scheduling/reschedule_appointment_spec.rb</location>
+      <location>spec/graphql/subscriptions/slot_updated_spec.rb</location>
+      <location>spec/graphql/types/appointment_type_spec.rb</location>
+      <location>spec/graphql/types/therapist_type_spec.rb</location>
+      <location>spec/jobs/therapist_booking_notification_job_spec.rb</location>
+      <location>spec/jobs/appointment_confirmation_job_spec.rb</location>
+      <location>spec/integration/appointment_booking_flow_spec.rb</location>
+      <location>spec/integration/concurrent_booking_spec.rb</location>
+    </locations>
+    <ideas>
+      <idea acceptance_criteria="AC1">Test bookAppointment mutation creates appointment with all required fields (therapist_id, session_id, datetime, duration, status)</idea>
+      <idea acceptance_criteria="AC2">Test concurrent booking attempts for same slot using threads - verify only one succeeds due to row locking</idea>
+      <idea acceptance_criteria="AC3">Test appointment record stored with correct data types and associations</idea>
+      <idea acceptance_criteria="AC4">Test successful booking returns confirmation with therapist details (name, credentials, photo)</idea>
+      <idea acceptance_criteria="AC5">Test session status transitions from assessment_complete to appointment_booked after successful booking</idea>
+      <idea acceptance_criteria="AC6">Test TherapistBookingNotificationJob enqueued after successful booking</idea>
+      <idea acceptance_criteria="AC7">Test AppointmentConfirmationJob enqueued when parent has email on file</idea>
+      <idea acceptance_criteria="AC8">Test booking uses database transaction - rollback on failure leaves no partial state</idea>
+      <idea acceptance_criteria="AC9">Test cancelAppointment mutation allows cancellation within policy constraints</idea>
+      <idea acceptance_criteria="AC9">Test rescheduleAppointment mutation handles slot verification for new time</idea>
+      <idea>Test unique index on (therapist_id, appointment_datetime) prevents double-booking at database level</idea>
+      <idea>Test appointment_datetime must be in future - reject past/current times</idea>
+      <idea>Test booking fails if session not in assessment_complete status</idea>
+      <idea>Test booking fails if therapist not active</idea>
+      <idea>Test authorization: parent can only book for their own session</idea>
+      <idea>Test SlotUpdated subscription fires when appointment booked/cancelled</idea>
+      <idea>Test audit log created with APPOINTMENT_BOOKED action and appointment details</idea>
+      <idea>Test performance: booking completes within 500ms (benchmark test)</idea>
+      <idea>Test idempotency: booking same slot twice returns error, not duplicate</idea>
+      <idea>Integration test: full flow from bookAppointment mutation through confirmation delivery</idea>
+      <idea>Integration test: race condition with 10 concurrent booking attempts for same slot</idea>
+    </ideas>
+  </tests>
+</story-context>

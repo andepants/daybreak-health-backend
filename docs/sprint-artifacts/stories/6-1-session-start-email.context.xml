@@ -1,0 +1,205 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>1</storyId>
+    <title>Session Start Email</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/6-1-session-start-email.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to receive a confirmation email when I start onboarding</iWant>
+    <soThat>I have a record and can return to complete it later</soThat>
+    <tasks>
+      - Task 1: Configure AWS SES (AC: #7)
+      - Task 2: Create NotificationMailer (AC: #2-6)
+      - Task 3: Create Email Templates (AC: #2-6, #10)
+      - Task 4: Update Existing Email Delivery Job (AC: #1, #7, #8)
+      - Task 5: Verify SubmitParentInfo Mutation Integration (AC: #1)
+      - Task 6: Implement Email Tracking (AC: #8, #9)
+      - Task 7: Add Email Configuration (AC: #7, #9)
+      - Task 8: Create Email Service (AC: #1-10)
+      - Task 9: RSpec Tests (All ACs)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Confirmation email queued immediately</criterion>
+    <criterion id="AC2">Email includes welcome message with Daybreak branding</criterion>
+    <criterion id="AC3">Email includes session recovery link (magic link)</criterion>
+    <criterion id="AC4">Email includes what to expect in onboarding</criterion>
+    <criterion id="AC5">Email includes support contact information</criterion>
+    <criterion id="AC6">Email includes estimated time to complete (10 minutes)</criterion>
+    <criterion id="AC7">Email sent via AWS SES</criterion>
+    <criterion id="AC8">Delivery tracked and logged</criterion>
+    <criterion id="AC9">Email delivered within 2 minutes</criterion>
+    <criterion id="AC10">Email renders correctly on mobile</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Notifications & Communication (FR31-FR35)</section>
+        <snippet>FR31: System sends confirmation email upon session start. FR32: System sends reminder for abandoned sessions. FR33: System sends completion confirmation with next steps. Note: FR31-33 were marked as "DEFERRED - Post-MVP" but Story 6.1 implements session start email per Epic 6.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Email Stack & Action Mailer</section>
+        <snippet>Action Mailer for email sending (Rails built-in), Sidekiq for async email delivery jobs, AWS SES for production email delivery (HIPAA BAA available). Email templates in app/views/notification_mailer/, Jobs in app/jobs/, Services in app/services/notification/. Development: letter_opener (opens emails in browser), Production: AWS SES (Simple Email Service), Queue: Sidekiq with Redis backend.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 6.1: Session Start Email</section>
+        <snippet>Epic 6: Notifications & Alerts covers FR31 (session start email), FR32 (abandoned session reminder), FR33 (completion confirmation), FR34 (care team notification), FR35 (risk alert notification). Story 6.1 sends confirmation email upon session start with recovery link, welcome message, onboarding expectations, support contacts, and 10-minute time estimate. Email via AWS SES, delivered within 2 minutes, mobile-responsive.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/stories/3-6-parent-information-collection.md</path>
+        <title>Story 3.6 - Parent Information Collection</title>
+        <section>Dev Notes - Learnings from Previous Story</section>
+        <snippet>Auth::RecoveryTokenService available at app/services/auth/recovery_token_service.rb. Use RecoveryTokenService.generate(session_id) to create 15-minute magic link tokens stored in Redis. SessionRecoveryEmailJob created at app/jobs/session_recovery_email_job.rb as placeholder. SubmitParentInfo mutation already queues SessionRecoveryEmailJob at app/graphql/mutations/intake/submit_parent_info.rb:128. Parent model stores email (encrypted) with E.164 phone validation. REUSE the RecoveryTokenService and existing SessionRecoveryEmailJob structure.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/jobs/session_recovery_email_job.rb</path>
+        <kind>job</kind>
+        <symbol>SessionRecoveryEmailJob</symbol>
+        <lines>1-72</lines>
+        <reason>Existing email job placeholder from Story 3.6. Needs to be updated to call NotificationMailer.session_start to actually send emails. Currently only logs the intent to send. This is the job that will be completed in this story.</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/auth/recovery_token_service.rb</path>
+        <kind>service</kind>
+        <symbol>Auth::RecoveryTokenService</symbol>
+        <lines>1-70</lines>
+        <reason>Generates 15-minute cryptographically secure recovery tokens stored in Redis. Use .generate(session_id) to create tokens for magic links in emails. Already complete and working from Story 3.6.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/mutations/intake/submit_parent_info.rb</path>
+        <kind>mutation</kind>
+        <symbol>Mutations::Intake::SubmitParentInfo</symbol>
+        <lines>126-133</lines>
+        <reason>Integration point that already queues SessionRecoveryEmailJob when parent email is saved (line 129). This mutation triggers the email flow - no changes needed, just verify it works with updated job.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/parent.rb</path>
+        <kind>model</kind>
+        <symbol>Parent</symbol>
+        <reason>Model storing parent data with encrypted email field. Used to retrieve parent details for email personalization (first_name, email).</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <reason>Session model linked to parent. Used to find session and build recovery links. Contains session ID used in magic link URLs.</reason>
+      </artifact>
+      <artifact>
+        <path>config/environments/production.rb</path>
+        <kind>configuration</kind>
+        <reason>Will need to configure Action Mailer for AWS SES in production environment (config.action_mailer.delivery_method = :ses).</reason>
+      </artifact>
+      <artifact>
+        <path>config/environments/development.rb</path>
+        <kind>configuration</kind>
+        <reason>Will need to configure Action Mailer for letter_opener in development (config.action_mailer.delivery_method = :letter_opener).</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <rails>
+        <gem name="rails" version="~> 7.2.3">Action Mailer built-in for email sending</gem>
+        <gem name="sidekiq" version="~> 7.2">Background job processing for async email delivery</gem>
+        <gem name="redis" version="~> 5.0">Sidekiq backend, also stores recovery tokens</gem>
+      </rails>
+      <aws>
+        <gem name="aws-sdk-ses" version="TBD">AWS SES integration for production email delivery (to be added)</gem>
+      </aws>
+      <development>
+        <gem name="letter_opener" version="TBD">Opens emails in browser for local development (to be added in dev group)</gem>
+      </development>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Rails 7 conventions: Use Action Mailer for email sending (built-in framework)</constraint>
+    <constraint>Architecture pattern: Services in app/services/notification/, Jobs in app/jobs/, Mailers in app/mailers/, Templates in app/views/</constraint>
+    <constraint>Async delivery: All emails MUST be sent asynchronously via Sidekiq jobs (already implemented)</constraint>
+    <constraint>PHI handling: Never log actual email addresses or parent names in plain text - use existence flags only</constraint>
+    <constraint>Recovery tokens: REUSE existing Auth::RecoveryTokenService - do not recreate token generation logic</constraint>
+    <constraint>Job integration: UPDATE existing SessionRecoveryEmailJob, do not create new job</constraint>
+    <constraint>Mobile rendering: Email must render correctly on mobile devices using responsive HTML tables and inline CSS</constraint>
+    <constraint>HIPAA compliance: AWS SES must have BAA (Business Associate Agreement) for production</constraint>
+    <constraint>Development workflow: Use letter_opener gem for local development (opens in browser, no actual sending)</constraint>
+    <constraint>Email templates: Both HTML and plain text versions required for accessibility</constraint>
+    <constraint>Delivery timeout: Emails must deliver within 2 minutes per AC9</constraint>
+    <constraint>Error handling: Email failures must be logged but should not block parent info submission mutation</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>NotificationMailer.session_start</name>
+      <kind>Rails Mailer Method</kind>
+      <signature>def session_start(session_id:, parent_name:, parent_email:, recovery_token:)</signature>
+      <path>app/mailers/notification_mailer.rb (to be created)</path>
+      <notes>Main mailer method that will be called by SessionRecoveryEmailJob. Returns ActionMailer message object.</notes>
+    </interface>
+    <interface>
+      <name>SessionRecoveryEmailJob#perform</name>
+      <kind>Sidekiq Job</kind>
+      <signature>def perform(session_id, email)</signature>
+      <path>app/jobs/session_recovery_email_job.rb (existing)</path>
+      <notes>Already accepts session_id and email. Generates token via RecoveryTokenService. Needs to call NotificationMailer.session_start(...).deliver_now</notes>
+    </interface>
+    <interface>
+      <name>Auth::RecoveryTokenService.generate</name>
+      <kind>Service Method</kind>
+      <signature>def self.generate(session_id) -> String</signature>
+      <path>app/services/auth/recovery_token_service.rb (existing)</path>
+      <notes>Already implemented. Generates 15-minute token stored in Redis. Returns urlsafe_base64 string.</notes>
+    </interface>
+    <interface>
+      <name>SubmitParentInfo mutation integration</name>
+      <kind>GraphQL Mutation</kind>
+      <signature>queue_recovery_email(session, parent) at line 126</signature>
+      <path>app/graphql/mutations/intake/submit_parent_info.rb (existing)</path>
+      <notes>Already queues SessionRecoveryEmailJob.perform_later(session.id, parent.email). No changes needed - just verify.</notes>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      Use RSpec for all tests per Rails conventions. Test mailer using RSpec mailer specs with ActionMailer::TestHelper. Test jobs using Sidekiq::Testing helpers. Test email rendering with both HTML and plain text versions. Test integration from mutation to email queueing. Ensure 100% coverage of email delivery flow including error cases.
+    </standards>
+    <locations>
+      - spec/mailers/notification_mailer_spec.rb (to be created)
+      - spec/jobs/session_recovery_email_job_spec.rb (update existing)
+      - spec/graphql/mutations/intake/submit_parent_info_spec.rb (existing - verify email queueing)
+      - spec/services/notification/email_service_spec.rb (if email service created)
+    </locations>
+    <ideas>
+      <test id="AC1">Mailer test: Verify NotificationMailer.session_start generates email with correct subject, from, to</test>
+      <test id="AC2">Template test: Verify HTML email includes welcome message with "Welcome to Daybreak Health"</test>
+      <test id="AC2">Template test: Verify email includes Daybreak branding (logo, colors in HTML)</test>
+      <test id="AC3">Template test: Verify email includes session recovery magic link with token and session ID</test>
+      <test id="AC3">Job test: Verify SessionRecoveryEmailJob calls Auth::RecoveryTokenService.generate(session_id)</test>
+      <test id="AC4">Template test: Verify email includes "What to Expect" section with onboarding steps</test>
+      <test id="AC5">Template test: Verify email includes support contact information (phone, email)</test>
+      <test id="AC6">Template test: Verify email includes estimated time to complete (10 minutes)</test>
+      <test id="AC7">Configuration test: Verify production environment configured to use AWS SES</test>
+      <test id="AC8">Job test: Verify SessionRecoveryEmailJob creates AuditLog entry with action RECOVERY_EMAIL_SENT</test>
+      <test id="AC8">Model test: If EmailDelivery model created, verify tracking record created with status</test>
+      <test id="AC9">Job test: Mock delivery to verify email queued immediately (Sidekiq async)</test>
+      <test id="AC10">Template test: Verify mobile rendering with responsive HTML (max-width, inline CSS)</test>
+      <test>Mailer test: Verify plain text version includes all required content without HTML</test>
+      <test>Job test: Verify job retries on failure (Sidekiq retry logic)</test>
+      <test>Integration test: End-to-end from SubmitParentInfo mutation to email job queued</test>
+      <test>Error handling: Verify job handles missing session gracefully (logs warning, no raise)</test>
+      <test>Error handling: Verify job handles missing parent gracefully (logs warning, no raise)</test>
+      <test>Personalization: Verify email uses parent.first_name for greeting</test>
+    </ideas>
+  </tests>
+</story-context>

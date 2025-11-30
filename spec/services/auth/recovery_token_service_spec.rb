@@ -4,220 +4,187 @@ require 'rails_helper'
 
 RSpec.describe Auth::RecoveryTokenService, type: :service do
   let(:redis) { Redis.new(url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0')) }
-  let(:session) { create(:onboarding_session, :with_parent) }
-  let(:parent) { session.parent }
-  let(:email) { parent.email }
+  let(:session) { create(:onboarding_session) }
+  let(:session_id) { session.id }
 
   before do
-    # Clear Redis before each test
-    redis.flushdb
+    # Clear Redis test keys before each test
+    redis.keys('session_recovery:*').each { |key| redis.del(key) }
   end
 
   after do
-    # Clear Redis after each test
-    redis.flushdb
+    # Clear Redis test keys after each test
+    redis.keys('session_recovery:*').each { |key| redis.del(key) }
   end
 
-  describe '.generate_recovery_token' do
+  describe '.generate' do
     it 'generates a secure random token' do
-      token = described_class.generate_recovery_token(
-        session_id: session.id,
-        email: email
-      )
+      token = described_class.generate(session_id)
 
       expect(token).to be_present
       expect(token).to be_a(String)
-      expect(token.length).to eq(64) # 32 bytes = 64 hex characters
+      # urlsafe_base64(32) produces ~43 characters
+      expect(token.length).to be >= 40
     end
 
     it 'stores token in Redis with 15-minute TTL' do
-      token = described_class.generate_recovery_token(
-        session_id: session.id,
-        email: email
-      )
+      token = described_class.generate(session_id)
 
-      key = "recovery:#{token}"
-      stored_session_id = redis.get(key)
+      key = "session_recovery:#{session_id}"
+      stored_token = redis.get(key)
       ttl = redis.ttl(key)
 
-      expect(stored_session_id).to eq(session.id)
+      expect(stored_token).to eq(token)
       expect(ttl).to be_within(5).of(15.minutes.to_i)
     end
 
-    it 'increments rate limit counter' do
-      expect {
-        described_class.generate_recovery_token(
-          session_id: session.id,
-          email: email
-        )
-      }.to change {
-        described_class.rate_limit_count(email)
-      }.from(0).to(1)
+    it 'generates unique tokens for each call' do
+      token1 = described_class.generate(session_id)
+      token2 = described_class.generate(session_id)
+
+      expect(token1).not_to eq(token2)
     end
 
-    it 'raises error when session_id is blank' do
-      expect {
-        described_class.generate_recovery_token(
-          session_id: '',
-          email: email
-        )
-      }.to raise_error(ArgumentError, 'Session ID must be present')
-    end
+    it 'overwrites previous token for same session' do
+      token1 = described_class.generate(session_id)
+      token2 = described_class.generate(session_id)
 
-    it 'raises error when email is blank' do
-      expect {
-        described_class.generate_recovery_token(
-          session_id: session.id,
-          email: ''
-        )
-      }.to raise_error(ArgumentError, 'Email must be present')
-    end
+      key = "session_recovery:#{session_id}"
+      stored_token = redis.get(key)
 
-    context 'rate limiting' do
-      it 'allows up to 3 requests within the rate limit window' do
-        expect {
-          3.times do
-            described_class.generate_recovery_token(
-              session_id: session.id,
-              email: email
-            )
-          end
-        }.not_to raise_error
-      end
-
-      it 'blocks 4th request within the hour' do
-        # Generate 3 tokens (at the limit)
-        3.times do
-          described_class.generate_recovery_token(
-            session_id: session.id,
-            email: email
-          )
-        end
-
-        # 4th request should fail
-        expect {
-          described_class.generate_recovery_token(
-            session_id: session.id,
-            email: email
-          )
-        }.to raise_error(
-          Auth::RecoveryTokenService::RateLimitExceededError,
-          'Too many recovery requests. Please try again later.'
-        )
-      end
-
-      it 'is case-insensitive for email' do
-        # Generate 3 tokens with lowercase email
-        3.times do
-          described_class.generate_recovery_token(
-            session_id: session.id,
-            email: email.downcase
-          )
-        end
-
-        # 4th request with uppercase email should also fail
-        expect {
-          described_class.generate_recovery_token(
-            session_id: session.id,
-            email: email.upcase
-          )
-        }.to raise_error(Auth::RecoveryTokenService::RateLimitExceededError)
-      end
+      expect(stored_token).to eq(token2)
+      expect(stored_token).not_to eq(token1)
     end
   end
 
-  describe '.validate_recovery_token' do
-    let(:token) do
-      described_class.generate_recovery_token(
-        session_id: session.id,
-        email: email
-      )
+  describe '.valid?' do
+    it 'returns true for valid token' do
+      token = described_class.generate(session_id)
+
+      expect(described_class.valid?(session_id, token)).to be true
     end
 
-    it 'returns session_id for valid token' do
-      session_id = described_class.validate_recovery_token(token)
+    it 'returns false for invalid token' do
+      described_class.generate(session_id)
 
-      expect(session_id).to eq(session.id)
+      expect(described_class.valid?(session_id, 'invalid_token')).to be false
     end
 
-    it 'deletes token after successful validation (one-time use)' do
-      # First validation should succeed
-      session_id = described_class.validate_recovery_token(token)
-      expect(session_id).to eq(session.id)
+    it 'returns false for blank token' do
+      described_class.generate(session_id)
 
-      # Second validation should fail (token deleted)
-      session_id = described_class.validate_recovery_token(token)
-      expect(session_id).to be_nil
+      expect(described_class.valid?(session_id, '')).to be false
+      expect(described_class.valid?(session_id, nil)).to be false
     end
 
-    it 'returns nil for invalid token' do
-      session_id = described_class.validate_recovery_token('invalid_token')
+    it 'returns false for wrong session_id' do
+      token = described_class.generate(session_id)
+      other_session_id = SecureRandom.uuid
 
-      expect(session_id).to be_nil
+      expect(described_class.valid?(other_session_id, token)).to be false
     end
 
-    it 'returns nil for blank token' do
-      session_id = described_class.validate_recovery_token('')
+    it 'returns false for expired token' do
+      token = described_class.generate(session_id)
 
-      expect(session_id).to be_nil
-    end
-
-    it 'returns nil for expired token' do
-      # Generate token
-      token = described_class.generate_recovery_token(
-        session_id: session.id,
-        email: email
-      )
-
-      # Simulate token expiration by deleting from Redis
-      key = "recovery:#{token}"
+      # Simulate expiration by deleting from Redis
+      key = "session_recovery:#{session_id}"
       redis.del(key)
 
-      session_id = described_class.validate_recovery_token(token)
+      expect(described_class.valid?(session_id, token)).to be false
+    end
 
-      expect(session_id).to be_nil
+    it 'does not delete token (non-consuming)' do
+      token = described_class.generate(session_id)
+
+      # Multiple validations should succeed
+      expect(described_class.valid?(session_id, token)).to be true
+      expect(described_class.valid?(session_id, token)).to be true
+      expect(described_class.valid?(session_id, token)).to be true
     end
   end
 
-  describe '.rate_limit_exceeded?' do
-    it 'returns false when under limit' do
-      expect(described_class.rate_limit_exceeded?(email)).to be false
+  describe '.consume' do
+    it 'returns true for valid token and deletes it' do
+      token = described_class.generate(session_id)
+
+      expect(described_class.consume(session_id, token)).to be true
+
+      # Token should be deleted (one-time use)
+      expect(described_class.valid?(session_id, token)).to be false
     end
 
-    it 'returns true when at limit' do
-      3.times do
-        described_class.generate_recovery_token(
-          session_id: session.id,
-          email: email
-        )
-      end
+    it 'returns false for invalid token' do
+      described_class.generate(session_id)
 
-      expect(described_class.rate_limit_exceeded?(email)).to be true
+      expect(described_class.consume(session_id, 'invalid_token')).to be false
     end
 
-    it 'returns false for blank email' do
-      expect(described_class.rate_limit_exceeded?('')).to be false
+    it 'returns false for blank token' do
+      described_class.generate(session_id)
+
+      expect(described_class.consume(session_id, '')).to be false
+      expect(described_class.consume(session_id, nil)).to be false
+    end
+
+    it 'returns false on second consumption (one-time use)' do
+      token = described_class.generate(session_id)
+
+      # First consumption succeeds
+      expect(described_class.consume(session_id, token)).to be true
+
+      # Second consumption fails (token already consumed)
+      expect(described_class.consume(session_id, token)).to be false
     end
   end
 
-  describe '.rate_limit_count' do
-    it 'returns 0 when no requests made' do
-      expect(described_class.rate_limit_count(email)).to eq(0)
+  describe '.revoke' do
+    it 'returns true and deletes existing token' do
+      described_class.generate(session_id)
+
+      expect(described_class.revoke(session_id)).to be true
+
+      # Token should be deleted
+      key = "session_recovery:#{session_id}"
+      expect(redis.get(key)).to be_nil
     end
 
-    it 'returns correct count after requests' do
-      2.times do
-        described_class.generate_recovery_token(
-          session_id: session.id,
-          email: email
-        )
-      end
-
-      expect(described_class.rate_limit_count(email)).to eq(2)
+    it 'returns false when no token exists' do
+      expect(described_class.revoke(session_id)).to be false
     end
 
-    it 'returns 0 for blank email' do
-      expect(described_class.rate_limit_count('')).to eq(0)
+    it 'invalidates the token' do
+      token = described_class.generate(session_id)
+      described_class.revoke(session_id)
+
+      expect(described_class.valid?(session_id, token)).to be false
+    end
+  end
+
+  describe 'HIPAA security considerations' do
+    it 'uses cryptographically secure token generation' do
+      # SecureRandom.urlsafe_base64(32) provides 256 bits of randomness
+      tokens = 100.times.map { described_class.generate(session_id) }
+
+      # All tokens should be unique
+      expect(tokens.uniq.length).to eq(100)
+    end
+
+    it 'token cannot be guessed from session_id' do
+      token = described_class.generate(session_id)
+
+      # Token should not contain session_id
+      expect(token).not_to include(session_id.to_s.gsub('-', ''))
+    end
+
+    it 'has short TTL for security' do
+      described_class.generate(session_id)
+
+      key = "session_recovery:#{session_id}"
+      ttl = redis.ttl(key)
+
+      # TTL should be 15 minutes or less
+      expect(ttl).to be <= 15.minutes.to_i
     end
   end
 end

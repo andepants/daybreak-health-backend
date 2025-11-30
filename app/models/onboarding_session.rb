@@ -2,7 +2,12 @@
 
 class OnboardingSession < ApplicationRecord
   include Auditable
+  include Encryptable
   include SessionStateMachine
+
+  # PHI Encryption
+  # AC 3.5.7: Escalation reason is encrypted as PHI
+  encrypts_phi :escalation_reason
 
   # Enums
   enum :status, {
@@ -37,11 +42,15 @@ class OnboardingSession < ApplicationRecord
   # Validations
   validates :status, presence: true
   validates :expires_at, presence: true
+  # AC 3.5.2,3.5.3: Ensure escalation_requested_at is set when needs_human_contact is true
+  validates :escalation_requested_at, presence: true, if: :needs_human_contact?
 
   # Scopes
   scope :active, -> { where.not(status: [:submitted, :abandoned, :expired]) }
   scope :expiring_soon, -> { active.where(expires_at: ..1.hour.from_now) }
   scope :expired_pending, -> { active.where('expires_at < ?', Time.current) }
+  # AC 3.5.2,3.5.3: Scope to filter sessions needing human contact
+  scope :needs_human_contact, -> { where(needs_human_contact: true) }
 
   # Check if session has passed its expiration time
   # AC 2.4.4: No new activity allowed on expired sessions

@@ -1,0 +1,108 @@
+# Insurance Glossary
+# Plain language explanations of insurance terms for parents
+#
+# Each term includes:
+#   - term: The official term name
+#   - definition: A simple explanation
+#   - example: A practical example to illustrate
+
+terms:
+  copay:
+    term: "Copay"
+    definition: "A fixed amount you pay for a covered healthcare service at the time of service."
+    example: "A $25 copay means you pay $25 each time you visit."
+
+  deductible:
+    term: "Deductible"
+    definition: "The amount you pay for covered services before your insurance starts to pay."
+    example: "With a $500 deductible, you pay the first $500 of covered services yourself."
+
+  coinsurance:
+    term: "Coinsurance"
+    definition: "Your share of the costs of a covered service, calculated as a percentage."
+    example: "20% coinsurance means you pay 20% of the bill, insurance pays 80%."
+
+  in_network:
+    term: "In-Network"
+    definition: "Healthcare providers who have a contract with your insurance company."
+    example: "In-network providers usually cost less because of negotiated rates."
+
+  out_of_network:
+    term: "Out-of-Network"
+    definition: "Healthcare providers without a contract with your insurance company."
+    example: "Out-of-network care often costs more and may not be covered."
+
+  prior_authorization:
+    term: "Prior Authorization"
+    definition: "Approval from your insurance company required before certain services."
+    example: "Some plans require prior authorization for ongoing therapy sessions."
+
+  out_of_pocket_max:
+    term: "Out-of-Pocket Maximum"
+    definition: "The most you have to pay for covered services in a plan year."
+    example: "After reaching your $3,000 out-of-pocket max, insurance covers 100% of covered services."
+
+  premium:
+    term: "Premium"
+    definition: "The monthly amount you pay for your health insurance coverage."
+    example: "Your premium is paid whether or not you use healthcare services."
+
+  member_id:
+    term: "Member ID"
+    definition: "Your unique identification number with your insurance company."
+    example: "Your member ID is typically printed on the front of your insurance card."
+
+  group_number:
+    term: "Group Number"
+    definition: "An identifier for your employer's or organization's insurance plan."
+    example: "Employees at the same company often share the same group number."
+
+  subscriber:
+    term: "Subscriber"
+    definition: "The person who owns the insurance policy, usually the employee."
+    example: "If your employer provides insurance, you are the subscriber on your family's plan."
+
+  dependent:
+    term: "Dependent"
+    definition: "A person covered under someone else's insurance plan."
+    example: "Children are typically dependents on their parent's insurance plan."
+
+  covered_service:
+    term: "Covered Service"
+    definition: "Healthcare services that your insurance plan will help pay for."
+    example: "Mental health therapy is a covered service under most plans."
+
+  claim:
+    term: "Claim"
+    definition: "A request for payment that a healthcare provider submits to your insurance."
+    example: "After your visit, we submit a claim to your insurance for payment."
+
+  explanation_of_benefits:
+    term: "Explanation of Benefits (EOB)"
+    definition: "A statement from your insurance explaining what they paid and what you may owe."
+    example: "You'll receive an EOB after we bill your insurance—this is not a bill."
+
+  effective_date:
+    term: "Effective Date"
+    definition: "The date when your insurance coverage begins."
+    example: "Coverage typically starts on the first day of the month after enrollment."
+
+  termination_date:
+    term: "Termination Date"
+    definition: "The date when your insurance coverage ends."
+    example: "Coverage may end if you leave your job or don't pay your premiums."
+
+  telehealth:
+    term: "Telehealth"
+    definition: "Healthcare services provided remotely through video or phone."
+    example: "Daybreak Health provides therapy via telehealth for convenience."
+
+  behavioral_health:
+    term: "Behavioral Health"
+    definition: "Services that address mental health and substance use conditions."
+    example: "Therapy, counseling, and psychiatric care are behavioral health services."
+
+  parity:
+    term: "Mental Health Parity"
+    definition: "A law requiring insurers to cover mental health the same as physical health."
+    example: "Your plan cannot have higher copays for mental health visits than medical visits."

@@ -1,0 +1,551 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <story-metadata>
+    <story-id>5.1</story-id>
+    <title>Therapist Data Model and Profiles</title>
+    <epic>Epic 5: Enhanced Scheduling Module</epic>
+    <priority>P0 (Must-have)</priority>
+    <status>Ready for Development</status>
+  </story-metadata>
+
+  <story-definition>
+    <user-story>
+      As a **system**,
+      I want **to store therapist information including specializations, credentials, and matching criteria**,
+      So that **the AI can make informed matching recommendations**.
+    </user-story>
+
+    <acceptance-criteria>
+      <criterion id="AC1">
+        <description>Therapist model with fields: name, credentials, specializations[], age_ranges[], treatment_modalities[]</description>
+        <verification>Database migration creates therapists table with all required fields</verification>
+      </criterion>
+      <criterion id="AC2">
+        <description>Specializations include: anxiety, depression, ADHD, trauma, behavioral issues, etc.</description>
+        <verification>TherapistSpecialization join table supports many-to-many relationship</verification>
+      </criterion>
+      <criterion id="AC3">
+        <description>Credentials stored: license type, license number, state, expiration</description>
+        <verification>Therapist model has credential fields with proper validation</verification>
+      </criterion>
+      <criterion id="AC4">
+        <description>Bio and photo URL for parent-facing display</description>
+        <verification>Therapist model has bio (text) and photo_url (string) fields</verification>
+      </criterion>
+      <criterion id="AC5">
+        <description>Active/inactive status for availability</description>
+        <verification>Therapist model has active boolean field with default true</verification>
+      </criterion>
+      <criterion id="AC6">
+        <description>Languages spoken</description>
+        <verification>Therapist model stores languages as array</verification>
+      </criterion>
+      <criterion id="AC7">
+        <description>Insurance panels accepted</description>
+        <verification>Join table links therapists to credentialed insurances</verification>
+      </criterion>
+      <criterion id="AC8">
+        <description>Therapist data can be seeded/imported from existing system</description>
+        <verification>Seed script imports from clinicians_anonymized.csv successfully</verification>
+      </criterion>
+      <criterion id="AC9">
+        <description>Admin can CRUD therapist profiles via GraphQL</description>
+        <verification>GraphQL mutations and queries work for therapist management</verification>
+      </criterion>
+    </acceptance-criteria>
+
+    <technical-notes>
+      <note>Create `Therapist` model with proper indexes on active, state, specializations</note>
+      <note>Create `TherapistSpecialization` join table for many-to-many relationship</note>
+      <note>GraphQL types: `TherapistType`, `TherapistInput`</note>
+      <note>Use `docs/test-cases/clinicians_anonymized.csv` for seeding therapist profiles</note>
+      <note>Use `docs/test-cases/clinician_credentialed_insurances.csv` joined with `credentialed_insurances.csv` for insurance acceptance</note>
+    </technical-notes>
+  </story-definition>
+
+  <architecture-context>
+    <database-schema>
+      <existing-tables>
+        <table name="onboarding_sessions" primary-key="uuid">
+          <field name="status" type="integer" />
+          <field name="progress" type="jsonb" />
+          <field name="expires_at" type="datetime" />
+          <field name="needs_human_contact" type="boolean" />
+        </table>
+        <table name="parents" primary-key="uuid">
+          <field name="onboarding_session_id" type="uuid" foreign-key="true" />
+          <field name="email" type="text" encrypted="true" />
+          <field name="phone" type="text" encrypted="true" />
+          <field name="first_name" type="text" encrypted="true" />
+          <field name="last_name" type="text" encrypted="true" />
+        </table>
+        <table name="children" primary-key="uuid">
+          <field name="onboarding_session_id" type="uuid" foreign-key="true" />
+          <field name="first_name" type="text" encrypted="true" />
+          <field name="last_name" type="text" encrypted="true" />
+          <field name="date_of_birth" type="text" encrypted="true" />
+          <field name="primary_concerns" type="text" encrypted="true" />
+          <field name="medical_history" type="text" encrypted="true" />
+        </table>
+        <table name="insurances" primary-key="uuid">
+          <field name="onboarding_session_id" type="uuid" foreign-key="true" />
+          <field name="payer_name" type="string" />
+          <field name="verification_status" type="integer" />
+          <field name="verification_result" type="jsonb" />
+        </table>
+      </existing-tables>
+
+      <new-tables-required>
+        <table name="therapists" primary-key="uuid">
+          <field name="first_name" type="string" null="false" />
+          <field name="last_name" type="string" null="false" />
+          <field name="email" type="string" />
+          <field name="phone" type="string" />
+          <field name="license_type" type="string" comment="LCSW, LMFT, LPCC, etc." />
+          <field name="license_number" type="string" />
+          <field name="license_state" type="string" />
+          <field name="license_expiration" type="date" />
+          <field name="npi_number" type="string" comment="National Provider Identifier" />
+          <field name="bio" type="text" />
+          <field name="photo_url" type="string" />
+          <field name="active" type="boolean" default="true" />
+          <field name="languages" type="string[]" default="[]" comment="Array of language codes" />
+          <field name="age_ranges" type="string[]" default="[]" comment="e.g., ['5-12', '13-17']" />
+          <field name="treatment_modalities" type="string[]" default="[]" comment="CBT, DBT, EMDR, etc." />
+          <field name="external_id" type="string" comment="Reference to external system (Healthie)" />
+          <field name="created_at" type="datetime" null="false" />
+          <field name="updated_at" type="datetime" null="false" />
+          <indexes>
+            <index fields="active" />
+            <index fields="license_state" />
+            <index fields="external_id" unique="true" />
+          </indexes>
+        </table>
+
+        <table name="therapist_specializations" primary-key="uuid">
+          <field name="therapist_id" type="uuid" foreign-key="therapists" null="false" />
+          <field name="specialization" type="string" null="false" comment="anxiety, depression, ADHD, trauma, etc." />
+          <field name="created_at" type="datetime" null="false" />
+          <field name="updated_at" type="datetime" null="false" />
+          <indexes>
+            <index fields="therapist_id, specialization" unique="true" />
+            <index fields="specialization" />
+          </indexes>
+        </table>
+
+        <table name="therapist_insurance_panels" primary-key="uuid">
+          <field name="therapist_id" type="uuid" foreign-key="therapists" null="false" />
+          <field name="insurance_name" type="string" null="false" comment="From credentialed_insurances.csv" />
+          <field name="insurance_state" type="string" comment="State for this insurance panel" />
+          <field name="line_of_business" type="string" comment="Commercial, Medicaid, etc." />
+          <field name="network_status" type="integer" default="0" comment="0=in_network, 1=out_of_network" />
+          <field name="external_insurance_id" type="string" comment="Reference to credentialed_insurances" />
+          <field name="created_at" type="datetime" null="false" />
+          <field name="updated_at" type="datetime" null="false" />
+          <indexes>
+            <index fields="therapist_id, insurance_name, insurance_state" unique="true" />
+            <index fields="insurance_name" />
+            <index fields="network_status" />
+          </indexes>
+        </table>
+      </new-tables-required>
+    </database-schema>
+
+    <graphql-schema>
+      <types-to-create>
+        <type name="TherapistType">
+          <field name="id" type="ID!" />
+          <field name="firstName" type="String!" />
+          <field name="lastName" type="String!" />
+          <field name="fullName" type="String!" resolver="computed" />
+          <field name="email" type="String" />
+          <field name="phone" type="String" />
+          <field name="licenseType" type="String" />
+          <field name="licenseNumber" type="String" />
+          <field name="licenseState" type="String" />
+          <field name="licenseExpiration" type="ISO8601Date" />
+          <field name="npiNumber" type="String" />
+          <field name="bio" type="String" />
+          <field name="photoUrl" type="String" />
+          <field name="active" type="Boolean!" />
+          <field name="languages" type="[String!]!" />
+          <field name="ageRanges" type="[String!]!" />
+          <field name="treatmentModalities" type="[String!]!" />
+          <field name="specializations" type="[String!]!" resolver="from_join_table" />
+          <field name="insurancePanels" type="[InsurancePanelType!]!" />
+          <field name="createdAt" type="ISO8601DateTime!" />
+          <field name="updatedAt" type="ISO8601DateTime!" />
+        </type>
+
+        <type name="InsurancePanelType">
+          <field name="id" type="ID!" />
+          <field name="insuranceName" type="String!" />
+          <field name="insuranceState" type="String" />
+          <field name="lineOfBusiness" type="String" />
+          <field name="networkStatus" type="String!" />
+        </type>
+
+        <input-type name="TherapistInput">
+          <field name="firstName" type="String!" />
+          <field name="lastName" type="String!" />
+          <field name="email" type="String" />
+          <field name="phone" type="String" />
+          <field name="licenseType" type="String" />
+          <field name="licenseNumber" type="String" />
+          <field name="licenseState" type="String" />
+          <field name="licenseExpiration" type="ISO8601Date" />
+          <field name="npiNumber" type="String" />
+          <field name="bio" type="String" />
+          <field name="photoUrl" type="String" />
+          <field name="active" type="Boolean" />
+          <field name="languages" type="[String!]" />
+          <field name="ageRanges" type="[String!]" />
+          <field name="treatmentModalities" type="[String!]" />
+          <field name="specializations" type="[String!]" />
+        </input-type>
+      </types-to-create>
+
+      <queries-to-add>
+        <query name="therapist">
+          <argument name="id" type="ID!" />
+          <returns type="TherapistType" />
+          <description>Get a single therapist by ID</description>
+        </query>
+
+        <query name="therapists">
+          <argument name="active" type="Boolean" />
+          <argument name="state" type="String" />
+          <argument name="specialization" type="String" />
+          <argument name="insuranceName" type="String" />
+          <returns type="[TherapistType!]!" />
+          <description>List therapists with optional filters</description>
+        </query>
+      </queries-to-add>
+
+      <mutations-to-add>
+        <mutation name="createTherapist">
+          <argument name="input" type="TherapistInput!" />
+          <returns type="TherapistType!" />
+          <description>Create a new therapist profile (admin only)</description>
+        </mutation>
+
+        <mutation name="updateTherapist">
+          <argument name="id" type="ID!" />
+          <argument name="input" type="TherapistInput!" />
+          <returns type="TherapistType!" />
+          <description>Update an existing therapist profile (admin only)</description>
+        </mutation>
+
+        <mutation name="deleteTherapist">
+          <argument name="id" type="ID!" />
+          <returns type="Boolean!" />
+          <description>Soft delete a therapist (set active=false) (admin only)</description>
+        </mutation>
+      </mutations-to-add>
+    </graphql-schema>
+
+    <models>
+      <model name="Therapist">
+        <location>app/models/therapist.rb</location>
+        <associations>
+          <has-many model="TherapistSpecialization" dependent="destroy" />
+          <has-many model="TherapistInsurancePanel" dependent="destroy" />
+        </associations>
+        <validations>
+          <validates field="first_name" presence="true" />
+          <validates field="last_name" presence="true" />
+          <validates field="license_number" uniqueness="true" allow-nil="true" />
+          <validates field="npi_number" uniqueness="true" allow-nil="true" />
+          <validates field="email" format="URI::MailTo::EMAIL_REGEXP" allow-nil="true" />
+        </validations>
+        <scopes>
+          <scope name="active" condition="where(active: true)" />
+          <scope name="by_state" argument="state" condition="where(license_state: state)" />
+          <scope name="with_specialization" argument="spec" joins="therapist_specializations" />
+        </scopes>
+        <methods>
+          <method name="full_name" returns="String" description="Returns first_name + last_name" />
+          <method name="specializations" returns="Array&lt;String&gt;" description="Returns array of specialization strings from join table" />
+        </methods>
+      </model>
+
+      <model name="TherapistSpecialization">
+        <location>app/models/therapist_specialization.rb</location>
+        <associations>
+          <belongs-to model="Therapist" />
+        </associations>
+        <validations>
+          <validates field="specialization" presence="true" />
+          <validates field="specialization" uniqueness-scope="therapist_id" />
+        </validations>
+      </model>
+
+      <model name="TherapistInsurancePanel">
+        <location>app/models/therapist_insurance_panel.rb</location>
+        <associations>
+          <belongs-to model="Therapist" />
+        </associations>
+        <enums>
+          <enum name="network_status" values="in_network: 0, out_of_network: 1" />
+        </enums>
+        <validations>
+          <validates field="insurance_name" presence="true" />
+        </validations>
+      </model>
+    </models>
+  </architecture-context>
+
+  <test-data-context>
+    <csv-file path="docs/test-cases/clinicians_anonymized.csv">
+      <description>Contains anonymized therapist profile data from production system</description>
+      <key-fields>
+        <field name="id" maps-to="external_id" />
+        <field name="first_name" maps-to="first_name" />
+        <field name="last_name" maps-to="last_name" />
+        <field name="email" maps-to="email" />
+        <field name="phone" maps-to="phone" />
+        <field name="care_languages" maps-to="languages" parse-as="json-array" />
+        <field name="licensed_states" maps-to="license_state" parse-as="comma-separated" />
+        <field name="profile_data" contains="bio, npi_number, specialties, modalities" parse-as="json" />
+        <field name="active" maps-to="active" />
+      </key-fields>
+      <sample-data>
+        <row>
+          <id>7ecec1f9-f0ac-4583-8d65-046d54652b3a</id>
+          <first_name>Ressie</first_name>
+          <last_name>Green</last_name>
+          <email>aldo@sauer-koelpin.test</email>
+          <phone>+18189392795</phone>
+          <care_languages>["eng"]</care_languages>
+          <licensed_states>["CA"]</licensed_states>
+          <profile_data>
+            {
+              "bio": "I have been passionate about mental health...",
+              "npi_number": "1801619796",
+              "modalities": [],
+              "specialties": []
+            }
+          </profile_data>
+          <active>true</active>
+        </row>
+      </sample-data>
+      <row-count>Multiple therapist profiles</row-count>
+    </csv-file>
+
+    <csv-file path="docs/test-cases/clinician_credentialed_insurances.csv">
+      <description>Join table linking therapists to their credentialed insurance panels</description>
+      <key-fields>
+        <field name="care_provider_profile_id" maps-to="therapist.external_id" />
+        <field name="credentialed_insurance_id" reference="credentialed_insurances.csv:id" />
+      </key-fields>
+      <sample-data>
+        <row>
+          <id>46c41e09-5ea0-444d-bfbf-8a212a97e378</id>
+          <care_provider_profile_id>3c14ed93-b87d-4be3-8872-fd556c44ba03</care_provider_profile_id>
+          <credentialed_insurance_id>f6b1bb9b-7dc9-4aed-80eb-2fc77fc4955e</credentialed_insurance_id>
+        </row>
+      </sample-data>
+    </csv-file>
+
+    <csv-file path="docs/test-cases/credentialed_insurances.csv">
+      <description>Master list of insurance payers and networks</description>
+      <key-fields>
+        <field name="id" maps-to="external_insurance_id" />
+        <field name="name" maps-to="insurance_name" />
+        <field name="state" maps-to="insurance_state" />
+        <field name="line_of_business" maps-to="line_of_business" comment="Commercial=0, Medicaid=2" />
+        <field name="network_status" maps-to="network_status" />
+      </key-fields>
+      <sample-data>
+        <row>
+          <id>2f9afe1a-c4a6-4394-af63-9d7d4e1c4eb9</id>
+          <name>Molina</name>
+          <state>UT</state>
+          <line_of_business></line_of_business>
+          <network_status>0</network_status>
+        </row>
+        <row>
+          <id>6cc5e6b9-94a2-4fd7-a329-1b7001f91d95</id>
+          <name>Molina</name>
+          <state>CA</state>
+          <line_of_business></line_of_business>
+          <network_status>0</network_status>
+        </row>
+      </sample-data>
+    </csv-file>
+
+    <specializations-reference>
+      <common-specializations>
+        <item>anxiety</item>
+        <item>depression</item>
+        <item>adhd</item>
+        <item>trauma</item>
+        <item>ptsd</item>
+        <item>behavioral_issues</item>
+        <item>autism_spectrum</item>
+        <item>eating_disorders</item>
+        <item>substance_abuse</item>
+        <item>grief_and_loss</item>
+        <item>family_conflict</item>
+        <item>school_issues</item>
+        <item>social_skills</item>
+        <item>self_harm</item>
+        <item>ocd</item>
+        <item>bipolar</item>
+      </common-specializations>
+    </specializations-reference>
+
+    <treatment-modalities-reference>
+      <common-modalities>
+        <item>cbt</item>
+        <item>dbt</item>
+        <item>emdr</item>
+        <item>psychodynamic</item>
+        <item>play_therapy</item>
+        <item>art_therapy</item>
+        <item>family_therapy</item>
+        <item>group_therapy</item>
+        <item>mindfulness</item>
+        <item>solution_focused</item>
+      </common-modalities>
+    </treatment-modalities-reference>
+  </test-data-context>
+
+  <implementation-tasks>
+    <task id="1" priority="high">
+      <title>Create database migrations</title>
+      <steps>
+        <step>Generate migration for therapists table</step>
+        <step>Generate migration for therapist_specializations table</step>
+        <step>Generate migration for therapist_insurance_panels table</step>
+        <step>Run migrations and verify schema</step>
+      </steps>
+    </task>
+
+    <task id="2" priority="high">
+      <title>Create Active Record models</title>
+      <steps>
+        <step>Create Therapist model with associations and validations</step>
+        <step>Create TherapistSpecialization model</step>
+        <step>Create TherapistInsurancePanel model with enum</step>
+        <step>Add scopes and helper methods to Therapist model</step>
+      </steps>
+    </task>
+
+    <task id="3" priority="high">
+      <title>Create GraphQL types</title>
+      <steps>
+        <step>Create TherapistType with all fields and resolvers</step>
+        <step>Create InsurancePanelType</step>
+        <step>Create TherapistInput for mutations</step>
+        <step>Add therapist and therapists queries to QueryType</step>
+      </steps>
+    </task>
+
+    <task id="4" priority="high">
+      <title>Create GraphQL mutations</title>
+      <steps>
+        <step>Create createTherapist mutation with admin authorization</step>
+        <step>Create updateTherapist mutation with admin authorization</step>
+        <step>Create deleteTherapist mutation (soft delete)</step>
+        <step>Add mutations to MutationType</step>
+      </steps>
+    </task>
+
+    <task id="5" priority="medium">
+      <title>Create data seeding script</title>
+      <steps>
+        <step>Create db/seeds/therapists_seed.rb</step>
+        <step>Parse clinicians_anonymized.csv</step>
+        <step>Extract profile_data JSON for bio, NPI, specialties</step>
+        <step>Create Therapist records</step>
+        <step>Parse clinician_credentialed_insurances.csv</step>
+        <step>Join with credentialed_insurances.csv</step>
+        <step>Create TherapistInsurancePanel records</step>
+        <step>Test seed script with rails db:seed</step>
+      </steps>
+    </task>
+
+    <task id="6" priority="medium">
+      <title>Write RSpec tests</title>
+      <steps>
+        <step>Model specs for Therapist with validations and associations</step>
+        <step>Model specs for TherapistSpecialization</step>
+        <step>Model specs for TherapistInsurancePanel</step>
+        <step>GraphQL query specs for therapist/therapists</step>
+        <step>GraphQL mutation specs for create/update/delete</step>
+        <step>Factory definitions for therapists</step>
+      </steps>
+    </task>
+
+    <task id="7" priority="low">
+      <title>Documentation</title>
+      <steps>
+        <step>Add inline documentation to models</step>
+        <step>Document GraphQL schema additions</step>
+        <step>Update README with therapist data model info</step>
+      </steps>
+    </task>
+  </implementation-tasks>
+
+  <dependencies>
+    <dependency type="epic">Epic 1: Foundation &amp; Infrastructure (Complete)</dependency>
+    <dependency type="epic">Epic 2: Session Lifecycle &amp; Auth (Complete)</dependency>
+    <dependency type="epic">Epic 3: Conversational AI Intake (Complete)</dependency>
+    <dependency type="epic">Epic 4: Insurance Verification (In Progress)</dependency>
+    <dependency type="file">docs/test-cases/clinicians_anonymized.csv</dependency>
+    <dependency type="file">docs/test-cases/clinician_credentialed_insurances.csv</dependency>
+    <dependency type="file">docs/test-cases/credentialed_insurances.csv</dependency>
+  </dependencies>
+
+  <related-files>
+    <file path="app/models/therapist.rb" status="to-create" />
+    <file path="app/models/therapist_specialization.rb" status="to-create" />
+    <file path="app/models/therapist_insurance_panel.rb" status="to-create" />
+    <file path="app/graphql/types/therapist_type.rb" status="to-create" />
+    <file path="app/graphql/types/insurance_panel_type.rb" status="to-create" />
+    <file path="app/graphql/types/inputs/therapist_input.rb" status="to-create" />
+    <file path="app/graphql/mutations/therapists/create_therapist.rb" status="to-create" />
+    <file path="app/graphql/mutations/therapists/update_therapist.rb" status="to-create" />
+    <file path="app/graphql/mutations/therapists/delete_therapist.rb" status="to-create" />
+    <file path="db/migrate/TIMESTAMP_create_therapists.rb" status="to-create" />
+    <file path="db/migrate/TIMESTAMP_create_therapist_specializations.rb" status="to-create" />
+    <file path="db/migrate/TIMESTAMP_create_therapist_insurance_panels.rb" status="to-create" />
+    <file path="db/seeds/therapists_seed.rb" status="to-create" />
+    <file path="spec/models/therapist_spec.rb" status="to-create" />
+    <file path="spec/models/therapist_specialization_spec.rb" status="to-create" />
+    <file path="spec/models/therapist_insurance_panel_spec.rb" status="to-create" />
+    <file path="spec/factories/therapists.rb" status="to-create" />
+    <file path="spec/graphql/queries/therapist_spec.rb" status="to-create" />
+    <file path="spec/graphql/mutations/therapists/create_therapist_spec.rb" status="to-create" />
+  </related-files>
+
+  <technical-constraints>
+    <constraint>All therapist PHI must follow existing encryption patterns (though name/bio are not PHI)</constraint>
+    <constraint>Foreign key constraints must be maintained for data integrity</constraint>
+    <constraint>Indexes required on frequently queried fields (active, state, specializations)</constraint>
+    <constraint>Admin-only mutations must use existing Pundit authorization patterns</constraint>
+    <constraint>GraphQL schema must follow existing naming conventions (camelCase fields)</constraint>
+    <constraint>CSV parsing must handle JSON fields in profile_data column</constraint>
+    <constraint>Insurance panel data must match existing Insurance model's payer_name field for matching</constraint>
+  </technical-constraints>
+
+  <success-metrics>
+    <metric>All migrations run successfully without errors</metric>
+    <metric>Seed script imports all therapist profiles from CSV</metric>
+    <metric>GraphQL queries return therapist data with correct associations</metric>
+    <metric>Admin mutations create/update/delete therapists correctly</metric>
+    <metric>All RSpec tests pass with &gt;90% coverage</metric>
+    <metric>Therapist-insurance panel relationships correctly established</metric>
+  </success-metrics>
+
+  <notes>
+    <note>This story is foundational for Epic 5 - therapist matching cannot work without therapist profiles</note>
+    <note>The CSV data uses external_id (Healthie IDs) - maintain this for future sync/integration</note>
+    <note>Languages should be stored as ISO 639-1 codes (en, es, etc.) but CSV has full names</note>
+    <note>Age ranges in CSV may be in different format - normalize to consistent format like "5-12", "13-17"</note>
+    <note>NPI numbers should be validated as 10-digit numbers</note>
+    <note>Photo URLs will initially be null - future story will handle image uploads</note>
+    <note>Treatment modalities and specializations from CSV profile_data may need cleanup/normalization</note>
+  </notes>
+</story-context>

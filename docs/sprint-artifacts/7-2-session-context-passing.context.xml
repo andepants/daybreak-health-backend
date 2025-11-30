@@ -1,0 +1,302 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>2</storyId>
+    <title>Session Context Passing</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/epics.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>support agent</asA>
+    <iWant>to see the parent's onboarding context when they start a chat</iWant>
+    <soThat>I can help them effectively without asking repetitive questions</soThat>
+    <tasks>
+- Task 1: Define Intercom Context Schema (AC: 1, 7)
+  - Create config/initializers/intercom_config.rb for attribute definitions
+  - Define standard attributes: session_id, onboarding_step, parent_name, child_age, insurance_status
+  - Define allowed values for status fields (verified/pending/self-pay/failed)
+  - Document attribute mapping and HIPAA compliance (no PHI, only IDs/status)
+  - Add RSpec tests for configuration validation
+
+- Task 2: Create Intercom Context Service (AC: 1, 2, 7)
+  - Create app/services/intercom/context_builder.rb
+  - Implement build_context(session_id) method
+  - Extract session data: current phase, parent name (if collected), child age (if DOB collected)
+  - Extract insurance status from Insurance model verification_status enum
+  - Identify error states or blockers from session status
+  - Sanitize all data before returning (never include PHI like email, phone, SSN)
+  - Add RSpec unit tests for context builder
+
+- Task 3: Create Context Payload GraphQL Query (AC: 1, 3)
+  - Create app/graphql/queries/intercom_context.rb
+  - Accept sessionId argument
+  - Call Intercom::ContextBuilder service
+  - Return sanitized context hash
+  - Add authorization check (only session owner or admin)
+  - Add GraphQL query tests
+
+- Task 4: Backend Endpoint for Context Generation (AC: 1, 3)
+  - Add intercomContext query to QueryType
+  - Return IntercomContextType GraphQL type
+  - Create app/graphql/types/intercom_context_type.rb with fields:
+    - session_id (sanitized CUID)
+    - current_step (string: 'welcome', 'parent_info', 'child_info', 'insurance', 'assessment')
+    - parent_name (first name only if collected, null otherwise)
+    - child_age (integer if DOB collected, null otherwise)
+    - insurance_status (enum: 'not_started', 'pending', 'verified', 'failed', 'self_pay')
+    - blocker_type (string, null: 'ocr_failed', 'verification_failed', 'escalation_requested')
+  - Add integration tests for full query flow
+
+- Task 5: Implement Real-Time Context Updates (AC: 4)
+  - Create GraphQL subscription: intercomContextUpdated(sessionId: ID!)
+  - Trigger subscription when progress changes
+  - Trigger subscription when parent/child data added
+  - Trigger subscription when insurance status changes
+  - Use existing ProgressUpdated subscription pattern as reference
+  - Add subscription tests
+
+- Task 6: Add Deep Link Support (AC: 2)
+  - Add admin_url field to IntercomContextType
+  - Generate link to admin session view (if admin dashboard exists)
+  - Format: /admin/sessions/{sessionId} or null if no admin interface
+  - Add conditional logic based on ENV['ADMIN_URL'] or similar
+
+- Task 7: Data Sanitization & PHI Protection (AC: 5, 6)
+  - Create app/services/intercom/phi_sanitizer.rb
+  - Ensure no email, phone, full names, DOB, or SSN sent to Intercom
+  - Only send: session ID (CUID), first name, age (calculated), status enums
+  - Add audit logging for context generation: INTERCOM_CONTEXT_GENERATED
+  - Add RSpec tests for sanitization edge cases
+  - Document PHI exclusion policy in code comments
+
+- Task 8: Error State Detection (AC: 1)
+  - Extend context builder to detect error states:
+    - OCR failed (insurance.ocr_confidence_low flag or status)
+    - Verification failed (insurance.verification_status == 'failed')
+    - Escalation requested (session.needs_human_contact == true)
+    - Session expired (session.status == 'expired')
+  - Include blocker details in context for agent visibility
+  - Add tests for all error scenarios
+
+- Task 9: Integration Testing (AC: all)
+  - Create spec/integration/intercom_context_flow_spec.rb
+  - Test full flow: session creation → data collection → context generation
+  - Test context updates as session progresses
+  - Test authorization (unauthorized access rejected)
+  - Test sanitization (PHI never exposed)
+  - Test with various session states (early, mid-flow, complete, error states)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Given parent initiates chat from onboarding, When chat opens in Intercom, Then custom attributes are passed including session ID, current onboarding step/phase, parent name (if collected), child age (if collected), insurance status (verified/pending/self-pay), and any error states or blockers
+
+2. Given agent views chat in Intercom dashboard, When context is displayed, Then agent sees session context in Intercom dashboard and deep link to admin session view (if available)
+
+3. Given session context exists, When parent progresses through onboarding, Then context updates as parent progresses (via subscription or polling)
+
+4. Given context is being generated, When data is prepared for Intercom, Then no PHI is sent to Intercom (only IDs and status enums)
+
+5. Given PHI protection requirements, When sanitizing data, Then all data is sanitized before sending to Intercom (no email, phone, full names, SSN)
+
+6. Given context helps agents, When agent receives chat, Then context enables agent to assist faster without asking repetitive questions
+
+7. Given standard attribute schema defined, When implementing Intercom integration, Then use Intercom update method to pass attributes, define standard attribute schema, create backend endpoint to generate context payload
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Data & Compliance</section>
+        <snippet>FR43: All PHI is encrypted at rest and in transit. FR47: System enforces role-based access controls on all endpoints. HIPAA Compliance Requirements: PHI Encryption at Rest (AES-256), PHI Encryption in Transit (TLS 1.3), Access Controls (role-based with minimum necessary principle), Audit Logging (complete audit trail of all PHI access).</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 7: Support Interface - Story 7.2</section>
+        <snippet>Story 7.2: Session Context Passing. As a support agent, I want to see the parent's onboarding context when they start a chat, so that I can help them effectively without asking repetitive questions. Custom attributes passed to Intercom: Session ID, Current onboarding step/phase, Parent name (if collected), Child age (if collected), Insurance status (verified/pending/self-pay), Any error states or blockers. Agent sees context in Intercom dashboard. Deep link to admin session view (if available). Context updates as parent progresses. No PHI sent to Intercom (only IDs and status). Use Intercom update method to pass attributes. Define standard attribute schema. Backend endpoint to generate context payload. Sanitize all data before sending to Intercom.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Service Pattern</section>
+        <snippet>Business logic services in app/services/ organized by domain (ai/, insurance/, notification/, auth/). Services are single-responsibility classes that encapsulate complex business logic. Services return service objects or raise standard errors. All PHI handling must use Encryptable concern for encryption at rest.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>GraphQL API</section>
+        <snippet>GraphQL server via graphql-ruby gem. Types in app/graphql/types/, mutations in app/graphql/mutations/, subscriptions in app/graphql/subscriptions/. All queries and mutations require authentication via JWT. Authorization via Pundit policies. Standard error codes: UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, INTERNAL_ERROR.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Data Architecture - Audit Logging</section>
+        <snippet>Auditable concern for automatic audit logging. Captures: action, resource, resource_id, details (JSON), ip_address, user_agent, timestamp. Never log actual PHI values, only existence flags. Used for HIPAA compliance and security monitoring.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-140</lines>
+        <reason>OnboardingSession model with status enum, progress JSON, needs_human_contact flag, and associations to parent, child, insurance. Source of context data for Intercom integration.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/parent.rb</path>
+        <kind>model</kind>
+        <symbol>Parent</symbol>
+        <lines>1-40</lines>
+        <reason>Parent model with encrypted PHI (first_name, last_name, email, phone). Only first_name should be exposed to Intercom (sanitized), never email or phone.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/child.rb</path>
+        <kind>model</kind>
+        <symbol>Child</symbol>
+        <lines>1-30</lines>
+        <reason>Child model with encrypted date_of_birth. Age should be calculated and exposed to Intercom, but never the actual DOB.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/insurance.rb</path>
+        <kind>model</kind>
+        <symbol>Insurance</symbol>
+        <lines>1-50</lines>
+        <reason>Insurance model with verification_status enum (pending, verified, failed, etc.). Status enum value should be exposed to Intercom, never policy numbers or subscriber details.</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/conversation/progress_service.rb</path>
+        <kind>service</kind>
+        <symbol>Conversation::ProgressService</symbol>
+        <lines>1-100</lines>
+        <reason>ProgressService calculates current phase and progress percentage. Can be used to determine current_step for Intercom context.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/onboarding_session_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>Types::OnboardingSessionType</symbol>
+        <lines>1-51</lines>
+        <reason>OnboardingSessionType shows pattern for GraphQL types with session data. Reference for creating IntercomContextType.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/encryptable.rb</path>
+        <kind>concern</kind>
+        <symbol>Encryptable</symbol>
+        <lines>1-13</lines>
+        <reason>Encryptable concern for PHI encryption. Reminder that certain fields must never be sent to Intercom even in encrypted form - only non-PHI derivatives (age not DOB, first name not full name).</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/auth/audit_service.rb</path>
+        <kind>service</kind>
+        <symbol>Auth::AuditService</symbol>
+        <lines>1-50</lines>
+        <reason>AuditService pattern for logging actions. Use for INTERCOM_CONTEXT_GENERATED audit log entries.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <version>3.3.x</version>
+        <gem name="rails" version="~> 7.2.3">Rails 7 API framework with built-in encryption</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL server implementation</gem>
+        <gem name="pundit" version="~> 2.3">Authorization policies</gem>
+        <gem name="rspec-rails" version="~> 6.1">Testing framework</gem>
+        <gem name="factory_bot_rails" version="~> 6.4">Test fixtures</gem>
+      </ruby>
+      <external_services>
+        <service name="intercom">
+          Intercom API for live chat support. This story does NOT implement the API integration itself (that's Story 7.1), but rather prepares the backend context data that will be passed to Intercom. Assumes Intercom JavaScript SDK on frontend will call this GraphQL endpoint.
+        </service>
+      </external_services>
+      <environment>
+        <var name="ADMIN_URL">Optional base URL for admin interface deep links (e.g., https://admin.daybreak.com)</var>
+      </environment>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>HIPAA Compliance: MUST NOT send PHI to Intercom - only IDs, status enums, and non-identifying derivatives (age not DOB, first name not full name)</constraint>
+    <constraint>Data Sanitization: ALL data MUST be sanitized through PHI sanitizer before inclusion in Intercom context</constraint>
+    <constraint>Authorization: Context query MUST verify session ownership or admin role before returning data</constraint>
+    <constraint>Audit Logging: MUST log INTERCOM_CONTEXT_GENERATED action without logging actual context data (PHI-safe)</constraint>
+    <constraint>Standard Schema: MUST define consistent attribute names for Intercom integration across all sessions</constraint>
+    <constraint>Real-Time Updates: Context SHOULD update as session progresses (subscription or polling pattern)</constraint>
+    <constraint>Error Handling: MUST use standard GraphQL error codes (UNAUTHENTICATED, FORBIDDEN, NOT_FOUND)</constraint>
+    <constraint>Testing: MUST achieve 90%+ test coverage for all new service code</constraint>
+    <constraint>Documentation: MUST document PHI exclusion policy and attribute schema in code comments</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Intercom::ContextBuilder#build_context</name>
+      <kind>service_method</kind>
+      <signature>build_context(session_id:) -> Hash</signature>
+      <path>app/services/intercom/context_builder.rb</path>
+      <description>Builds sanitized context hash for Intercom integration. Returns session_id, current_step, parent_name, child_age, insurance_status, blocker_type. Never includes PHI.</description>
+    </interface>
+    <interface>
+      <name>Intercom::PhiSanitizer#sanitize</name>
+      <kind>service_method</kind>
+      <signature>sanitize(data:) -> Hash</signature>
+      <path>app/services/intercom/phi_sanitizer.rb</path>
+      <description>Sanitizes data to remove all PHI before sending to Intercom. Ensures only IDs, status enums, and safe derivatives are included.</description>
+    </interface>
+    <interface>
+      <name>Query.intercomContext</name>
+      <kind>graphql_query</kind>
+      <signature>intercomContext(sessionId: ID!): IntercomContext!</signature>
+      <path>app/graphql/types/query_type.rb</path>
+      <description>GraphQL query for fetching Intercom context. Requires authentication and session ownership. Returns IntercomContextType.</description>
+    </interface>
+    <interface>
+      <name>Subscription.intercomContextUpdated</name>
+      <kind>graphql_subscription</kind>
+      <signature>intercomContextUpdated(sessionId: ID!): IntercomContext!</signature>
+      <path>app/graphql/subscriptions/intercom_context_updated.rb</path>
+      <description>GraphQL subscription for real-time context updates. Fires when session progress, parent/child data, or insurance status changes.</description>
+    </interface>
+    <interface>
+      <name>Types::IntercomContextType</name>
+      <kind>graphql_type</kind>
+      <signature>session_id, current_step, parent_name, child_age, insurance_status, blocker_type, admin_url</signature>
+      <path>app/graphql/types/intercom_context_type.rb</path>
+      <description>GraphQL type for Intercom context data. All fields are sanitized and PHI-safe. Represents the context visible to support agents in Intercom.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Rails project uses RSpec for testing with Factory Bot for fixtures and Shoulda Matchers for model testing. Test structure follows Rails conventions with spec/models/, spec/services/, spec/graphql/, and spec/integration/ directories. All PHI sanitization must be verified - ensure no PHI leaks into Intercom context. Integration tests required for full GraphQL query and subscription flows. Authorization tests required to prevent cross-session access. Test coverage target: 90%+ for all new code. Mock external Intercom API if needed (this story focuses on backend context generation, not API calls).
+    </standards>
+    <locations>
+      <location>spec/services/intercom/context_builder_spec.rb</location>
+      <location>spec/services/intercom/phi_sanitizer_spec.rb</location>
+      <location>spec/graphql/queries/intercom_context_spec.rb</location>
+      <location>spec/graphql/subscriptions/intercom_context_updated_spec.rb</location>
+      <location>spec/graphql/types/intercom_context_type_spec.rb</location>
+      <location>spec/integration/intercom_context_flow_spec.rb</location>
+      <location>spec/config/initializers/intercom_config_spec.rb</location>
+    </locations>
+    <ideas>
+      <idea acceptance_criteria="AC1">Test context includes all required attributes: session_id, current_step, parent_name, child_age, insurance_status, error states</idea>
+      <idea acceptance_criteria="AC2">Test admin_url field generates correct deep link when ADMIN_URL env var set, null otherwise</idea>
+      <idea acceptance_criteria="AC3">Test context query requires authentication and session ownership (reject unauthorized requests)</idea>
+      <idea acceptance_criteria="AC4">Test intercomContextUpdated subscription fires when progress changes, parent/child data added, or insurance status changes</idea>
+      <idea acceptance_criteria="AC5">Test PHI sanitizer removes all PHI: no email, phone, full names, DOB, SSN in context</idea>
+      <idea acceptance_criteria="AC6">Test context builder with various session states: early (no parent data), mid-flow (parent but no child), complete, error states</idea>
+      <idea acceptance_criteria="AC7">Test standard attribute schema defined in config matches Intercom integration requirements</idea>
+      <idea>Test child age calculation from DOB (returns age in years, not DOB)</idea>
+      <idea>Test insurance status mapping from verification_status enum to Intercom-friendly values</idea>
+      <idea>Test error state detection: OCR failed, verification failed, escalation requested, session expired</idea>
+      <idea>Test current_step derivation from session progress and phase</idea>
+      <idea>Test blocker_type field populated correctly for each error scenario</idea>
+      <idea>Test audit logging creates INTERCOM_CONTEXT_GENERATED entry without logging actual context data</idea>
+      <idea>Integration test: full flow from session creation through data collection to context generation</idea>
+      <idea>Integration test: context updates in real-time as session progresses (via subscription)</idea>
+    </ideas>
+  </tests>
+</story-context>

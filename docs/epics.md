@@ -15,18 +15,24 @@ This document provides the complete epic and story breakdown for daybreak-health
 
 ## Epic Summary
 
-| Epic | Title | User Value | FRs Covered | Stories |
-|------|-------|------------|-------------|---------|
-| 1 | Foundation & Infrastructure | Enables all development | Infrastructure | 4 |
-| 2 | Session Lifecycle & Auth | Parents can start/resume onboarding | FR1-6, FR43, FR47 | 6 |
-| 3 | Conversational AI Intake | Parents complete AI-guided intake | FR7-18 | 7 |
-| 4 | Insurance Verification | Parents verify insurance coverage | FR19-25 | 6 |
-| 5 | Clinical Assessment | Child ready for therapist matching | FR26-30 | 5 |
-| 6 | Notifications & Alerts | Parents stay informed, team notified | FR31-35 | 5 |
-| 7 | Admin Dashboard | Ops team manages pipeline | FR36-42, FR44 | 5 |
-| 8 | Compliance & Data Rights | HIPAA compliance, parent data rights | FR44-46 | 4 |
+| Epic | Title | User Value | FRs Covered | Stories | MVP Status |
+|------|-------|------------|-------------|---------|------------|
+| 1 | Foundation & Infrastructure | Enables all development | Infrastructure | 4 | ✅ Complete |
+| 2 | Session Lifecycle & Auth | Parents can start/resume onboarding | FR1-6, FR43, FR47 | 6 | ✅ Complete |
+| 3 | Conversational AI Intake | Parents complete AI-guided intake | FR7-18 | 7 | ✅ Complete |
+| 4 | Insurance Verification | Parents verify insurance coverage | FR19-25 | 6 | 🔄 In Progress |
+| 5 | Clinical Assessment | Child ready for therapist matching | FR26-30 | 5 | ⏸️ DEFERRED |
+| 6 | Notifications & Alerts | Team notified of completions/risks | FR34-35 | 5 | ⏸️ DEFERRED |
+| 7 | Admin Dashboard | Ops team views pipeline | FR36-38, FR42 | 5 | ⏸️ DEFERRED |
+| 8 | Compliance & Data Rights | HIPAA compliance | FR44 | 4 | ⏸️ DEFERRED |
 
-**Total: 8 Epics, 42 Stories**
+**MVP Total: 4 Epics, 23 Stories** (Epics 1-4 only)
+
+### Deferred to Post-MVP (Epics 5-8)
+- **Epic 5:** Clinical Assessment - AI-powered mental health screening (deferred pending scheduling module)
+- **Epic 6:** Notifications & Alerts - Email/SMS notifications, care team alerts
+- **Epic 7:** Admin Dashboard - Pipeline visibility, search, analytics
+- **Epic 8:** Compliance & Data Rights - Audit logging, data export/deletion/archival
 
 ---
 
@@ -131,8 +137,8 @@ This document provides the complete epic and story breakdown for daybreak-health
 | FR26 | Screening questions | Epic 5 | 5.1 |
 | FR27 | Adaptive assessment depth | Epic 5 | 5.2 |
 | FR28 | Risk indicator detection | Epic 5 | 5.3 |
-| FR29 | Consent collection | Epic 5 | 5.4 |
-| FR30 | Assessment summary | Epic 5 | 5.5 |
+| FR29 | Consent collection | Epic 5 | 5.5 |
+| FR30 | Assessment summary | Epic 5 | 5.4 |
 | FR31 | Session start email | Epic 6 | 6.1 |
 | FR32 | Abandoned session reminder | Epic 6 | 6.2 |
 | FR33 | Completion confirmation | Epic 6 | 6.3 |
@@ -923,787 +929,489 @@ So that **I can still get help for my child regardless of insurance**.
 
 ---
 
-## Epic 5: Clinical Assessment
+## Epic 5: Enhanced Scheduling Module (P0)
 
-**Goal:** Collect standardized mental health screening information conversationally with appropriate safety protocols.
+**Goal:** Enable AI-assisted therapist matching based on child's needs and assessment data, allowing parents to see recommended therapists and book appointments.
 
-**User Value:** Assessment complete, child is ready to be matched with a therapist.
+**User Value:** Parents are matched with the most appropriate therapist for their child's specific needs, reducing time to first appointment.
 
-**FRs Covered:** FR26, FR27, FR28, FR29, FR30
+**Priority:** P0 (Must-have)
 
 ---
 
-### Story 5.1: Conversational Screening Questions
+### Story 5.1: Therapist Data Model & Profiles
 
-As a **parent**,
-I want **to answer mental health screening questions through natural conversation**,
-So that **the assessment doesn't feel clinical or intimidating**.
+As a **system**,
+I want **to store therapist information including specializations, credentials, and matching criteria**,
+So that **the AI can make informed matching recommendations**.
 
 **Acceptance Criteria:**
 
-**Given** insurance phase is complete
-**When** assessment begins
+**Given** the system needs therapist data for matching
+**When** therapist profiles are created
 **Then**
-- AI presents standardized screening questions conversationally
-- Standard instruments adapted: PHQ-A, GAD-7 (age-appropriate versions)
-- Questions presented one at a time with context
-- Likert scale options offered naturally (not as numbered list)
-- Responses mapped to standardized scores
-- All responses stored for clinical review
-- Assessment status: `IN_PROGRESS`
+- Therapist model with fields: name, credentials, specializations[], age_ranges[], treatment_modalities[]
+- Specializations include: anxiety, depression, ADHD, trauma, behavioral issues, etc.
+- Credentials stored: license type, license number, state, expiration
+- Bio and photo URL for parent-facing display
+- Active/inactive status for availability
+- Languages spoken
+- Insurance panels accepted
 
-**And** screening feels like caring conversation, not clinical test
-**And** all required questions eventually asked
+**And** therapist data can be seeded/imported from existing system
+**And** admin can CRUD therapist profiles via GraphQL
 
 **Prerequisites:** Epic 4 complete
 
 **Technical Notes:**
-- Assessment prompts in `src/modules/conversation/ai/prompt-templates/assessment.prompt.ts`
-- Store responses in Assessment entity: `responses: JSON`
-- Scoring logic in `src/modules/assessment/assessment.service.ts`
-- Required questions defined in config (admin-configurable - FR41)
+- Create `Therapist` model with proper indexes
+- Create `TherapistSpecialization` join table for many-to-many
+- GraphQL types: `TherapistType`, `TherapistInput`
+- **Test Data:** Use `docs/test-cases/clinicians_anonymized.csv` for seeding therapist profiles
+- **Insurance Panels:** Use `docs/test-cases/clinician_credentialed_insurances.csv` joined with `credentialed_insurances.csv` for insurance acceptance
 
 ---
 
-### Story 5.2: Adaptive Assessment Depth
+### Story 5.2: Availability Management
 
-As a **parent**,
-I want **the assessment to go deeper on relevant concerns**,
-So that **Daybreak fully understands my child's needs**.
+As a **therapist** (via admin),
+I want **my availability to be tracked in the system**,
+So that **parents can only book during times I'm available**.
 
 **Acceptance Criteria:**
 
-**Given** initial screening responses indicate specific concerns
-**When** follow-up questions are needed
+**Given** therapist profiles exist
+**When** availability is configured
 **Then**
-- AI identifies areas requiring deeper exploration
-- Additional questions asked for flagged domains (anxiety, depression, trauma, etc.)
-- Assessment adapts to child's age and reported issues
-- Exploration depth limited to avoid parent fatigue
-- Branch logic based on severity scores
-- Summary includes areas explored vs. skipped
+- Weekly recurring availability slots (day, start_time, end_time)
+- Specific date overrides (vacations, blocked times)
+- Appointment duration configurable (default 50 min)
+- Buffer time between appointments configurable
+- Timezone support for therapist location
+- Query available slots for date range
 
-**And** assessment stays focused on clinically relevant topics
-**And** parent can request to skip sensitive areas (logged)
+**And** availability updates in real-time
+**And** no double-booking possible
 
 **Prerequisites:** Story 5.1
 
 **Technical Notes:**
-- Branching rules in assessment config
-- Track: `{ domain, depthLevel, questionsAsked, skipped }`
-- Implement skip with acknowledgment: "I understand, we can discuss with therapist"
+- `TherapistAvailability` model for recurring slots
+- `TherapistTimeOff` model for exceptions
+- `AvailabilityService` to calculate open slots
+- **Test Data:** Use `docs/test-cases/clinician_availabilities.csv` for seeding availability slots
+- Consider integration with external calendar (Google Calendar) - post-MVP
 
 ---
 
-### Story 5.3: Risk Indicator Detection & Protocols
+### Story 5.3: AI Matching Algorithm
 
 As the **system**,
-I want **to detect risk indicators in assessment responses**,
-So that **immediate safety protocols can be triggered when needed**.
+I want **to analyze child assessment data and recommend matching therapists**,
+So that **parents receive personalized therapist suggestions**.
 
 **Acceptance Criteria:**
 
-**Given** assessment is in progress
-**When** risk indicators are detected
+**Given** child information and assessment data exists
+**When** matching is requested
 **Then**
-- Real-time analysis of all responses for risk keywords/patterns
-- Risk categories: suicidal ideation, self-harm, abuse, neglect, violence
-- Detection triggers immediate protocol:
-  1. AI acknowledges with empathy and safety resources
-  2. Crisis hotline numbers provided (988, Crisis Text Line)
-  3. Session flagged: `riskFlags: ['SELF_HARM_INDICATED']`
-  4. Immediate alert to clinical team (FR35)
-  5. Session can continue with enhanced monitoring
-- False positive handling (asking about past resolved issues)
+- AI analyzes: child age, concerns, assessment scores, insurance
+- Matching factors weighted:
+  - Specialization match to child's concerns (high weight)
+  - Age range fit (high weight)
+  - Insurance acceptance (required filter)
+  - Availability within 2 weeks (preferred)
+  - Treatment modality fit
+- Returns ranked list of therapists with match scores
+- Match reasoning explained for each recommendation
+- Minimum 3 recommendations when possible
 
-**And** no response to risk indicator takes > 2 seconds
-**And** audit trail of all risk detections and responses
+**And** matching completes within 3 seconds
+**And** match scores are explainable to parents
 
-**Prerequisites:** Story 5.1, Story 6.5 (risk alerts)
+**Prerequisites:** Story 5.1, Story 5.2, Epic 3 (child data)
 
 **Technical Notes:**
-- Implement `src/modules/assessment/risk-detector/risk-detector.service.ts`
-- Keyword lists + LLM classification for context
-- Protocols in `risk-protocols.ts`
-- Override: clinical staff can clear false positives
+- `MatchingService` in `app/services/scheduling/`
+- Use LLM for semantic matching of concerns to specializations
+- Cache therapist profiles for performance
+- Store match results for analytics
 
 ---
 
-### Story 5.4: Treatment Consent Collection
+### Story 5.4: Matching Recommendations API
 
 As a **parent**,
-I want **to provide consent for my child's treatment and data use**,
-So that **Daybreak can legally and ethically proceed with care**.
+I want **to see recommended therapists with explanations**,
+So that **I can make an informed choice about my child's therapist**.
 
 **Acceptance Criteria:**
 
-**Given** assessment questions are complete
-**When** consent is requested
+**Given** onboarding is complete (or insurance verified)
+**When** parent requests therapist recommendations
 **Then**
-- Required consents presented clearly:
-  - Consent to treat minor
-  - Consent for telehealth services
-  - Consent for AI-assisted intake (data processing)
-  - HIPAA acknowledgment
-  - Privacy policy acceptance
-- Each consent captured individually with timestamp
-- Guardian status verified (must match FR14)
-- Digital signature captured (typed name + checkbox)
-- Consents stored with immutable audit trail
-- Assessment status: `CONSENT_COLLECTED`
+- GraphQL query returns matched therapists
+- Each recommendation includes:
+  - Therapist profile (name, photo, bio, credentials)
+  - Match score and reasoning
+  - Next available appointment slots (3-5)
+  - Specializations relevant to child
+- Parent can filter by: availability, gender preference, language
+- Parent can request re-matching with different criteria
 
-**And** consents presented in plain language
-**And** links to full legal documents provided
-
-**Prerequisites:** Story 5.2
-
-**Technical Notes:**
-- Store in Assessment: `consents: { type, timestamp, ipAddress, userAgent }`
-- Consent text versioned and stored
-- Legal review required for consent language (placeholder for now)
-
----
-
-### Story 5.5: Assessment Summary Generation
-
-As a **clinical reviewer**,
-I want **a comprehensive summary of the parent's assessment**,
-So that **I can quickly understand the child's situation**.
-
-**Acceptance Criteria:**
-
-**Given** all assessment questions and consent collected
-**When** summary is generated
-**Then**
-- AI generates clinical summary from all responses
-- Summary includes:
-  - Child demographics and presenting concerns
-  - Screening scores with interpretation
-  - Risk flags with context
-  - Parent quotes for significant concerns
-  - Recommended focus areas for therapy
-- Summary stored in Assessment entity
-- Status updated: `ASSESSMENT_COMPLETE`
-- Session status: `ASSESSMENT_COMPLETE`
-- Care team notified (FR34)
-
-**And** summary is structured for clinical workflow
-**And** AI summary clearly labeled as AI-generated (not diagnosis)
-
-**Prerequisites:** Story 5.4
-
-**Technical Notes:**
-- Summary generation in assessment service
-- Template: clinical intake summary format
-- Include disclaimer: "AI-generated summary for clinical review"
-- Trigger session completion flow
-
----
-
-## Epic 6: Notifications & Alerts
-
-**Goal:** Keep parents informed and notify care team of important events.
-
-**User Value:** Parents stay informed throughout the process; care team is alerted to completed onboarding and risks.
-
-**FRs Covered:** FR31, FR32, FR33, FR34, FR35
-
----
-
-### Story 6.1: Session Start Email
-
-As a **parent**,
-I want **to receive a confirmation email when I start onboarding**,
-So that **I have a record and can return to complete it later**.
-
-**Acceptance Criteria:**
-
-**Given** a new session is created with parent email
-**When** email is collected
-**Then**
-- Confirmation email queued immediately
-- Email includes:
-  - Welcome message with Daybreak branding
-  - Session recovery link (magic link)
-  - What to expect in onboarding
-  - Support contact information
-  - Estimated time to complete (10 minutes)
-- Email sent via AWS SES
-- Delivery tracked and logged
-
-**And** email delivered within 2 minutes
-**And** email renders correctly on mobile
-
-**Prerequisites:** Story 3.6 (parent email collected)
-
-**Technical Notes:**
-- Implement `app/services/notification/email_service.rb`
-- Templates in `app/views/notification_mailer/`
-- Use Sidekiq for async sending via Action Mailer
-- Track: sent, delivered, bounced, opened (if tracking enabled)
-
----
-
-### Story 6.2: Abandoned Session Reminder
-
-As a **parent**,
-I want **to receive a reminder if I don't complete onboarding**,
-So that **I'm encouraged to return and finish**.
-
-**Acceptance Criteria:**
-
-**Given** a session is IN_PROGRESS but inactive
-**When** configured reminder threshold is reached
-**Then**
-- Reminder email sent at configurable intervals:
-  - First reminder: 2 hours after last activity
-  - Second reminder: 24 hours after last activity
-  - Final reminder: 72 hours before expiration
-- Email includes:
-  - "We noticed you haven't finished..."
-  - Progress summary (where they left off)
-  - Recovery link
-  - Support offer
-- No reminder sent if session completed or explicitly abandoned
-- Reminder count tracked (max 3)
-
-**And** reminders are helpful, not annoying
-**And** unsubscribe option available (marks session preference)
-
-**Prerequisites:** Story 6.1, Story 2.4 (session cleanup knows about reminders)
-
-**Technical Notes:**
-- Scheduled job checks for abandoned sessions
-- Reminder config in env: `REMINDER_HOURS_1=2`, `REMINDER_HOURS_2=24`, etc.
-- Deduplication: don't re-send within 1 hour of activity
-- Track: `session.remindersSent: number`
-
----
-
-### Story 6.3: Completion Confirmation Email
-
-As a **parent**,
-I want **to receive confirmation when my onboarding is complete**,
-So that **I know what happens next**.
-
-**Acceptance Criteria:**
-
-**Given** assessment is complete and submitted
-**When** session status becomes SUBMITTED
-**Then**
-- Completion email sent immediately
-- Email includes:
-  - Thank you message
-  - Summary of what was submitted (no PHI details)
-  - Next steps timeline
-  - What to expect (therapist matching, scheduling)
-  - Contact information for questions
-- Session marked as complete in all systems
-- Parent can access read-only summary via link
-
-**And** email delivers within 2 minutes of completion
-**And** parent feels confident about next steps
-
-**Prerequisites:** Story 5.5, Story 6.1
-
-**Technical Notes:**
-- Trigger from session status change to SUBMITTED
-- Template: `completion.template.ts`
-- Include secure link to view submission (requires re-auth)
-
----
-
-### Story 6.4: Care Team Notification
-
-As a **care coordinator**,
-I want **to be notified when an onboarding is complete**,
-So that **I can begin the therapist matching process**.
-
-**Acceptance Criteria:**
-
-**Given** a session is submitted
-**When** care team notification is triggered
-**Then**
-- Internal notification sent to care team channel/queue
-- Notification includes:
-  - Session ID and completion timestamp
-  - Child's age and primary concerns (summary)
-  - Insurance status (verified/self-pay)
-  - Any flags (risk indicators, escalation requests)
-  - Link to admin session detail view
-- Notification methods: email to care team + internal dashboard alert
-- Priority elevated if risk flags present
-
-**And** care team receives within 5 minutes of completion
-**And** all necessary context provided without clicking through
-
-**Prerequisites:** Story 5.5, Epic 7 Story 7.1 (admin dashboard for context)
-
-**Technical Notes:**
-- Care team distribution list in config
-- Internal notification via GraphQL subscription to admin dashboard
-- Priority: normal (no flags) vs. high (with flags)
-
----
-
-### Story 6.5: Risk Alert Notification
-
-As a **clinical supervisor**,
-I want **to be immediately alerted when risk indicators are detected**,
-So that **I can ensure appropriate follow-up and safety**.
-
-**Acceptance Criteria:**
-
-**Given** risk indicators are detected in assessment
-**When** risk detection triggers
-**Then**
-- Immediate alert (not queued) to clinical escalation contacts
-- Alert includes:
-  - Session ID and timestamp
-  - Specific risk indicators detected
-  - Context (exact response that triggered)
-  - Current session status
-  - Parent contact information
-  - Direct link to session details
-- Multiple channels: email + SMS to on-call + dashboard alert
-- Acknowledgment required from recipient
-- Escalation if not acknowledged within 15 minutes
-
-**And** alert delivered within 30 seconds of detection
-**And** audit trail of alert, delivery, and acknowledgment
+**And** recommendations personalized to session data
+**And** response time < 2 seconds
 
 **Prerequisites:** Story 5.3
 
 **Technical Notes:**
-- Bypass normal queue for immediate delivery
-- On-call rotation in config or integration with PagerDuty
-- Acknowledgment tracked: `riskAlert.acknowledgedAt, acknowledgedBy`
-- Escalation: secondary contact if primary doesn't acknowledge
+- GraphQL: `therapistRecommendations(sessionId: ID!): [TherapistMatch!]!`
+- `TherapistMatchType` includes score, reasoning, availability
+- Lazy-load availability slots on expansion
 
 ---
 
-## Epic 7: Admin Dashboard & Analytics
+### Story 5.5: Booking & Confirmation
 
-**Goal:** Provide operations team with visibility and control over the onboarding pipeline.
-
-**User Value:** Operations can manage onboarding pipeline, identify issues, and optimize the process.
-
-**FRs Covered:** FR36, FR37, FR38, FR39, FR40, FR41, FR42, FR44
-
----
-
-### Story 7.1: Real-Time Pipeline Dashboard
-
-As an **admin**,
-I want **to see a real-time view of the onboarding pipeline**,
-So that **I can understand current volume and identify bottlenecks**.
+As a **parent**,
+I want **to book an appointment with my chosen therapist**,
+So that **my child can begin therapy**.
 
 **Acceptance Criteria:**
 
-**Given** admin is authenticated with appropriate role
-**When** they access the dashboard
+**Given** parent has selected a therapist and time slot
+**When** booking is submitted
 **Then**
-- Dashboard shows:
-  - Total sessions by status (funnel visualization data)
-  - Sessions started today/this week/this month
-  - Completion rate (completed/started)
-  - Average time to complete
-  - Currently active sessions count
-  - Sessions needing attention (stuck, flagged)
-- Data refreshes every 30 seconds via subscription
-- Filters: date range, status, source
+- `bookAppointment` mutation creates appointment
+- Slot availability verified (prevent race conditions)
+- Appointment stored with: therapist_id, session_id, datetime, duration, status
+- Confirmation shown to parent with details
+- Session status updated to `APPOINTMENT_BOOKED`
+- Therapist notified of new booking (internal)
+- Parent receives confirmation (email if available)
 
-**And** dashboard loads within 2 seconds
-**And** only accessible to admin/coordinator roles
+**And** booking is atomic (no double-booking)
+**And** parent can cancel/reschedule (within policy)
 
-**Prerequisites:** Epic 2 (sessions exist)
+**Prerequisites:** Story 5.4
 
 **Technical Notes:**
-- GraphQL queries: `sessionAnalytics(dateRange: DateRangeInput!): Analytics!`
-- Aggregation queries optimized with materialized views or Redis cache
-- Subscription: `dashboardUpdated`
+- `Appointment` model with proper constraints
+- Use database transaction + row locking for slot reservation
+- `BookingService` handles confirmation flow
+- GraphQL subscription for real-time slot updates
 
 ---
 
-### Story 7.2: Session Search & Filtering
+## Epic 6: Cost Estimation Tool (P1)
 
-As an **admin**,
-I want **to search and filter sessions by various criteria**,
-So that **I can find specific sessions or cohorts**.
+**Goal:** Provide parents with transparent, detailed cost information including insurance estimates, self-pay rates, deductible tracking, and payment options.
+
+**User Value:** Parents understand their financial responsibility upfront, reducing surprise bills and increasing trust.
+
+**Priority:** P1 (Should-have)
+
+---
+
+### Story 6.1: Cost Calculation Engine
+
+As the **system**,
+I want **a flexible engine to calculate therapy session costs**,
+So that **costs can be computed based on various factors**.
 
 **Acceptance Criteria:**
 
-**Given** admin is on dashboard
-**When** they use search/filter
+**Given** session type and payer information
+**When** cost calculation is requested
 **Then**
-- Search by: session ID, parent email, parent name, child name
-- Filter by: status, date range, insurance status, risk flags, source
-- Sort by: created date, updated date, status
-- Results paginated (20 per page)
-- Export results to CSV (limited fields, no PHI in export)
-- Saved filter presets supported
+- Base rate configurable per session type (intake, individual, family)
+- Modifiers for: session duration, therapist tier, special services
+- Tax calculations if applicable
+- Discount application (promotional, hardship)
+- Returns: gross cost, adjustments[], net cost
 
-**And** search results return within 1 second
-**And** PHI fields only visible to authorized roles
+**And** calculation is deterministic and auditable
+**And** rates easily configurable via admin
+
+**Prerequisites:** Epic 4 complete
+
+**Technical Notes:**
+- `CostCalculationService` in `app/services/billing/`
+- `SessionRate` model for configurable rates
+- Store calculation breakdown for transparency
+- **Test Data:** Use `docs/test-cases/contracts.csv` for service pricing terms (individual_therapy, family_therapy, etc.)
+
+---
+
+### Story 6.2: Insurance Cost Estimation
+
+As a **parent** with verified insurance,
+I want **to see estimated costs based on my coverage**,
+So that **I know what I'll pay out of pocket**.
+
+**Acceptance Criteria:**
+
+**Given** insurance is verified (from Epic 4)
+**When** cost estimate is requested
+**Then**
+- Retrieves coverage details: copay, coinsurance, deductible
+- Calculates estimated patient responsibility:
+  - If deductible not met: full allowed amount until met
+  - After deductible: copay or coinsurance applies
+- Shows: insurance pays, patient pays, deductible status
+- Displays allowed amount vs. billed amount
+- Explains any coverage limitations (session limits, prior auth)
+
+**And** estimate clearly marked as estimate (not guarantee)
+**And** updated when eligibility data changes
+
+**Prerequisites:** Story 6.1, Epic 4 (eligibility verification)
+
+**Technical Notes:**
+- `InsuranceEstimateService` uses eligibility data
+- Handle various plan types: HMO, PPO, high-deductible
+- Cache estimates with eligibility data
+- **Test Data:** Use `docs/test-cases/insurance_coverages.csv` for coverage details and eligibility scenarios
+- **Test Data:** Use `docs/test-cases/credentialed_insurances.csv` for payer/network information
+
+---
+
+### Story 6.3: Self-Pay Rates & Comparison
+
+As a **parent** considering self-pay,
+I want **to see transparent self-pay pricing and compare to insurance**,
+So that **I can make the best financial decision**.
+
+**Acceptance Criteria:**
+
+**Given** parent is viewing cost options
+**When** self-pay rates are displayed
+**Then**
+- Clear self-pay rates per session type
+- Comparison table: insurance estimate vs. self-pay
+- Highlight when self-pay might be cheaper (high deductible plans)
+- Sliding scale information if applicable
+- Package pricing options (e.g., 4-session bundle)
+- No hidden fees messaging
+
+**And** rates competitive and transparent
+**And** easy to switch between insurance and self-pay
+
+**Prerequisites:** Story 6.1, Story 6.2
+
+**Technical Notes:**
+- `SelfPayRate` model with effective dates
+- Comparison logic in `CostComparisonService`
+- GraphQL: `costComparison(sessionId: ID!): CostComparison!`
+
+---
+
+### Story 6.4: Deductible & Out-of-Pocket Tracking
+
+As a **parent**,
+I want **to track my deductible progress and out-of-pocket spending**,
+So that **I can plan my healthcare expenses**.
+
+**Acceptance Criteria:**
+
+**Given** parent has insurance with deductible
+**When** viewing cost information
+**Then**
+- Current deductible status: amount met, remaining
+- Out-of-pocket max tracking: spent, remaining
+- Family vs. individual deductible distinction
+- Projection: "X more sessions until deductible met"
+- Visual progress indicator
+- Year reset date shown
+
+**And** data synced with eligibility when available
+**And** manual entry option if data not available
+
+**Prerequisites:** Story 6.2
+
+**Technical Notes:**
+- `DeductibleTracker` service
+- Store snapshots from eligibility checks
+- Allow manual override with audit trail
+- GraphQL: `deductibleStatus(sessionId: ID!): DeductibleStatus!`
+
+---
+
+### Story 6.5: Payment Plan Options
+
+As a **parent** with financial concerns,
+I want **to see payment plan options**,
+So that **I can afford care for my child**.
+
+**Acceptance Criteria:**
+
+**Given** estimated costs are calculated
+**When** payment options are displayed
+**Then**
+- Upfront payment option with any discount
+- Monthly payment plan: 3, 6, 12 month options
+- Calculate monthly amount based on total estimate
+- Interest/fee disclosure (if any)
+- Financial assistance program information
+- Link to apply for hardship consideration
+- Payment method options (card, HSA/FSA, bank)
+
+**And** no predatory terms
+**And** clear total cost comparison
+
+**Prerequisites:** Story 6.3
+
+**Technical Notes:**
+- `PaymentPlanService` calculates options
+- `FinancialAssistance` eligibility rules in config
+- Store payment plan selection for billing integration
+- Note: Actual payment processing is post-MVP
+
+---
+
+## Epic 7: Support Interface (P1)
+
+**Goal:** Provide real-time chat support via Intercom integration, with full session context passed to support staff.
+
+**User Value:** Parents can get immediate help from Daybreak staff without leaving the onboarding flow.
+
+**Priority:** P1 (Should-have)
+
+---
+
+### Story 7.1: Intercom Widget Integration
+
+As a **developer**,
+I want **Intercom chat widget integrated into the application**,
+So that **parents can access live support**.
+
+**Acceptance Criteria:**
+
+**Given** Intercom account is configured
+**When** widget is integrated
+**Then**
+- Intercom JavaScript SDK installed and initialized
+- Widget appears on onboarding pages
+- Widget styled to match Daybreak branding
+- HIPAA-compliant Intercom plan configured
+- Widget can be shown/hidden programmatically
+- Mobile-responsive widget behavior
+
+**And** widget loads without blocking page render
+**And** graceful degradation if Intercom unavailable
+
+**Prerequisites:** Intercom account with HIPAA BAA
+
+**Technical Notes:**
+- Add Intercom SDK to frontend (React/Next.js)
+- Backend provides Intercom identity verification
+- Environment-based configuration (dev/staging/prod)
+- CSP headers updated for Intercom domains
+
+---
+
+### Story 7.2: Session Context Passing
+
+As a **support agent**,
+I want **to see the parent's onboarding context when they start a chat**,
+So that **I can help them effectively without asking repetitive questions**.
+
+**Acceptance Criteria:**
+
+**Given** parent initiates chat from onboarding
+**When** chat opens in Intercom
+**Then**
+- Custom attributes passed to Intercom:
+  - Session ID
+  - Current onboarding step/phase
+  - Parent name (if collected)
+  - Child age (if collected)
+  - Insurance status (verified/pending/self-pay)
+  - Any error states or blockers
+- Agent sees context in Intercom dashboard
+- Deep link to admin session view (if available)
+- Context updates as parent progresses
+
+**And** no PHI sent to Intercom (only IDs and status)
+**And** context helps agent assist faster
 
 **Prerequisites:** Story 7.1
 
 **Technical Notes:**
-- GraphQL: `sessions(filter: SessionFilter, pagination: Pagination): SessionConnection!`
-- Use Prisma full-text search or dedicated search index
-- PHI visibility based on role in resolver
+- Use Intercom `update` method to pass attributes
+- Define standard attribute schema
+- Backend endpoint to generate context payload
+- Sanitize all data before sending to Intercom
 
 ---
 
-### Story 7.3: Session Detail View & Status Management
+### Story 7.3: Support Request Tracking
 
-As an **admin**,
-I want **to view full details of a session and update its status if needed**,
-So that **I can resolve issues and manage edge cases**.
+As a **system**,
+I want **to track support requests and link them to onboarding sessions**,
+So that **we can analyze support needs and improve the flow**.
 
 **Acceptance Criteria:**
 
-**Given** admin selects a session
-**When** detail view is accessed
+**Given** parent interacts with support
+**When** chat is initiated or completed
 **Then**
-- Full session details displayed:
-  - Status and timeline
-  - Parent and child information (PHI with access logging)
-  - Insurance details and verification status
-  - Assessment summary and any risk flags
-  - Conversation history (collapsed by default)
-  - Audit log of all actions on this session
-- Manual status update available with reason required
-- Notes can be added to session (internal only)
-- All views logged to audit trail
+- Support request logged in our database
+- Fields: session_id, timestamp, source (widget location), resolved
+- Intercom conversation ID stored for reference
+- Session flagged as "contacted support"
+- Analytics: support requests by onboarding step
+- Webhook receives Intercom events (optional)
 
-**And** status changes require confirmation
-**And** audit log entry: `action: ADMIN_STATUS_UPDATE, details: { from, to, reason }`
+**And** support patterns inform UX improvements
+**And** follow-up possible via session link
 
 **Prerequisites:** Story 7.2
 
 **Technical Notes:**
-- Mutation: `updateSessionStatus(sessionId: ID!, status: SessionStatus!, reason: String!): Session!`
-- Audit every PHI field access, not just mutations
-- Internal notes stored separately from parent-visible data
+- `SupportRequest` model
+- Intercom webhook integration (conversations.created, etc.)
+- Analytics query for support hotspots
+- GraphQL: `supportRequests(sessionId: ID!): [SupportRequest!]!`
 
 ---
 
-### Story 7.4: Analytics & Reporting
+## Test Data Reference
 
-As an **operations manager**,
-I want **daily and weekly analytics reports**,
-So that **I can track trends and make data-driven decisions**.
+The following test data files in `docs/test-cases/` should be used for seeding and testing:
 
-**Acceptance Criteria:**
-
-**Given** sufficient session data exists
-**When** reports are generated
-**Then**
-- Automated reports generated:
-  - Daily summary: sessions started/completed, conversion rate, avg time
-  - Weekly summary: trends, comparison to previous week, top issues
-- Report includes:
-  - Funnel analysis (drop-off points)
-  - Insurance verification success rate
-  - Average completion time by step
-  - Risk flag frequency
-  - Top parent concerns (anonymized word cloud data)
-- Reports emailed to configured recipients
-- Historical reports accessible in dashboard
-
-**And** reports generated at configured time (e.g., 6 AM daily)
-**And** data anonymized appropriately for reporting
-
-**Prerequisites:** Story 7.1
-
-**Technical Notes:**
-- Scheduled job for report generation
-- Store reports as JSON in database for historical access
-- Email report as PDF attachment or HTML
-- Implement `src/modules/admin/reports/analytics.service.ts`
-
----
-
-### Story 7.5: AI & Assessment Configuration
-
-As an **admin**,
-I want **to configure AI prompts and assessment questions**,
-So that **I can iterate on the experience without code changes**.
-
-**Acceptance Criteria:**
-
-**Given** admin has configuration access
-**When** they update configuration
-**Then**
-- Configurable elements:
-  - AI system prompts (intake, insurance, assessment)
-  - Assessment questions and branching logic
-  - Risk detection keywords and thresholds
-  - Known insurance payers list
-  - Email template content
-  - Session timeout durations
-- Changes require approval workflow (maker-checker)
-- Version history maintained for all configs
-- Changes take effect on new sessions (not mid-session)
-- Rollback capability to previous version
-
-**And** config changes logged to audit trail
-**And** validation prevents invalid configurations
-
-**Prerequisites:** Story 7.3
-
-**Technical Notes:**
-- Config stored in database, not files
-- Cache config in Redis, invalidate on update
-- Approval workflow: changes go to "pending" until approved by different admin
-- GraphQL mutations for CRUD on config items
-
----
-
-## Epic 8: Compliance & Data Rights
-
-**Goal:** Complete HIPAA compliance implementation and enable parent data rights.
-
-**User Value:** Full regulatory compliance, parents can access and control their data.
-
-**FRs Covered:** FR44, FR45, FR46 (FR43, FR47 largely covered in Epic 2)
-
----
-
-### Story 8.1: Comprehensive Audit Logging
-
-As a **compliance officer**,
-I want **complete audit logs of all data access and actions**,
-So that **we can demonstrate HIPAA compliance and investigate incidents**.
-
-**Acceptance Criteria:**
-
-**Given** any action occurs in the system
-**When** the action involves PHI or security-relevant operations
-**Then**
-- Audit log entry created with:
-  - Timestamp (UTC)
-  - User/session ID
-  - Action type (CREATE, READ, UPDATE, DELETE)
-  - Resource type and ID
-  - Relevant details (fields accessed, before/after for updates)
-  - IP address and user agent
-  - Request ID for correlation
-- Logs immutable (append-only)
-- Logs retained for 7 years (HIPAA requirement)
-- Logs searchable by all fields
-- Logs exportable for compliance review
-
-**And** every PHI read is logged, not just writes
-**And** log storage encrypted and access-controlled
-
-**Prerequisites:** Story 1.3 (AuditLogInterceptor foundation)
-
-**Technical Notes:**
-- AuditLog table partitioned by month
-- Archive to S3 Glacier after 1 year
-- Implement field-level tracking for PHI
-- Consider separate audit database for isolation
-
----
-
-### Story 8.2: Parent Data Export
-
-As a **parent**,
-I want **to export all data I've submitted**,
-So that **I can review what Daybreak has about my child**.
-
-**Acceptance Criteria:**
-
-**Given** parent has completed onboarding
-**When** they request data export
-**Then**
-- Export request submitted via authenticated request
-- Request queued and processed within 24 hours (HIPAA allows 30 days)
-- Export includes:
-  - All parent-provided information
-  - Child information
-  - Insurance information (masked appropriately)
-  - Assessment responses
-  - Conversation history
-  - Consent records
-- Export format: JSON or PDF
-- Secure download link sent to email (expires in 48 hours)
-- Export logged to audit trail
-
-**And** export excludes: internal notes, AI analysis, clinical summaries
-**And** identity verification required before export delivered
-
-**Prerequisites:** Epic 5 complete, Story 6.1 (email)
-
-**Technical Notes:**
-- Mutation: `requestDataExport(sessionId: ID!): ExportRequest!`
-- Background job generates export
-- Verification: re-authenticate via magic link before download
-- Rate limit: 1 export per session per 24 hours
-
----
-
-### Story 8.3: Data Deletion Request
-
-As a **parent**,
-I want **to request deletion of my data**,
-So that **I can exercise my privacy rights**.
-
-**Acceptance Criteria:**
-
-**Given** parent wants to delete their data
-**When** deletion request is submitted
-**Then**
-- Request requires authentication and confirmation
-- Request queued for processing
-- Compliance team notified to review
-- Data eligible for deletion:
-  - PHI (parent info, child info)
-  - Conversation history
-  - Assessment responses
-- Data NOT deleted (compliance retention):
-  - Audit logs (anonymized reference retained)
-  - Consent records (legal requirement)
-  - Session metadata (anonymized)
-- Deletion completed within 30 days
-- Confirmation sent to parent
-- Deletion logged to audit trail
-
-**And** partial deletion supported (e.g., keep insurance for billing)
-**And** active treatment data subject to clinical review
-
-**Prerequisites:** Story 8.2
-
-**Technical Notes:**
-- Mutation: `requestDataDeletion(sessionId: ID!): DeletionRequest!`
-- Soft delete with 30-day grace period before hard delete
-- Anonymize rather than delete for audit references
-- Clinical hold capability: data in active treatment cannot be auto-deleted
-
----
-
-### Story 8.4: Data Retention & Archival
-
-As the **system**,
-I want **to manage data retention according to policy**,
-So that **we comply with regulations and minimize data liability**.
-
-**Acceptance Criteria:**
-
-**Given** data exists in the system
-**When** retention thresholds are reached
-**Then**
-- Retention policies applied:
-  - Active sessions: indefinite (until completed/expired)
-  - Completed sessions: 7 years (HIPAA)
-  - Expired/abandoned sessions: 90 days then archive
-  - Insurance card images: 30 days then delete
-  - Audit logs: 7 years then archive
-- Archived data moved to cold storage (S3 Glacier)
-- Archived data retrievable within 24 hours if needed
-- Deletion job runs weekly
-- Retention policy configurable per data type
-
-**And** retention compliant with HIPAA and state laws
-**And** deletion logged to audit trail
-
-**Prerequisites:** Story 8.1
-
-**Technical Notes:**
-- Scheduled job: `data-retention.processor.ts`
-- S3 lifecycle policies for automatic archival
-- Restore process documented and tested
-- Legal hold capability: pause retention for litigation
-
----
-
-## FR Coverage Matrix
-
-| FR | Description | Epic | Story | Verified |
-|----|-------------|------|-------|----------|
-| FR1 | Create anonymous session | 2 | 2.1 | ✓ |
-| FR2 | Resume session from any device | 2 | 2.3 | ✓ |
-| FR3 | Auto-save progress | 2 | 2.2 | ✓ |
-| FR4 | Session expiration | 2 | 2.4 | ✓ |
-| FR5 | Explicit session abandonment | 2 | 2.5 | ✓ |
-| FR6 | Session state tracking | 2 | 2.2 | ✓ |
-| FR7 | Conversational AI interface | 3 | 3.1 | ✓ |
-| FR8 | Adaptive follow-up questions | 3 | 3.2 | ✓ |
-| FR9 | Clarifying questions/help | 3 | 3.3 | ✓ |
-| FR10 | Progress indicators | 3 | 3.4 | ✓ |
-| FR11 | Off-topic handling | 3 | 3.3 | ✓ |
-| FR12 | Human escalation request | 3 | 3.5 | ✓ |
-| FR13 | Parent contact collection | 3 | 3.6 | ✓ |
-| FR14 | Parent relationship/guardian | 3 | 3.6 | ✓ |
-| FR15 | Child demographics | 3 | 3.7 | ✓ |
-| FR16 | Child school info | 3 | 3.7 | ✓ |
-| FR17 | Parent concerns | 3 | 3.7 | ✓ |
-| FR18 | Medical history | 3 | 3.7 | ✓ |
-| FR19 | Insurance card upload | 4 | 4.1 | ✓ |
-| FR20 | OCR extraction | 4 | 4.2 | ✓ |
-| FR21 | Manual insurance entry | 4 | 4.3 | ✓ |
-| FR22 | Insurance validation | 4 | 4.3 | ✓ |
-| FR23 | Eligibility verification | 4 | 4.4 | ✓ |
-| FR24 | Verification status display | 4 | 4.5 | ✓ |
-| FR25 | Self-pay fallback | 4 | 4.6 | ✓ |
-| FR26 | Screening questions | 5 | 5.1 | ✓ |
-| FR27 | Adaptive assessment depth | 5 | 5.2 | ✓ |
-| FR28 | Risk indicator detection | 5 | 5.3 | ✓ |
-| FR29 | Consent collection | 5 | 5.4 | ✓ |
-| FR30 | Assessment summary | 5 | 5.5 | ✓ |
-| FR31 | Session start email | 6 | 6.1 | ✓ |
-| FR32 | Abandoned session reminder | 6 | 6.2 | ✓ |
-| FR33 | Completion confirmation | 6 | 6.3 | ✓ |
-| FR34 | Care team notification | 6 | 6.4 | ✓ |
-| FR35 | Risk alert notification | 6 | 6.5 | ✓ |
-| FR36 | Pipeline dashboard | 7 | 7.1 | ✓ |
-| FR37 | Session search/filter | 7 | 7.2 | ✓ |
-| FR38 | Session detail view | 7 | 7.3 | ✓ |
-| FR39 | Manual status update | 7 | 7.3 | ✓ |
-| FR40 | Analytics reports | 7 | 7.4 | ✓ |
-| FR41 | AI/assessment config | 7 | 7.5 | ✓ |
-| FR42 | Admin action logging | 7 | 7.3 | ✓ |
-| FR43 | PHI encryption | 2 | 2.6 | ✓ |
-| FR44 | Audit logging | 8 | 8.1 | ✓ |
-| FR45 | Data export | 8 | 8.2 | ✓ |
-| FR46 | Data deletion | 8 | 8.3 | ✓ |
-| FR47 | RBAC enforcement | 2 | 2.6 | ✓ |
-
-**Coverage: 47/47 FRs (100%)**
+| File | Purpose | Used By |
+|------|---------|---------|
+| `clinicians_anonymized.csv` | Therapist profiles, credentials, specializations | Epic 5 (5.1) |
+| `clinician_availabilities.csv` | Therapist availability slots | Epic 5 (5.2) |
+| `clinician_credentialed_insurances.csv` | Which insurances each therapist accepts | Epic 5 (5.1, 5.3) |
+| `credentialed_insurances.csv` | Insurance payer/network definitions | Epic 5, Epic 6 |
+| `insurance_coverages.csv` | Patient insurance coverage details | Epic 6 (6.2) |
+| `contracts.csv` | Service pricing terms (individual_therapy, family_therapy) | Epic 6 (6.1) |
+| `patients_and_guardians_anonymized.csv` | Test patient/parent data | All epics |
 
 ---
 
 ## Summary
 
-This epic breakdown transforms the 47 functional requirements from the Daybreak Health Backend PRD into **8 epics with 42 stories**, each sized for single dev agent implementation sessions.
+**Current MVP Scope: 7 Epics, 36 Stories**
 
-**Epic Structure:**
-1. **Foundation & Infrastructure** (4 stories) - Greenfield setup enabling all development
-2. **Session Lifecycle & Auth** (6 stories) - Parents can start/resume onboarding securely
-3. **Conversational AI Intake** (7 stories) - AI-guided data collection
-4. **Insurance Verification** (6 stories) - Streamlined insurance capture and verification
-5. **Clinical Assessment** (5 stories) - Screening with risk detection
-6. **Notifications & Alerts** (5 stories) - Communication throughout the process
-7. **Admin Dashboard** (5 stories) - Operations visibility and control
-8. **Compliance & Data Rights** (4 stories) - HIPAA compliance and parent rights
+**Completed Epics:**
+1. **Foundation & Infrastructure** (4 stories) ✅ Complete
+2. **Session Lifecycle & Auth** (6 stories) ✅ Complete
+3. **Conversational AI Intake** (7 stories) ✅ Complete
 
-**Key Design Decisions:**
-- Each epic delivers user value (not technical layers)
-- Stories are vertically sliced for independent deployment
-- BDD acceptance criteria enable automated testing
-- Architecture document patterns referenced throughout
-- Prerequisites ensure logical build order
-- Technical notes provide implementation guidance
+**In Progress:**
+4. **Insurance Verification** (6 stories) 🔄 In Progress
+
+**Upcoming (New):**
+5. **Enhanced Scheduling Module** (5 stories) - P0: AI-assisted therapist matching
+6. **Cost Estimation Tool** (5 stories) - P1: Detailed cost breakdown with payment plans
+7. **Support Interface** (3 stories) - P1: Intercom live chat integration
 
 **Recommended Implementation Order:**
-Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5 → Epic 6 → Epic 7 → Epic 8
-
-Epics 6-8 can partially parallel Epics 4-5 after Epic 3 is complete.
+Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5 → Epic 6 → Epic 7
 
 ---
 
 _For implementation: Use the `create-story` workflow to generate individual story implementation plans from this epic breakdown._
-
-_This document includes interaction details and technical decisions from the Architecture document._

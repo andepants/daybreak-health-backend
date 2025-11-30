@@ -9,7 +9,8 @@
 # Higher weight = higher priority
 :queues:
   - [critical, 3]    # Critical jobs: risk alerts, urgent notifications
-  - [default, 2]     # Default jobs: OCR processing, eligibility checks
+  - [default, 2]     # Default jobs: general processing
+  - [insurance, 2]   # Insurance jobs: OCR processing, eligibility checks
   - [low, 1]         # Low priority: cleanup jobs, analytics, reports
 
 # Timeouts

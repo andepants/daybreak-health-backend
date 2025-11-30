@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="4-2-ocr-insurance-card-extraction" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>2</storyId>
+    <title>OCR Insurance Card Extraction</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/4-2-ocr-insurance-card-extraction.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>the system</asA>
+    <iWant>to extract insurance details from card images automatically</iWant>
+    <soThat>parents don't need to type information that's on their card</soThat>
+
+    <tasks>
+      <task id="0" status="pending">
+        <title>Install AWS Textract Dependency</title>
+        <subtasks>
+          <item>Add gem "aws-sdk-textract", "~> 1.50" to Gemfile</item>
+          <item>Run bundle install</item>
+          <item>Configure AWS Textract client in config/initializers/aws.rb</item>
+          <item>Add IAM permissions: textract:AnalyzeDocument, s3:GetObject</item>
+        </subtasks>
+      </task>
+
+      <task id="1" status="pending">
+        <title>Implement OCR Processing Job</title>
+        <acs>1, 2, 3</acs>
+        <subtasks>
+          <item>Update OcrProcessingJob created in Story 4.1</item>
+          <item>Access images via Active Storage blob keys (NOT presigned URLs for Textract)</item>
+          <item>Configure AWS Textract client with FORMS feature type</item>
+          <item>Process front and back images sequentially (Textract is synchronous)</item>
+          <item>Extract key-value pairs from Textract response</item>
+          <item>Calculate confidence scores for each field</item>
+          <item>Add 30-second timeout with proper error handling</item>
+        </subtasks>
+      </task>
+
+      <task id="2" status="pending">
+        <title>Implement Insurance Card Parser Service</title>
+        <acs>2, 3, 4</acs>
+        <subtasks>
+          <item>Create app/services/insurance/card_parser.rb</item>
+          <item>Map Textract key-value pairs to insurance fields</item>
+          <item>Implement confidence threshold logic (flag fields &lt; 85%)</item>
+          <item>Store raw OCR data in verification_result.ocr_raw for debugging</item>
+          <item>Store confidence scores in verification_result.ocr_confidence</item>
+          <item>Handle common OCR errors (rotated/skewed images via Textract geometry)</item>
+        </subtasks>
+      </task>
+
+      <task id="3" status="pending">
+        <title>Create Migration for OCR Fields</title>
+        <acs>5, 6</acs>
+        <subtasks>
+          <item>NOTE: Do NOT create new table - Insurance table already exists</item>
+          <item>Create migration to add OCR-specific fields if needed: ocr_completed_at (datetime), needs_review (boolean)</item>
+          <item>Store OCR data in existing verification_result JSONB field</item>
+          <item>Use existing verification_status enum with unified values</item>
+        </subtasks>
+      </task>
+
+      <task id="4" status="pending">
+        <title>Update Insurance Model</title>
+        <acs>5, 6</acs>
+        <subtasks>
+          <item>NOTE: Model already exists at app/models/insurance.rb</item>
+          <item>Add helper methods for OCR data access: ocr_data, ocr_confidence, needs_ocr_review?</item>
+          <item>Add scopes: ocr_pending, ocr_completed, needs_ocr_review</item>
+        </subtasks>
+      </task>
+
+      <task id="5" status="pending">
+        <title>Trigger GraphQL Subscription for OCR Completion</title>
+        <acs>7</acs>
+        <subtasks>
+          <item>Use existing insuranceStatusChanged subscription (or create if not exists)</item>
+          <item>Trigger subscription when OCR completes</item>
+          <item>Include extracted data summary and confidence flags in payload</item>
+          <item>Provide UI context for reviewing/confirming extracted data</item>
+        </subtasks>
+      </task>
+
+      <task id="6" status="pending">
+        <title>Error Handling and Edge Cases</title>
+        <subtasks>
+          <item>Handle Textract API errors: InvalidParameterException, InvalidS3ObjectException, ProvisionedThroughputExceededException, ThrottlingException</item>
+          <item>Implement Sidekiq retry logic with exponential backoff (3 attempts)</item>
+          <item>Handle missing or illegible card images gracefully</item>
+          <item>Log OCR failures to audit trail with error details (no PHI)</item>
+        </subtasks>
+      </task>
+
+      <task id="7" status="pending">
+        <title>Testing and Performance</title>
+        <acs>8, 9</acs>
+        <subtasks>
+          <item>Write RSpec tests for OcrProcessingJob</item>
+          <item>Write RSpec tests for Insurance::CardParser service</item>
+          <item>Create de-identified test fixtures for various insurance card formats</item>
+          <item>Use VCR gem for recording/replaying Textract API calls</item>
+          <item>Test OCR accuracy with sample card images (target &gt; 90%)</item>
+          <item>Performance test: verify p95 completion time &lt; 10 seconds</item>
+          <item>Test error scenarios (invalid images, API failures, low confidence)</item>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <given>insurance card images are uploaded</given>
+    <when>OCR processing runs</when>
+    <then>
+      <criterion id="1">AWS Textract analyzes both front and back images</criterion>
+      <criterion id="2">Extracted fields: payerName, memberId, groupNumber, subscriberName (planType stored in metadata)</criterion>
+      <criterion id="3">Confidence scores returned for each extracted field</criterion>
+      <criterion id="4">Low-confidence extractions (&lt; 85%) flagged for manual review</criterion>
+      <criterion id="5">Insurance record updated with extracted data in verification_result JSONB</criterion>
+      <criterion id="6">Status updated to ocr_complete or ocr_needs_review</criterion>
+      <criterion id="7">Parent notified to review/confirm extracted data via GraphQL subscription</criterion>
+    </then>
+    <and>
+      <criterion id="8">OCR completes within 10 seconds (p95)</criterion>
+      <criterion id="9">extraction accuracy &gt; 90% for standard card formats</criterion>
+    </and>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md">
+        <section>Insurance Processing (FR19-FR25)</section>
+        <relevance>Defines OCR requirements and insurance data capture flow</relevance>
+        <keyPoints>
+          <point>FR20: System extracts insurance information from card images via OCR</point>
+          <point>Performance: OCR &lt; 10s with progress indicator</point>
+          <point>Security: PCI-adjacent security for insurance card images</point>
+          <point>Compliance: Secure deletion after verification complete</point>
+        </keyPoints>
+      </doc>
+
+      <doc path="docs/epics.md">
+        <section>Epic 4: Insurance Verification</section>
+        <relevance>Context for Story 4.2 within Epic 4</relevance>
+        <keyPoints>
+          <point>Story 4.1 prerequisite: Insurance Card Upload must be complete</point>
+          <point>Story 4.2: OCR extraction with AWS Textract</point>
+          <point>Story 4.3: Manual entry as fallback</point>
+          <point>Unified verification_status enum strategy to avoid conflicts</point>
+        </keyPoints>
+      </doc>
+
+      <doc path="docs/architecture.md">
+        <section>Project Structure - Services Layer</section>
+        <relevance>Defines service layer patterns and organization</relevance>
+        <keyPoints>
+          <point>Services go in app/services/ with domain subdirectories</point>
+          <point>Insurance services in app/services/insurance/</point>
+          <point>BaseService pattern with .call class method</point>
+          <point>Jobs in app/jobs/ for background processing</point>
+          <point>AWS integrations via aws-sdk gems</point>
+        </keyPoints>
+      </doc>
+    </docs>
+
+    <code>
+      <file path="app/models/insurance.rb">
+        <purpose>Insurance model - will be extended with OCR helper methods</purpose>
+        <currentState>
+          <enums>verification_status: pending, in_progress, verified, failed, manual_review, self_pay</enums>
+          <associations>belongs_to :onboarding_session</associations>
+          <encryption>encrypts_phi: subscriber_name, policy_number, group_number, member_id, card_image_front, card_image_back</encryption>
+          <validations>Requires: payer_name, subscriber_name, member_id, verification_status, onboarding_session</validations>
+        </currentState>
+        <modifications>
+          <add>Helper methods: ocr_data, ocr_confidence, needs_ocr_review?</add>
+          <add>Scopes: ocr_pending, ocr_completed, needs_ocr_review</add>
+          <note>verification_result JSONB field will store OCR data</note>
+        </modifications>
+      </file>
+
+      <file path="app/graphql/types/insurance_type.rb">
+        <purpose>GraphQL type for Insurance - may need OCR data fields</purpose>
+        <currentFields>id, payer_name, subscriber_name, member_id, policy_number, group_number, verification_status, verification_result, created_at, updated_at</currentFields>
+        <modifications>
+          <consider>Add fields for OCR confidence scores if needed by frontend</consider>
+          <consider>Add needs_review boolean field</consider>
+        </modifications>
+      </file>
+
+      <file path="app/services/base_service.rb">
+        <purpose>Base service class - template for Insurance::CardParser</purpose>
+        <pattern>
+          <code>
+class BaseService
+  def self.call(*args, **kwargs, &amp;block)
+    new(*args, **kwargs).call(&amp;block)
+  end
+end
+          </code>
+        </pattern>
+      </file>
+
+      <file path="app/jobs/application_job.rb">
+        <purpose>Base job class - template for OcrProcessingJob</purpose>
+        <pattern>Sidekiq-based background job processing</pattern>
+      </file>
+
+      <file path="app/jobs/session_cleanup_job.rb">
+        <purpose>Example of scheduled Sidekiq job pattern</purpose>
+        <relevance>Reference for retry logic and error handling</relevance>
+      </file>
+    </code>
+
+    <dependencies>
+      <gem name="aws-sdk-textract" version="~> 1.50">
+        <purpose>AWS Textract SDK for OCR processing</purpose>
+        <status>TO BE ADDED</status>
+        <note>Requires AWS credentials and IAM permissions</note>
+      </gem>
+
+      <gem name="graphql" version="~> 2.2">
+        <purpose>GraphQL API - subscriptions for OCR status updates</purpose>
+        <status>INSTALLED</status>
+      </gem>
+
+      <gem name="sidekiq" version="~> 7.2">
+        <purpose>Background job processing for OCR</purpose>
+        <status>INSTALLED</status>
+      </gem>
+
+      <gem name="redis" version="~> 5.0">
+        <purpose>Sidekiq backend</purpose>
+        <status>INSTALLED</status>
+      </gem>
+
+      <gem name="rspec-rails" version="~> 6.1">
+        <purpose>Testing framework</purpose>
+        <status>INSTALLED</status>
+      </gem>
+
+      <gem name="vcr" version="TBD">
+        <purpose>Record/replay HTTP interactions for Textract API testing</purpose>
+        <status>TO BE ADDED (for testing)</status>
+      </gem>
+
+      <gem name="webmock" version="TBD">
+        <purpose>HTTP request stubbing (companion to VCR)</purpose>
+        <status>TO BE ADDED (for testing)</status>
+      </gem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <architectural>
+      <constraint>
+        <name>Existing Insurance Schema</name>
+        <description>Insurance table and model already exist from Epic 3 - DO NOT recreate them</description>
+        <impact>Must extend existing model, not create new one</impact>
+      </constraint>
+
+      <constraint>
+        <name>Unified Enum Strategy</name>
+        <description>verification_status enum must be unified to avoid conflicts between Epic 3 and Epic 4</description>
+        <impact>May require data migration for existing records</impact>
+        <solution>Add new enum values: ocr_complete, ocr_needs_review, manual_entry_complete</solution>
+      </constraint>
+
+      <constraint>
+        <name>HIPAA Compliance</name>
+        <description>All PHI (insurance card images, extracted data) must be encrypted at rest</description>
+        <impact>Use Encryptable concern for PHI fields</impact>
+      </constraint>
+
+      <constraint>
+        <name>Audit Logging</name>
+        <description>All OCR processing events must be logged to audit trail</description>
+        <impact>Use Auditable concern or AuditLog model</impact>
+        <note>Do not log actual PHI values - only metadata</note>
+      </constraint>
+
+      <constraint>
+        <name>Active Storage Integration</name>
+        <description>Insurance card images stored via Active Storage with S3 backend</description>
+        <impact>Textract must access S3 objects directly (NOT via presigned URLs)</impact>
+        <solution>Use S3 bucket name and blob.key for Textract API calls</solution>
+      </constraint>
+    </architectural>
+
+    <performance>
+      <constraint>
+        <metric>OCR Processing Time</metric>
+        <requirement>p95 &lt; 10 seconds</requirement>
+        <impact>Textract is synchronous - optimize by processing front/back in parallel if possible</impact>
+      </constraint>
+
+      <constraint>
+        <metric>Extraction Accuracy</metric>
+        <requirement>&gt; 90% for standard insurance card formats</requirement>
+        <impact>Requires field mapping tuning and testing with real card formats</impact>
+      </constraint>
+    </performance>
+
+    <security>
+      <constraint>
+        <name>AWS IAM Permissions</name>
+        <requirements>
+          <permission>textract:AnalyzeDocument</permission>
+          <permission>s3:GetObject</permission>
+        </requirements>
+        <scope>Limited to insurance card S3 bucket</scope>
+      </constraint>
+
+      <constraint>
+        <name>Data Retention</name>
+        <description>Insurance card images must be deleted after verification (30 days max)</description>
+        <impact>Implement cleanup job or retention policy</impact>
+      </constraint>
+    </security>
+  </constraints>
+
+  <interfaces>
+    <aws>
+      <service name="AWS Textract">
+        <api>AnalyzeDocument</api>
+        <featureType>FORMS</featureType>
+        <inputFormat>
+          {
+            document: {
+              s3_object: {
+                bucket: "bucket-name",
+                name: "blob-key"
+              }
+            },
+            feature_types: ["FORMS"]
+          }
+        </inputFormat>
+        <outputFormat>
+          {
+            blocks: [
+              {
+                block_type: "KEY_VALUE_SET",
+                entity_types: ["KEY"],
+                confidence: 95.5,
+                relationships: [...],
+                text: "Member ID"
+              }
+            ]
+          }
+        </outputFormat>
+        <errors>
+          <error>InvalidParameterException - invalid image format</error>
+          <error>InvalidS3ObjectException - can't access S3 object</error>
+          <error>ProvisionedThroughputExceededException - rate limit</error>
+          <error>ThrottlingException - request throttled</error>
+        </errors>
+      </service>
+    </aws>
+
+    <graphql>
+      <subscription name="insuranceStatusChanged">
+        <trigger>When OCR completes</trigger>
+        <payload>
+          {
+            insurance: {
+              id,
+              verification_status,
+              verification_result: {
+                ocr_extracted,
+                ocr_confidence,
+                ocr_low_confidence_fields
+              }
+            }
+          }
+        </payload>
+      </subscription>
+    </graphql>
+
+    <sidekiq>
+      <job name="OcrProcessingJob">
+        <queue>insurance</queue>
+        <retries>3</retries>
+        <timeout>30 seconds</timeout>
+        <backoff>exponential</backoff>
+      </job>
+    </sidekiq>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>
+        <name>RSpec Test Structure</name>
+        <pattern>describe / context / it blocks</pattern>
+        <example>
+          <![CDATA[
+RSpec.describe Insurance, type: :model do
+  describe 'associations' do
+    it { should belong_to(:onboarding_session) }
+  end
+
+  describe 'validations' do
+    it { should validate_presence_of(:payer_name) }
+  end
+
+  describe 'enums' do
+    it { should define_enum_for(:verification_status) }
+  end
+end
+          ]]>
+        </example>
+      </standard>
+
+      <standard>
+        <name>Service Testing Pattern</name>
+        <pattern>Mock external dependencies, test business logic</pattern>
+        <example>
+          <![CDATA[
+RSpec.describe Ai::Client do
+  let(:mock_provider) { instance_double(Ai::Providers::AnthropicProvider) }
+
+  before do
+    allow(Ai::Providers::AnthropicProvider).to receive(:new).and_return(mock_provider)
+  end
+
+  it "delegates to provider" do
+    expect(mock_provider).to receive(:chat).with(...).and_return(response)
+    result = client.chat(...)
+    expect(result).to eq(response)
+  end
+end
+          ]]>
+        </example>
+      </standard>
+
+      <standard>
+        <name>PHI Encryption Testing</name>
+        <pattern>Verify raw DB values are encrypted, model values are decrypted</pattern>
+        <example>
+          <![CDATA[
+it 'encrypts subscriber_name field' do
+  raw_value = ActiveRecord::Base.connection.execute(
+    "SELECT subscriber_name FROM insurances WHERE id = '#{insurance.id}'"
+  ).first['subscriber_name']
+  expect(raw_value).not_to eq('John Doe')
+end
+
+it 'decrypts subscriber_name field when accessed' do
+  expect(insurance.subscriber_name).to eq('John Doe')
+end
+          ]]>
+        </example>
+      </standard>
+
+      <standard>
+        <name>VCR for External API Testing</name>
+        <pattern>Record real API responses, replay in tests</pattern>
+        <usage>Use VCR gem to record Textract API calls for deterministic tests</usage>
+      </standard>
+
+      <standard>
+        <name>Factory Bot for Fixtures</name>
+        <pattern>Use FactoryBot for test data</pattern>
+        <example>create(:insurance, payer_name: "Aetna", member_id: "ABC123")</example>
+      </standard>
+    </standards>
+
+    <locations>
+      <directory>spec/models/insurance_spec.rb</directory>
+      <directory>spec/services/insurance/card_parser_spec.rb (TO BE CREATED)</directory>
+      <directory>spec/jobs/ocr_processing_job_spec.rb (TO BE CREATED)</directory>
+      <directory>spec/fixtures/files/insurance_cards/ (TO BE CREATED - de-identified test images)</directory>
+      <directory>spec/fixtures/vcr_cassettes/textract/ (TO BE CREATED)</directory>
+    </locations>
+
+    <ideas>
+      <testIdea ac="1" priority="high">
+        <description>Test OcrProcessingJob calls Textract with correct S3 bucket and key</description>
+        <approach>Mock Textract client, verify analyze_document called with s3_object params</approach>
+      </testIdea>
+
+      <testIdea ac="2" priority="high">
+        <description>Test Insurance::CardParser extracts all required fields</description>
+        <approach>Use VCR cassette with real Textract response, verify field mapping</approach>
+      </testIdea>
+
+      <testIdea ac="3" priority="high">
+        <description>Test confidence scores calculated and returned</description>
+        <approach>Mock Textract response with varying confidence levels, verify calculation</approach>
+      </testIdea>
+
+      <testIdea ac="4" priority="high">
+        <description>Test low confidence (&lt; 85%) fields flagged for review</description>
+        <approach>Mock low-confidence Textract response, verify needs_review flag set</approach>
+      </testIdea>
+
+      <testIdea ac="5" priority="high">
+        <description>Test verification_result JSONB updated with OCR data</description>
+        <approach>Run job, verify ocr_raw, ocr_extracted, ocr_confidence stored in JSON</approach>
+      </testIdea>
+
+      <testIdea ac="6" priority="high">
+        <description>Test status updated to ocr_complete or ocr_needs_review</description>
+        <approach>Test both high-confidence and low-confidence scenarios</approach>
+      </testIdea>
+
+      <testIdea ac="7" priority="medium">
+        <description>Test GraphQL subscription triggered on OCR completion</description>
+        <approach>Subscribe to insuranceStatusChanged, trigger job, verify payload received</approach>
+      </testIdea>
+
+      <testIdea ac="8" priority="medium">
+        <description>Performance test: OCR completes within 10 seconds (p95)</description>
+        <approach>Run job 20 times with VCR, measure p95 latency (mocked should be fast)</approach>
+      </testIdea>
+
+      <testIdea ac="9" priority="low">
+        <description>Test extraction accuracy &gt; 90% for standard cards</description>
+        <approach>Requires real card images - use de-identified test fixtures</approach>
+        <note>Manual validation required - cannot fully automate</note>
+      </testIdea>
+
+      <testIdea priority="high">
+        <description>Test Textract error handling (InvalidParameterException, etc.)</description>
+        <approach>Mock Textract client to raise each error type, verify graceful handling</approach>
+      </testIdea>
+
+      <testIdea priority="high">
+        <description>Test Sidekiq retry logic with exponential backoff</description>
+        <approach>Mock transient failures, verify retry attempts with increasing delays</approach>
+      </testIdea>
+
+      <testIdea priority="medium">
+        <description>Test missing front image handling</description>
+        <approach>Create insurance without card_image_front, verify error logged and job skips</approach>
+      </testIdea>
+
+      <testIdea priority="medium">
+        <description>Test audit log entries for OCR events</description>
+        <approach>Run job, verify AuditLog records created with action: OCR_PROCESSING_COMPLETED</approach>
+      </testIdea>
+    </ideas>
+  </tests>
+
+  <devNotes>
+    <note priority="critical">
+      <title>Do NOT Create New Insurance Table</title>
+      <content>The Insurance model and table ALREADY EXIST from Epic 3. Only extend the model with OCR helper methods and add new enum values if needed.</content>
+    </note>
+
+    <note priority="critical">
+      <title>Unified Enum Strategy</title>
+      <content>Epic 3 created verification_status enum with values: pending, in_progress, verified, failed, manual_review, self_pay. Epic 4 needs to ADD values: ocr_complete, ocr_needs_review, manual_entry_complete. This may require a data migration.</content>
+    </note>
+
+    <note priority="high">
+      <title>Textract S3 Access Pattern</title>
+      <content>AWS Textract requires S3 bucket name and object key - NOT presigned URLs. Access Active Storage blob.key and use S3 configuration from config/storage.yml.</content>
+    </note>
+
+    <note priority="high">
+      <title>Field Mapping Flexibility</title>
+      <content>Insurance cards vary widely. Field mappings in CardParser should be configurable and support multiple label variations (e.g., "Member ID", "ID#", "Subscriber ID").</content>
+    </note>
+
+    <note priority="medium">
+      <title>VCR for Deterministic Testing</title>
+      <content>Use VCR gem to record Textract API responses once, then replay in tests. This makes tests fast and deterministic without hitting AWS.</content>
+    </note>
+
+    <note priority="medium">
+      <title>De-Identified Test Fixtures</title>
+      <content>NEVER use real patient insurance cards for testing. Create de-identified mock cards or use publicly available generic examples.</content>
+    </note>
+
+    <note priority="low">
+      <title>Future Enhancement: Parallel Processing</title>
+      <content>Current implementation processes front and back sequentially. Could optimize by processing in parallel, but adds complexity.</content>
+    </note>
+  </devNotes>
+
+  <prerequisites>
+    <story id="4.1" status="required">
+      <title>Insurance Card Upload</title>
+      <reason>OCR requires uploaded card images to process</reason>
+      <dependency>OcrProcessingJob queued by upload mutation</dependency>
+    </story>
+
+    <infrastructure status="required">
+      <item>Active Storage configured with S3 backend</item>
+      <item>AWS credentials configured (for Textract access)</item>
+      <item>IAM permissions: textract:AnalyzeDocument, s3:GetObject</item>
+      <item>Sidekiq running for background job processing</item>
+    </infrastructure>
+  </prerequisites>
+
+  <references>
+    <fr>FR20 - System extracts insurance information from card images via OCR</fr>
+    <epic>Epic 4: Insurance Verification</epic>
+    <story>Story 4.2 (docs/epics.md#Story-4.2)</story>
+    <externalDocs>
+      <doc>AWS Textract AnalyzeDocument: https://docs.aws.amazon.com/textract/latest/dg/how-it-works-analyzing.html</doc>
+      <doc>Textract FORMS feature: https://docs.aws.amazon.com/textract/latest/dg/how-it-works-kvp.html</doc>
+    </externalDocs>
+  </references>
+</story-context>

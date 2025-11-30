@@ -1,0 +1,651 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="4-3-manual-insurance-entry-and-correction" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>3</storyId>
+    <title>Manual Insurance Entry and Correction</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/4-3-manual-insurance-entry-and-correction.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to manually enter or correct my insurance information</iWant>
+    <soThat>I can proceed even if OCR isn't accurate or I prefer typing</soThat>
+
+    <tasks>
+      <task id="0" status="pending">
+        <description>Create Database Migration for Missing Fields</description>
+        <subtasks>
+          - Create migration to add subscriber_dob (text, encrypted)
+          - Add index on verification_status for query performance
+          - Run migration and verify schema
+        </subtasks>
+        <note>Insurance table already exists - only add missing fields</note>
+      </task>
+
+      <task id="1" status="pending">
+        <description>Create GraphQL Mutation for Manual Insurance Submission</description>
+        <subtasks>
+          - Create app/graphql/mutations/insurance/submit_info.rb
+          - Define input arguments: payerName, memberId, groupNumber, subscriberName, subscriberDob
+          - All arguments optional to support partial save
+          - Wire mutation into MutationType
+          - Return updated Insurance entity with verification status
+        </subtasks>
+      </task>
+
+      <task id="2" status="pending">
+        <description>Implement Insurance Data Validation</description>
+        <subtasks>
+          - Add validations to Insurance model (not separate DTO)
+          - Member ID: /\A[A-Za-z0-9]{6,20}\z/
+          - Group number: /\A[A-Za-z0-9]{4,15}\z/
+          - Payer name: validate against known payers list or allow "Other"
+          - Subscriber DOB: valid date format, not in future
+          - Return GraphQL errors with field-specific messages using extensions
+        </subtasks>
+      </task>
+
+      <task id="3" status="pending">
+        <description>Load and Manage Known Payers Configuration</description>
+        <subtasks>
+          - Create config/known_payers.yml with common insurance payers
+          - Load payers list via Rails configuration
+          - Validate payer_name against list or allow "Other" value
+          - Add initializer for loading: config/initializers/insurance_config.rb
+        </subtasks>
+      </task>
+
+      <task id="4" status="pending">
+        <description>Implement OCR Pre-population Logic</description>
+        <subtasks>
+          - In mutation resolver, check for existing OCR data in verification_result
+          - Pre-populate response with OCR data if available
+          - Manual values override OCR values when submitted
+          - Track data source in verification_result.data_sources JSONB
+        </subtasks>
+      </task>
+
+      <task id="5" status="pending">
+        <description>Update Insurance Model for Manual Entry</description>
+        <subtasks>
+          - Ensure subscriber_dob is encrypted via Encryptable concern
+          - Add status helper: manual_entry_complete?
+          - Allow partial saves by making validation conditional
+          - Track manual entry timestamp in verification_result
+        </subtasks>
+        <note>Model already exists - only add/modify as needed</note>
+      </task>
+
+      <task id="6" status="pending">
+        <description>Add Audit Trail for Manual Entry</description>
+        <subtasks>
+          - Create audit log entry: INSURANCE_MANUAL_ENTRY
+          - Track which fields were manually entered vs OCR
+          - Store data sources in verification_result (not PHI in audit log)
+        </subtasks>
+      </task>
+
+      <task id="7" status="pending">
+        <description>Write Mutation Tests</description>
+        <subtasks>
+          - Test successful manual entry with all valid fields
+          - Test validation errors for invalid member_id
+          - Test validation errors for invalid group_number
+          - Test invalid payer_name (not in list, not "Other")
+          - Test invalid subscriber_dob (future date)
+          - Test OCR pre-population when OCR data exists
+          - Test manual override of OCR values
+          - Test partial save (skip) functionality
+          - Test audit trail creation
+        </subtasks>
+      </task>
+
+      <task id="8" status="pending">
+        <description>Integration Testing</description>
+        <subtasks>
+          - Test complete flow: no insurance → manual entry → status updated
+          - Test flow: OCR extraction → manual correction → status updated
+          - Test skip and return later scenario
+          - Verify status transitions work correctly
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1" priority="high">
+      <given>insurance phase is active</given>
+      <when>parent enters insurance data manually</when>
+      <then>
+        - submitInsuranceInfo mutation accepts manual entry
+        - All fields editable: payerName, memberId, groupNumber, subscriberName, subscriberDob
+        - Input validation:
+          * Member ID: alphanumeric, 6-20 characters
+          * Group number: alphanumeric, 4-15 characters
+          * Payer name: from known payers list or "Other"
+          * Subscriber DOB: valid date, not in future
+        - OCR-extracted values pre-populated if available
+        - Manual entry overrides OCR values
+        - Status updated to manual_entry_complete
+      </then>
+    </criterion>
+
+    <criterion id="AC2" priority="medium">
+      <and>validation errors shown inline with field</and>
+    </criterion>
+
+    <criterion id="AC3" priority="medium">
+      <and>parent can skip and return later (partial save)</and>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md" relevance="high">
+        Product Requirements Document
+        - FR21: Manual insurance entry
+        - FR22: Insurance validation
+        - Non-functional requirements for security and HIPAA
+      </doc>
+
+      <doc path="docs/epics.md" relevance="high">
+        Epic 4: Insurance Verification
+        - Story 4.3 context and prerequisites
+        - FR coverage mapping
+        - Epic dependencies
+      </doc>
+
+      <doc path="docs/architecture.md" relevance="high">
+        Architecture specification
+        - GraphQL mutation patterns
+        - Encryptable concern for PHI
+        - Service layer patterns
+        - Audit logging approach
+      </doc>
+    </docs>
+
+    <code>
+      <existingFiles>
+        <file path="app/models/insurance.rb" relevance="critical">
+          Existing Insurance model with:
+          - verification_status enum (pending, in_progress, verified, failed, manual_review, self_pay)
+          - belongs_to :onboarding_session
+          - encrypts_phi: subscriber_name, policy_number, group_number, member_id, card_image_front, card_image_back
+          - Basic validations for payer_name, subscriber_name, member_id
+          NEEDS: subscriber_dob encryption, validation methods, OCR helpers
+        </file>
+
+        <file path="app/graphql/types/insurance_type.rb" relevance="critical">
+          Existing GraphQL type with fields:
+          - id, payer_name, subscriber_name, member_id, policy_number, group_number
+          - verification_status, verification_result
+          - created_at, updated_at
+          NEEDS: subscriber_dob field to be added
+        </file>
+
+        <file path="app/graphql/mutations/base_mutation.rb" relevance="high">
+          Base mutation class with:
+          - Includes GraphqlConcerns::CurrentSession
+          - authorize helper using Pundit
+          Pattern to follow for new mutation
+        </file>
+
+        <file path="app/graphql/mutations/intake/submit_parent_info.rb" relevance="high">
+          Example mutation showing:
+          - Session ID extraction (CUID to UUID)
+          - Field validation patterns
+          - Error handling with errors array
+          - Audit log creation
+          - Session progress updating
+          Similar pattern needed for insurance mutation
+        </file>
+
+        <file path="db/schema.rb" relevance="critical">
+          Current insurances table:
+          - id: uuid
+          - onboarding_session_id: uuid (unique index)
+          - payer_name: string
+          - subscriber_name: text (encrypted)
+          - policy_number: text (encrypted)
+          - group_number: text (encrypted)
+          - member_id: text (encrypted)
+          - card_image_front: text (encrypted)
+          - card_image_back: text (encrypted)
+          - verification_status: integer (enum)
+          - verification_result: jsonb
+          MISSING: subscriber_dob field
+        </file>
+
+        <file path="app/models/concerns/encryptable.rb" relevance="high">
+          PHI encryption concern pattern
+          Use for subscriber_dob encryption
+        </file>
+
+        <file path="app/models/audit_log.rb" relevance="medium">
+          Audit logging model
+          Create entries for INSURANCE_MANUAL_ENTRY action
+        </file>
+      </existingFiles>
+
+      <filesToCreate>
+        <file path="db/migrate/XXX_add_subscriber_dob_to_insurances.rb">
+          Migration to add subscriber_dob text column (will be encrypted)
+        </file>
+
+        <file path="config/known_payers.yml">
+          YAML config with known insurance payers:
+          - Aetna, Anthem, BCBS, Cigna, Humana, Kaiser, Medicaid, Medicare, UnitedHealthcare, Other
+        </file>
+
+        <file path="config/initializers/insurance_config.rb">
+          Initializer to load known_payers.yml into Rails.configuration
+        </file>
+
+        <file path="app/graphql/mutations/insurance/submit_info.rb">
+          New mutation for manual insurance entry
+        </file>
+
+        <file path="spec/graphql/mutations/insurance/submit_info_spec.rb">
+          RSpec tests for submit_info mutation
+        </file>
+      </filesToCreate>
+
+      <filesToModify>
+        <file path="app/models/insurance.rb">
+          Add:
+          - subscriber_dob to encrypts_phi
+          - Conditional validations (allow_blank for partial save)
+          - Member ID format validation
+          - Group number format validation
+          - Payer name inclusion validation
+          - Subscriber DOB date validation
+          - Class method: known_payer_names
+          - Instance methods: manual_entry_complete?, ocr_data_available?, pre_populate_from_ocr
+        </file>
+
+        <file path="app/graphql/types/insurance_type.rb">
+          Add:
+          - subscriber_dob field (String, nullable, encrypted, description)
+        </file>
+
+        <file path="app/graphql/types/mutation_type.rb">
+          Register new mutation:
+          - field :submit_insurance_info, mutation: Mutations::Insurance::SubmitInfo
+        </file>
+
+        <file path="spec/models/insurance_spec.rb">
+          Add tests for:
+          - subscriber_dob encryption
+          - Format validations (member_id, group_number)
+          - Payer name validation against known list
+          - Subscriber DOB not in future
+          - Partial save support (allow_blank validations)
+          - Helper methods
+        </file>
+      </filesToModify>
+    </code>
+
+    <dependencies>
+      <gem name="rails" version="~> 7.2.3" usage="Framework" />
+      <gem name="pg" version="~> 1.1" usage="PostgreSQL database" />
+      <gem name="graphql" version="~> 2.2" usage="GraphQL API" />
+      <gem name="jwt" version="~> 2.7" usage="Authentication" />
+      <gem name="pundit" version="~> 2.3" usage="Authorization" />
+      <gem name="rspec-rails" version="~> 6.1" usage="Testing framework" />
+      <gem name="factory_bot_rails" version="~> 6.4" usage="Test fixtures" />
+      <gem name="shoulda-matchers" version="~> 6.0" usage="Model testing" />
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <security>
+      <constraint>All PHI fields must be encrypted at rest using Encryptable concern</constraint>
+      <constraint>subscriber_dob must be added to encrypts_phi list</constraint>
+      <constraint>Never log actual PHI values in audit logs - only metadata</constraint>
+      <constraint>Track data sources in verification_result JSONB (not audit log)</constraint>
+    </security>
+
+    <hipaaCompliance>
+      <constraint>HIPAA requires audit trail for all PHI access and modifications</constraint>
+      <constraint>Create audit log entry with action: INSURANCE_MANUAL_ENTRY</constraint>
+      <constraint>Include session_id, resource type/id, timestamp, but not PHI values</constraint>
+    </hipaaCompliance>
+
+    <dataIntegrity>
+      <constraint>Insurance table already exists - do NOT recreate</constraint>
+      <constraint>Do not remove card_image_front/back (will be removed in Story 4.1)</constraint>
+      <constraint>Maintain existing verification_status enum values</constraint>
+      <constraint>Support partial saves - validations must be conditional (allow_blank: true)</constraint>
+    </dataIntegrity>
+
+    <validation>
+      <constraint>Member ID: regex /\A[A-Za-z0-9]{6,20}\z/</constraint>
+      <constraint>Group number: regex /\A[A-Za-z0-9]{4,15}\z/</constraint>
+      <constraint>Payer name: must be from known_payers.yml or "Other"</constraint>
+      <constraint>Subscriber DOB: valid date format (YYYY-MM-DD), not in future</constraint>
+      <constraint>All validations must allow_blank for partial save support</constraint>
+    </validation>
+
+    <businessRules>
+      <constraint>OCR-extracted values should pre-populate form fields</constraint>
+      <constraint>Manual entry always overrides OCR values</constraint>
+      <constraint>Track data source (manual vs OCR) per field in verification_result</constraint>
+      <constraint>Status updates to manual_entry_complete when required fields present</constraint>
+      <constraint>Required fields for completion: member_id, payer_name</constraint>
+    </businessRules>
+  </constraints>
+
+  <interfaces>
+    <graphql>
+      <mutation name="submitInsuranceInfo">
+        <description>Submit or update insurance information manually</description>
+        <arguments>
+          <arg name="session_id" type="ID!" description="Session ID (CUID format)" />
+          <arg name="payer_name" type="String" required="false" description="Insurance company name" />
+          <arg name="member_id" type="String" required="false" description="Member/subscriber ID" />
+          <arg name="group_number" type="String" required="false" description="Group number" />
+          <arg name="subscriber_name" type="String" required="false" description="Name on policy" />
+          <arg name="subscriber_dob" type="String" required="false" description="Subscriber date of birth (YYYY-MM-DD)" />
+        </arguments>
+        <returns>
+          <field name="insurance" type="InsuranceType!" description="Updated insurance record" />
+          <field name="pre_populated_from_ocr" type="Boolean!" description="Whether OCR data was available for pre-population" />
+        </returns>
+        <errors>
+          <error code="VALIDATION_ERROR" description="Field validation failed" />
+          <error code="UNAUTHENTICATED" description="Invalid or missing session token" />
+          <error code="SESSION_EXPIRED" description="Session has expired" />
+        </errors>
+      </mutation>
+    </graphql>
+
+    <database>
+      <table name="insurances">
+        <newColumn name="subscriber_dob" type="text" encrypted="true" nullable="true" />
+        <newIndex name="index_insurances_on_verification_status" columns="verification_status" />
+      </table>
+    </database>
+
+    <config>
+      <file name="config/known_payers.yml">
+        Structure:
+        payers:
+          - name: "Aetna"
+            id: "AETNA"
+          - name: "Blue Cross Blue Shield"
+            id: "BCBS"
+          ... (see Dev Notes in story for full list)
+      </file>
+    </config>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Use RSpec with shoulda-matchers for model validation tests</standard>
+      <standard>Use factory_bot for test data creation</standard>
+      <standard>Test PHI encryption: verify raw DB values != decrypted values</standard>
+      <standard>Test all enum values exhaustively</standard>
+      <standard>Test validations both positive (valid) and negative (invalid) cases</standard>
+      <standard>Test audit log creation for all mutations</standard>
+      <standard>Mock external services (OCR, eligibility checks)</standard>
+      <standard>Integration tests verify complete user flows</standard>
+    </standards>
+
+    <locations>
+      <location path="spec/models/insurance_spec.rb">Model validation and encryption tests</location>
+      <location path="spec/graphql/mutations/insurance/submit_info_spec.rb">Mutation tests</location>
+      <location path="spec/factories/insurances.rb">Factory definitions</location>
+      <location path="spec/integration/insurance_flow_spec.rb">Integration tests (optional)</location>
+    </locations>
+
+    <ideas>
+      <testCase ref="AC1">
+        <scenario>Valid manual entry with all fields</scenario>
+        <setup>Create session with no insurance</setup>
+        <execute>Call submitInsuranceInfo with all valid fields</execute>
+        <verify>
+          - Insurance record created
+          - All fields saved and encrypted
+          - Status = manual_entry_complete
+          - Audit log created
+        </verify>
+      </testCase>
+
+      <testCase ref="AC1">
+        <scenario>Invalid member_id format</scenario>
+        <setup>Create session</setup>
+        <execute>Call mutation with member_id = "123" (too short)</execute>
+        <verify>
+          - Returns VALIDATION_ERROR
+          - Error message includes field: member_id
+          - No insurance record created/updated
+        </verify>
+      </testCase>
+
+      <testCase ref="AC1">
+        <scenario>Invalid group_number format</scenario>
+        <setup>Create session</setup>
+        <execute>Call mutation with group_number = "AB" (too short)</execute>
+        <verify>
+          - Returns VALIDATION_ERROR
+          - Error message includes field: group_number
+        </verify>
+      </testCase>
+
+      <testCase ref="AC1">
+        <scenario>Invalid payer_name not in list</scenario>
+        <setup>Create session</setup>
+        <execute>Call mutation with payer_name = "Unknown Insurance Co"</execute>
+        <verify>
+          - Returns VALIDATION_ERROR
+          - Error message indicates payer must be from known list or "Other"
+        </verify>
+      </testCase>
+
+      <testCase ref="AC1">
+        <scenario>Valid payer_name = "Other"</scenario>
+        <setup>Create session</setup>
+        <execute>Call mutation with payer_name = "Other"</execute>
+        <verify>
+          - Accepts "Other" as valid payer
+          - Insurance saved successfully
+        </verify>
+      </testCase>
+
+      <testCase ref="AC1">
+        <scenario>Invalid subscriber_dob in future</scenario>
+        <setup>Create session</setup>
+        <execute>Call mutation with subscriber_dob = tomorrow's date</execute>
+        <verify>
+          - Returns VALIDATION_ERROR
+          - Error message: "cannot be in the future"
+        </verify>
+      </testCase>
+
+      <testCase ref="AC1">
+        <scenario>OCR pre-population</scenario>
+        <setup>Create session with insurance having OCR data in verification_result</setup>
+        <execute>Call mutation with no arguments (query for pre-population)</execute>
+        <verify>
+          - Response includes pre_populated_from_ocr = true
+          - OCR values returned for display in form
+        </verify>
+      </testCase>
+
+      <testCase ref="AC1">
+        <scenario>Manual override of OCR values</scenario>
+        <setup>Create session with OCR-extracted data</setup>
+        <execute>Call mutation with different member_id</execute>
+        <verify>
+          - Manual value saved (overrides OCR)
+          - verification_result.data_sources.member_id = "manual"
+          - Status updated appropriately
+        </verify>
+      </testCase>
+
+      <testCase ref="AC3">
+        <scenario>Partial save - skip some fields</scenario>
+        <setup>Create session</setup>
+        <execute>Call mutation with only payer_name and member_id</execute>
+        <verify>
+          - Insurance saved with partial data
+          - Missing fields remain null
+          - Status may not be complete (depends on business rules)
+          - Can call again later with additional fields
+        </verify>
+      </testCase>
+
+      <testCase ref="AC2">
+        <scenario>Multiple validation errors</scenario>
+        <setup>Create session</setup>
+        <execute>Call mutation with invalid member_id AND invalid dob</execute>
+        <verify>
+          - Returns all validation errors
+          - Each error includes field name in extensions
+        </verify>
+      </testCase>
+
+      <testCase>
+        <scenario>Audit trail verification</scenario>
+        <setup>Create session</setup>
+        <execute>Call mutation with valid data</execute>
+        <verify>
+          - AuditLog entry created with action: INSURANCE_MANUAL_ENTRY
+          - Contains session_id, resource type/id
+          - Does NOT contain PHI values
+          - Contains metadata: fields_updated, ocr_pre_populated
+        </verify>
+      </testCase>
+
+      <testCase>
+        <scenario>Session authorization</scenario>
+        <setup>Create two sessions</setup>
+        <execute>Try to update session B using session A's token</execute>
+        <verify>
+          - Returns UNAUTHENTICATED or FORBIDDEN
+          - No insurance data modified
+        </verify>
+      </testCase>
+    </ideas>
+  </tests>
+
+  <prerequisites>
+    <story id="4.1" title="Insurance Card Upload" status="required">
+      Insurance model exists with basic fields
+    </story>
+
+    <story id="4.2" title="OCR Extraction" status="optional">
+      Optional - provides OCR data for pre-population
+    </story>
+
+    <epic id="2" title="Session Lifecycle and Auth" status="required">
+      Session management and JWT authentication working
+    </epic>
+  </prerequisites>
+
+  <references>
+    <functionalRequirement>
+      <fr id="FR21">Parents can manually enter or correct insurance information</fr>
+      <fr id="FR22">System validates insurance data format and completeness</fr>
+    </functionalRequirement>
+
+    <epicStory>
+      <source>docs/epics.md#Story-4.3</source>
+      <description>Epic 4: Insurance Verification - Story 4.3 specification</description>
+    </epicStory>
+
+    <architecture>
+      <source>docs/architecture.md#GraphQL-Mutations</source>
+      <description>GraphQL mutation patterns and conventions</description>
+    </architecture>
+
+    <architecture>
+      <source>docs/architecture.md#Encryptable-Concern</source>
+      <description>PHI encryption pattern using Encryptable concern</description>
+    </architecture>
+  </references>
+
+  <devNotes>
+    <note priority="critical">
+      Insurance table already exists. Do NOT recreate. Only add subscriber_dob column.
+    </note>
+
+    <note priority="high">
+      All validations must use allow_blank: true to support partial saves (AC3).
+      This means parent can submit incomplete data and return later.
+    </note>
+
+    <note priority="high">
+      subscriber_dob must be added to encrypts_phi list in Insurance model.
+      Format in model: encrypts_phi :subscriber_name, :policy_number, :group_number, :member_id, :subscriber_dob
+    </note>
+
+    <note priority="medium">
+      Known payers YAML structure (config/known_payers.yml):
+      ```yaml
+      payers:
+        - name: Aetna
+          id: AETNA
+        - name: Anthem Blue Cross Blue Shield
+          id: ANTHEM
+        - name: Blue Cross Blue Shield
+          id: BCBS
+        - name: Cigna
+          id: CIGNA
+        - name: Humana
+          id: HUMANA
+        - name: Kaiser Permanente
+          id: KAISER
+        - name: Medicaid
+          id: MEDICAID
+        - name: Medicare
+          id: MEDICARE
+        - name: UnitedHealthcare
+          id: UHC
+        - name: Other
+          id: OTHER
+      ```
+    </note>
+
+    <note priority="medium">
+      OCR pre-population logic:
+      - Check if verification_result['ocr_extracted'] exists
+      - If yes, extract fields: payer_name, member_id, group_number, subscriber_name
+      - Return in mutation response with pre_populated_from_ocr: true
+      - Frontend should display these as pre-filled form values
+    </note>
+
+    <note priority="medium">
+      Data source tracking:
+      Store in verification_result JSONB:
+      ```json
+      {
+        "data_sources": {
+          "payer_name": "manual",
+          "member_id": "ocr",
+          "group_number": "manual",
+          "subscriber_name": "ocr",
+          "subscriber_dob": "manual"
+        },
+        "manual_entry_at": "2025-11-30T12:34:56Z",
+        "ocr_extracted": { ... }
+      }
+      ```
+    </note>
+
+    <note priority="low">
+      Follow existing mutation pattern from submit_parent_info.rb:
+      - Extract UUID from session_id (strip sess_ prefix, add hyphens)
+      - Check session exists and not expired
+      - Validate inputs
+      - Create/update record
+      - Update session progress
+      - Create audit log
+      - Return success or errors array
+    </note>
+  </devNotes>
+</story-context>

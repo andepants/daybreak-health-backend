@@ -1,0 +1,382 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>3</storyId>
+    <title>Completion Confirmation Email</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/6-3-completion-confirmation-email.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to receive confirmation when my onboarding is complete</iWant>
+    <soThat>I know what happens next</soThat>
+    <tasks>
+      - Task 1: Create completion email template (AC: #1, #2)
+        - Subtask 1.1: Design email template HTML/text
+        - Subtask 1.2: Add thank you message with Daybreak branding
+        - Subtask 1.3: Add non-PHI summary section
+        - Subtask 1.4: Add next steps timeline section
+        - Subtask 1.5: Add what to expect section
+        - Subtask 1.6: Add contact information section
+
+      - Task 2: Generate secure summary link (AC: #4)
+        - Subtask 2.1: Create Auth::SummaryTokenService
+        - Subtask 2.2: Implement generate(session_id) method
+        - Subtask 2.3: Store token in Redis with 7-day expiration
+        - Subtask 2.4: Create session_summary_url helper
+        - Subtask 2.5: Magic link provides direct access
+        - Subtask 2.6: Write service specs
+
+      - Task 3: Implement session completion email job (AC: #1, #5)
+        - Subtask 3.1: Create SessionCompletionEmailJob
+        - Subtask 3.2: Configure job on default queue
+        - Subtask 3.3: Call NotificationMailer.completion_email
+        - Subtask 3.4: Add 2-minute SLA monitoring
+        - Subtask 3.5: Add idempotency check
+
+      - Task 4: Add session status change trigger (AC: #1, #3)
+        - Subtask 4.1: Add completion_email_sent_at migration
+        - Subtask 4.2: Add after_commit callback
+        - Subtask 4.3: Check idempotency before queueing
+        - Subtask 4.4: Trigger SessionCompletionEmailJob
+        - Subtask 4.5: Update completion_email_sent_at
+        - Subtask 4.6: Create audit log entry
+
+      - Task 5: Create completion email mailer action (AC: #2)
+        - Subtask 5.1: Add completion_email to NotificationMailer
+        - Subtask 5.2: Load session and parent data
+        - Subtask 5.3: Generate summary token and URL
+        - Subtask 5.4: Set email subject
+        - Subtask 5.5: Render template
+        - Subtask 5.6: Configure from/reply-to
+
+      - Task 6: Add read-only summary view (AC: #4)
+        - Subtask 6.1: Create sessionSummary GraphQL query
+        - Subtask 6.2: Implement summary data structure
+        - Subtask 6.3: Add session summary GraphQL type
+        - Subtask 6.4: Add token validation
+        - Subtask 6.5: Log audit access
+
+      - Task 7: Write comprehensive tests (AC: all)
+        - Subtask 7.1: Test SessionCompletionEmailJob
+        - Subtask 7.2: Test NotificationMailer content
+        - Subtask 7.3: Test session status callback
+        - Subtask 7.4: Test token generation/validation
+        - Subtask 7.5: Test summary access scenarios
+        - Subtask 7.6: Integration test for full flow
+        - Subtask 7.7: Test email delivery SLA
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC #1: Email sent immediately when session status becomes SUBMITTED
+    AC #2: Email includes thank you, non-PHI summary, next steps timeline, expectations, contact info
+    AC #3: Session marked complete in all systems
+    AC #4: Secure magic link with token-based 7-day expiration, no login required
+    AC #5: Email delivers within 2 minutes
+    AC #6: Clear next steps with 24-48 hour care team contact timeline
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- PRD: Notification Requirements -->
+      <doc path="docs/prd.md" title="Product Requirements Document" section="Notifications &amp; Communication">
+        FR31-FR35 define notification requirements. FR33 specifically: "System sends completion confirmation with next steps."
+        Note: Originally marked as DEFERRED for MVP, but Epic 6 includes notification infrastructure.
+        Email delivery must complete within 2 minutes (SLA requirement).
+      </doc>
+
+      <!-- PRD: Non-Functional Requirements -->
+      <doc path="docs/prd.md" title="Product Requirements Document" section="Security">
+        SEC4: Input validation and sanitization on all user inputs
+        SEC6: Secrets management via secure vault (not environment variables)
+        All PHI must be encrypted at rest and in transit per HIPAA requirements
+      </doc>
+
+      <!-- Architecture: Email Service Pattern -->
+      <doc path="docs/architecture.md" title="System Architecture" section="Background Jobs (Sidekiq)">
+        Email delivery via AWS SES configured in Action Mailer SMTP.
+        Background jobs use Sidekiq with retry_on for service errors.
+        Queue priority: critical queue (3) for risk alerts, default queue (2) for normal operations.
+        Templates in app/views/[mailer_name]/ directory.
+      </doc>
+
+      <!-- Architecture: Security & Data Protection -->
+      <doc path="docs/architecture.md" title="System Architecture" section="Security Architecture">
+        JWT Service uses RS256 algorithm with configurable expiration.
+        PHI encryption via Rails 7 encryption with AES-256-GCM.
+        Recovery tokens: 15-minute TTL, stored in Redis with session_recovery:#{session_id} pattern.
+        All tokens should follow RecoveryTokenService pattern for consistency.
+      </doc>
+
+      <!-- Epic 6: Notifications & Alerts -->
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Epic 6: Notifications &amp; Alerts">
+        Epic 6 covers FR31-FR35 (notifications).
+        Story 6.1: Session Start Email - establishes email service foundation
+        Story 6.3: Completion Confirmation Email - this story
+        Prerequisites: Story 5.5 (Assessment Summary Generation) establishes submitted status
+        Email template pattern: responsive HTML + plain text versions, mobile-first
+      </doc>
+
+      <!-- Epic 6 Story 6.1: Email Service Foundation -->
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 6.1: Session Start Email">
+        Establishes ParentMailer and email service patterns.
+        Templates in app/views/notification_mailer/ (note: story references NotificationMailer but codebase has ParentMailer).
+        AWS SES integration via Action Mailer.
+        Email delivery tracked and logged.
+        Confirmation email includes: welcome, recovery link, support contact, estimated time.
+      </doc>
+    </docs>
+
+    <code>
+      <!-- Existing Mailer Implementation -->
+      <artifact path="app/mailers/parent_mailer.rb" kind="mailer" symbol="ParentMailer" reason="Existing mailer for parent-facing emails; completion email will be added here">
+        Currently implements session_recovery method.
+        Pattern: accepts parent and URL parameters, sets instance variables, uses mail() DSL.
+        Templates expected in app/views/parent_mailer/ directory.
+        Sends via ApplicationMailer (configured for SES).
+      </artifact>
+
+      <!-- Recovery Token Service Pattern -->
+      <artifact path="app/services/auth/recovery_token_service.rb" kind="service" symbol="Auth::RecoveryTokenService" reason="Pattern to follow for summary token service implementation">
+        Implements token generation with Redis storage and TTL.
+        Pattern: generate(session_id) returns token, valid?(session_id, token) validates.
+        15-minute expiration for recovery tokens.
+        This story needs similar service for 7-day summary tokens.
+      </artifact>
+
+      <!-- OnboardingSession Model -->
+      <artifact path="app/models/onboarding_session.rb" kind="model" symbol="OnboardingSession" lines="1-160" reason="Core model where status callback will be added">
+        Status enum includes 'submitted: 4' (line 18).
+        Includes Auditable, Encryptable, SessionStateMachine concerns.
+        Has associations: parent, child, insurance, assessment, messages.
+        Session expiration and state management already implemented.
+        Need to add after_commit callback for status change to submitted.
+      </artifact>
+
+      <!-- Background Job Pattern -->
+      <artifact path="app/jobs/session_recovery_email_job.rb" kind="job" symbol="SessionRecoveryEmailJob" reason="Pattern to follow for completion email job">
+        Queue: default (line 9).
+        Pattern: perform(session_id, email), finds session, generates token, builds magic link.
+        Error handling with retry via raise.
+        Creates audit log entry for email sent.
+      </artifact>
+
+      <!-- GraphQL Mutation Registry -->
+      <artifact path="app/graphql/types/mutation_type.rb" kind="graphql" symbol="Types::MutationType" reason="Where sessionSummary query will be registered">
+        Existing mutations for sessions, auth, conversation, intake.
+        Pattern: field :mutation_name, mutation: Mutations::Module::ClassName
+        New query will be added to QueryType, not MutationType.
+      </artifact>
+    </code>
+
+    <dependencies>
+      <ruby>3.3.x</ruby>
+      <framework>
+        <rails>7.2.3</rails>
+        <graphql>2.2</graphql>
+      </framework>
+      <background_jobs>
+        <sidekiq>7.2</sidekiq>
+        <sidekiq-cron>1.9</sidekiq-cron>
+      </background_jobs>
+      <auth>
+        <jwt>2.7</jwt>
+        <bcrypt>3.1.7</bcrypt>
+      </auth>
+      <database>
+        <pg>1.1</pg>
+        <redis>5.0</redis>
+      </database>
+      <email>
+        <!-- AWS SES configured via Action Mailer SMTP -->
+        <provider>AWS SES</provider>
+      </email>
+      <testing>
+        <rspec-rails>6.1</rspec-rails>
+        <factory_bot_rails>6.4</factory_bot_rails>
+        <shoulda-matchers>6.0</shoulda-matchers>
+      </testing>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <!-- Architecture Constraints -->
+    <constraint type="architecture" category="email_service">
+      MUST use existing ParentMailer (not NotificationMailer as story originally specified).
+      Follow Action Mailer conventions for template organization in app/views/parent_mailer/.
+      Leverage Sidekiq for async email delivery with exponential backoff retry.
+    </constraint>
+
+    <constraint type="security" category="phi_protection">
+      NO PHI details in email body (first names only, no dates, assessments, insurance info).
+      Summary link must use magic link pattern (token IS authentication, no separate login required).
+      All summary access must be logged to audit trail per HIPAA requirements.
+      Tokens stored in Redis with automatic 7-day expiration.
+    </constraint>
+
+    <constraint type="state_machine" category="status_transition">
+      Session status 'submitted' is terminal state (no backward transitions).
+      Email triggers only once per session (idempotent via completion_email_sent_at field).
+      If email fails, retry via Sidekiq with exponential backoff (do not block status change).
+    </constraint>
+
+    <constraint type="naming" category="conventions">
+      Files: snake_case (completion_email.html.erb, summary_token_service.rb)
+      Classes: PascalCase (SessionCompletionEmailJob, SummaryTokenService)
+      Methods: snake_case (completion_email, generate_summary_token)
+      GraphQL fields: camelCase (sessionSummary, completionEmailSentAt)
+      Database columns: snake_case (completion_email_sent_at)
+    </constraint>
+
+    <constraint type="queue" category="sidekiq">
+      Use 'default' queue for completion email job (reserve 'critical' queue for risk alerts per architecture).
+      Job should be idempotent (safe to retry, check completion_email_sent_at before sending).
+      SLA: Email delivery within 2 minutes of status change to submitted.
+    </constraint>
+
+    <constraint type="template" category="email_design">
+      Responsive HTML email design (mobile-first).
+      Include both HTML and plain text versions.
+      Preheader text for preview: "Next steps for your child's care"
+      CTA button: "View Summary" linking to secure summary page.
+      Daybreak branding consistent with Story 6.1 session start email.
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- Summary Token Service Interface -->
+    <interface name="Auth::SummaryTokenService" kind="service_class">
+      <method>generate(session_id) -&gt; String # Returns 32-byte urlsafe base64 token</method>
+      <method>validate(token) -&gt; OnboardingSession | nil # Returns session if valid, nil if expired/invalid</method>
+      <constant>EXPIRATION = 7.days</constant>
+      <redis_key>session_summary:#{token}</redis_key>
+    </interface>
+
+    <!-- Completion Email Job Interface -->
+    <interface name="SessionCompletionEmailJob" kind="sidekiq_job">
+      <method>perform(session_id) # Queued on status change to submitted</method>
+      <queue>default</queue>
+      <retry>exponential_backoff via Sidekiq defaults</retry>
+    </interface>
+
+    <!-- ParentMailer Method -->
+    <interface name="ParentMailer#completion_email" kind="action_mailer_method">
+      <signature>completion_email(session:) -&gt; Mail::Message</signature>
+      <parameters>
+        <param>session: OnboardingSession (includes parent, child associations)</param>
+      </parameters>
+      <instance_variables>
+        <var>@parent - Parent instance</var>
+        <var>@child - Child instance</var>
+        <var>@summary_url - String (magic link with token)</var>
+        <var>@submitted_at - DateTime</var>
+      </instance_variables>
+      <subject>"Your Daybreak Onboarding is Complete - Next Steps"</subject>
+    </interface>
+
+    <!-- GraphQL Query -->
+    <interface name="Query.sessionSummary" kind="graphql_query">
+      <signature>sessionSummary(token: String!): SessionSummaryType</signature>
+      <returns>
+        <field>submittedAt: ISO8601DateTime</field>
+        <field>childFirstName: String # OK - not full PII</field>
+        <field>parentFirstName: String # OK - not full PII</field>
+        <field>hasInsuranceVerified: Boolean</field>
+        <field>hasAssessmentComplete: Boolean</field>
+        <field>nextSteps: String # Static message</field>
+      </returns>
+      <errors>
+        <error>UNAUTHENTICATED - Invalid or expired token</error>
+        <error>NOT_FOUND - Session not found</error>
+      </errors>
+    </interface>
+
+    <!-- OnboardingSession Callback -->
+    <interface name="OnboardingSession.after_commit" kind="activerecord_callback">
+      <trigger>Status change to :submitted</trigger>
+      <action>Queue SessionCompletionEmailJob.perform_later(id) if completion_email_sent_at.nil?</action>
+      <side_effect>Update completion_email_sent_at timestamp after successful send</side_effect>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      RSpec with FactoryBot for test data generation.
+      Shoulda Matchers for concise model/association testing.
+      100% coverage required for critical path (status change to email delivery).
+      All PHI handling must be tested with encryption verification.
+      Email templates tested for both HTML and plain text rendering.
+      Background jobs tested with Sidekiq inline mode or test adapter.
+      GraphQL requests tested via schema.execute with context mocking.
+      Audit logging verified for all email sends and summary access.
+    </standards>
+
+    <locations>
+      spec/services/auth/summary_token_service_spec.rb
+      spec/jobs/session_completion_email_job_spec.rb
+      spec/mailers/parent_mailer_spec.rb
+      spec/models/onboarding_session_spec.rb # Update with callback tests
+      spec/graphql/types/session_summary_type_spec.rb
+      spec/graphql/queries/session_summary_spec.rb
+      spec/integration/completion_flow_spec.rb # End-to-end test
+    </locations>
+
+    <ideas>
+      <!-- Task 7.1: SessionCompletionEmailJob Tests -->
+      <test ac="AC #1, #5" task="7.1">
+        Test job execution: given session with submitted status, when job runs, then email queued and sent.
+        Test idempotency: given completion_email_sent_at is set, when job runs, then skip sending.
+        Test 2-minute SLA with time mocking.
+      </test>
+
+      <!-- Task 7.2: ParentMailer.completion_email Tests -->
+      <test ac="AC #2" task="7.2">
+        Test email content includes: thank you message, non-PHI summary, next steps, expectations, contact info.
+        Test subject line matches spec.
+        Test both HTML and plain text versions render correctly.
+        Test summary URL generation and token inclusion.
+      </test>
+
+      <!-- Task 7.3: Session Status Callback Tests -->
+      <test ac="AC #1, #3" task="7.3">
+        Test status change to submitted triggers job: given session status changes to submitted, then SessionCompletionEmailJob queued.
+        Test idempotency check: given completion_email_sent_at already set, then job not queued.
+        Test audit log creation: given email sent, then audit log entry created with SESSION_COMPLETED action.
+      </test>
+
+      <!-- Task 7.4: Summary Token Tests -->
+      <test ac="AC #4" task="7.4">
+        Test token generation: returns 32-byte urlsafe base64 string, stores in Redis with 7-day TTL.
+        Test token validation: valid token returns session, expired token returns nil, invalid token returns nil.
+        Test token expiration: after 7 days, token should be invalid.
+      </test>
+
+      <!-- Task 7.5: Summary Access Tests -->
+      <test ac="AC #4" task="7.5">
+        Test valid token access: returns summary data with non-PHI fields only.
+        Test expired token: returns UNAUTHENTICATED error.
+        Test invalid token: returns UNAUTHENTICATED error.
+        Test audit logging: all summary access attempts logged with token and session_id.
+      </test>
+
+      <!-- Task 7.6: Integration Test -->
+      <test ac="all" task="7.6">
+        End-to-end: session created → parent info → child info → assessment → status submitted → email queued → email sent → summary accessible via token.
+        Test email delivery SLA (&lt; 2 minutes).
+        Test idempotency across entire flow.
+      </test>
+
+      <!-- Task 7.7: Edge Cases -->
+      <test ac="all" task="7.7">
+        Test missing parent email: completion flow should gracefully handle.
+        Test Redis token storage failure: should retry or fail gracefully.
+        Test expired session: should not send completion email.
+        Test concurrent status changes: ensure only one email sent.
+      </test>
+    </ideas>
+  </tests>
+</story-context>

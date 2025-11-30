@@ -1,0 +1,505 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="4-6-self-pay-option" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>6</storyId>
+    <title>Self-Pay Option</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/4-6-self-pay-option.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to proceed with self-pay if insurance verification fails</iWant>
+    <soThat>I can still get help for my child regardless of insurance</soThat>
+
+    <tasks>
+      <task id="0">Create Database Migration for for_billing Field</task>
+      <task id="1">Create Self-Pay Configuration</task>
+      <task id="2">Create SelfPayInfoType GraphQL Type</task>
+      <task id="3">Create Self-Pay Service</task>
+      <task id="4">Create SelectSelfPay Mutation</task>
+      <task id="5">Update Insurance Model</task>
+      <task id="6">Create SwitchToInsurance Mutation</task>
+      <task id="7">Update Insurance GraphQL Type</task>
+      <task id="8">Create Financial Assistance Checker</task>
+      <task id="9">Update Mutation Type Registry</task>
+      <task id="10">Trigger GraphQL Subscription</task>
+      <task id="11">Create Integration Tests</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">
+      Given insurance verification has failed or parent chooses self-pay
+      When self-pay is selected
+      Then selectSelfPay mutation marks session as self-pay and returns updated insurance record
+    </criterion>
+    <criterion id="AC2">
+      Given parent selects self-pay
+      When insurance data exists
+      Then insurance data is retained but marked with verification_status: self_pay and for_billing: false
+    </criterion>
+    <criterion id="AC3">
+      Given self-pay is selected
+      When parent views payment information
+      Then self-pay rates are provided from configurable rate card with clear pricing structure
+    </criterion>
+    <criterion id="AC4">
+      Given parent selects self-pay
+      When financial assistance criteria are met
+      Then financial assistance options are mentioned with contact information for enrollment
+    </criterion>
+    <criterion id="AC5">
+      Given self-pay is selected
+      When session status is updated
+      Then session can proceed to assessment phase without waiting for insurance verification
+    </criterion>
+    <criterion id="AC6">
+      Given self-pay is selected
+      When payment collection is needed
+      Then payment collection is marked as deferred (post-MVP per PRD) with clear next steps
+    </criterion>
+    <criterion id="AC7">
+      Given self-pay option is displayed
+      When parent views the option
+      Then self-pay is presented as an equal alternative, not a "lesser" option, with positive framing
+    </criterion>
+    <criterion id="AC8">
+      Given parent has selected self-pay
+      When parent obtains new insurance information
+      Then parent can switch back to insurance verification flow without data loss
+    </criterion>
+    <criterion id="AC9">
+      Given parent selects self-pay
+      When mutation completes
+      Then audit log entry created: SELF_PAY_SELECTED with details about previous insurance status
+    </criterion>
+    <criterion id="AC10">
+      Given self-pay selection
+      When GraphQL subscription active
+      Then insuranceStatusChanged subscription fires with updated self-pay status
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md" section="Insurance Processing" relevance="high">
+        Defines FR25: Self-pay fallback requirement. Payment collection deferred post-MVP.
+      </doc>
+      <doc path="docs/epics.md" section="Epic 4: Insurance Verification" relevance="high">
+        Story 4.6 definition and context within insurance epic.
+      </doc>
+      <doc path="docs/architecture.md" section="GraphQL Mutations" relevance="high">
+        Mutation patterns, error handling, audit logging standards.
+      </doc>
+      <doc path="docs/sprint-artifacts/stories/4-5-verification-status-communication.md" relevance="medium">
+        Prerequisite story - verification status display patterns.
+      </doc>
+    </docs>
+
+    <code>
+      <existingFiles>
+        <file path="app/models/insurance.rb" purpose="Model to extend">
+          Existing Insurance model with self_pay enum value (5). Need to add for_billing field handling, callbacks, validations, and helper methods.
+        </file>
+        <file path="app/graphql/types/insurance_type.rb" purpose="Type to extend">
+          Existing InsuranceType needs forBilling and selfPayInfo fields added.
+        </file>
+        <file path="app/graphql/types/mutation_type.rb" purpose="Registry to update">
+          Register new mutations: selectSelfPay and switchToInsurance.
+        </file>
+        <file path="app/graphql/mutations/base_mutation.rb" purpose="Base class">
+          Base mutation pattern for authorization and error handling.
+        </file>
+        <file path="app/models/audit_log.rb" purpose="Audit logging">
+          Existing AuditLog model for SELF_PAY_SELECTED and SWITCHED_TO_INSURANCE actions.
+        </file>
+        <file path="spec/models/insurance_spec.rb" purpose="Test file to extend">
+          Existing spec needs tests for for_billing field, callbacks, and validations.
+        </file>
+      </existingFiles>
+
+      <filesToCreate>
+        <file path="db/migrate/[timestamp]_add_for_billing_to_insurances.rb">
+          Migration to add for_billing boolean (default: true, null: false) with index.
+        </file>
+        <file path="config/initializers/self_pay_config.rb">
+          Self-pay rate card, financial assistance config, and messaging.
+        </file>
+        <file path="app/services/insurance/self_pay_service.rb">
+          Service to generate self-pay info from configuration with proper currency formatting.
+        </file>
+        <file path="app/services/insurance/financial_assistance_checker.rb">
+          Service to check financial assistance eligibility (MVP: show to everyone).
+        </file>
+        <file path="app/graphql/types/self_pay_info_type.rb">
+          GraphQL type for self-pay pricing and assistance information.
+        </file>
+        <file path="app/graphql/mutations/insurance/select_self_pay.rb">
+          Mutation to select self-pay option.
+        </file>
+        <file path="app/graphql/mutations/insurance/switch_to_insurance.rb">
+          Mutation to switch back to insurance from self-pay.
+        </file>
+        <file path="spec/services/insurance/self_pay_service_spec.rb">
+          Tests for self-pay service logic and currency formatting.
+        </file>
+        <file path="spec/services/insurance/financial_assistance_checker_spec.rb">
+          Tests for financial assistance checker.
+        </file>
+        <file path="spec/graphql/mutations/insurance/select_self_pay_spec.rb">
+          Tests for selectSelfPay mutation.
+        </file>
+        <file path="spec/graphql/mutations/insurance/switch_to_insurance_spec.rb">
+          Tests for switchToInsurance mutation.
+        </file>
+        <file path="spec/graphql/types/self_pay_info_type_spec.rb">
+          Tests for SelfPayInfoType.
+        </file>
+        <file path="spec/integration/self_pay_flow_spec.rb">
+          Integration tests for complete self-pay flow.
+        </file>
+      </filesToCreate>
+
+      <relatedPatterns>
+        <pattern name="Mutation Pattern">
+          Follow app/graphql/mutations/intake/submit_parent_info.rb pattern:
+          - Session ID extraction and UUID conversion
+          - Session validation and expiration check
+          - Authorization via current session
+          - PHI-safe audit logging
+          - GraphQL subscription triggering
+          - Error handling with user-friendly messages
+        </pattern>
+        <pattern name="Service Pattern">
+          Services in app/services/ are POROs with initialize and public methods.
+          Return structured hashes for data, raise errors for exceptional cases.
+        </pattern>
+        <pattern name="Enum Usage">
+          Insurance model already has verification_status enum with self_pay: 5.
+          Use symbol access (e.g., insurance.self_pay?) for boolean checks.
+        </pattern>
+      </relatedPatterns>
+    </code>
+
+    <dependencies>
+      <gem name="rails" version="~> 7.2.3">Core framework</gem>
+      <gem name="graphql" version="~> 2.2">GraphQL schema and types</gem>
+      <gem name="sidekiq" version="~> 7.2">Background jobs (not used in this story)</gem>
+      <gem name="pundit" version="~> 2.3">Authorization (session ownership)</gem>
+      <gem name="jwt" version="~> 2.7">Token authentication</gem>
+      <gem name="pg" version="~> 1.1">PostgreSQL database</gem>
+      <gem name="rspec-rails" version="~> 6.1">Testing framework</gem>
+      <gem name="factory_bot_rails" version="~> 6.4">Test fixtures</gem>
+      <gem name="shoulda-matchers" version="~> 6.0">Model testing matchers</gem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <technical>
+      <constraint id="T1" category="Data Retention">
+        Insurance data MUST be retained when self-pay is selected (AC2). Only mark for_billing: false, never delete.
+      </constraint>
+      <constraint id="T2" category="Currency Formatting">
+        Currency amounts MUST be formatted as "$%.2f" with decimal points (e.g., "$150.00" not "$150").
+      </constraint>
+      <constraint id="T3" category="Enum Values">
+        Insurance.verification_status enum already includes self_pay: 5. Do NOT create new enum.
+      </constraint>
+      <constraint id="T4" category="Audit Logging">
+        All self-pay selections and switches MUST create audit log entries with action, resource, and PHI-safe details.
+      </constraint>
+      <constraint id="T5" category="Subscription Events">
+        Use existing insuranceStatusChanged subscription (from Epic 4). Do NOT create new subscription.
+      </constraint>
+      <constraint id="T6" category="Session Ownership">
+        Only session owner can select self-pay or switch to insurance (authorization check required).
+      </constraint>
+      <constraint id="T7" category="Migration Safety">
+        Migration must handle existing records with verification_status = 5 (self_pay).
+      </constraint>
+    </technical>
+
+    <business>
+      <constraint id="B1" category="Positive Framing">
+        Self-pay MUST be presented as equal alternative, not lesser option (AC7). Use dignified messaging.
+      </constraint>
+      <constraint id="B2" category="Payment Deferral">
+        Payment collection is deferred post-MVP (AC6). Always return paymentDeferred: true.
+      </constraint>
+      <constraint id="B3" category="Financial Assistance">
+        For MVP, show financial assistance to everyone. Let assistance team determine final eligibility (AC4).
+      </constraint>
+      <constraint id="B4" category="Data Switchability">
+        Parents must be able to switch back to insurance without data loss (AC8). Preserve all insurance fields.
+      </constraint>
+      <constraint id="B5" category="Assessment Progression">
+        Self-pay selection allows proceeding to assessment phase (AC5). No blocking on verification.
+      </constraint>
+    </business>
+
+    <compliance>
+      <constraint id="C1" category="PHI Encryption">
+        All insurance data remains encrypted at rest using Encryptable concern.
+      </constraint>
+      <constraint id="C2" category="Audit Trail">
+        Complete audit trail required for HIPAA compliance (AC9). Log all status changes.
+      </constraint>
+      <constraint id="C3" category="Access Control">
+        Mutation requires valid session token. Only session owner can modify insurance status.
+      </constraint>
+    </compliance>
+  </constraints>
+
+  <interfaces>
+    <graphql>
+      <mutation name="selectSelfPay">
+        <input>
+          sessionId: ID! (CUID format with sess_ prefix)
+          reason: String (optional)
+        </input>
+        <output>
+          insurance: InsuranceType!
+          selfPayInfo: SelfPayInfoType!
+        </output>
+        <errors>
+          - UNAUTHENTICATED: Invalid or missing token
+          - NOT_FOUND: Session not found
+          - SESSION_EXPIRED: Session past expiration
+        </errors>
+      </mutation>
+
+      <mutation name="switchToInsurance">
+        <input>
+          sessionId: ID!
+        </input>
+        <output>
+          insurance: InsuranceType!
+          message: String!
+        </output>
+        <errors>
+          - UNAUTHENTICATED: Invalid or missing token
+          - NOT_FOUND: Session or insurance not found
+          - INVALID_STATE: Not currently self-pay
+        </errors>
+      </mutation>
+
+      <type name="SelfPayInfoType">
+        <fields>
+          sessionRate: String! (formatted currency, e.g., "$150.00")
+          description: String! (service description with included items)
+          paymentDeferred: Boolean! (always true for MVP)
+          deferralNote: String (explanation of payment deferral)
+          financialAssistanceAvailable: Boolean!
+          financialAssistanceInfo: String (contact details if available)
+          nextSteps: [String!]! (what happens after selecting self-pay)
+        </fields>
+      </type>
+
+      <typeExtension name="InsuranceType">
+        <addFields>
+          forBilling: Boolean! (whether record is for billing purposes)
+          selfPayInfo: SelfPayInfoType (resolver calls SelfPayService)
+        </addFields>
+      </typeExtension>
+
+      <subscription name="insuranceStatusChanged">
+        <trigger>After selectSelfPay or switchToInsurance mutation</trigger>
+        <payload>insurance: InsuranceType!</payload>
+        <filter>sessionId: ID!</filter>
+      </subscription>
+    </graphql>
+
+    <models>
+      <model name="Insurance">
+        <newFields>
+          for_billing: boolean (default: true, null: false, indexed)
+        </newFields>
+        <callbacks>
+          before_save: sync_for_billing_with_status
+        </callbacks>
+        <validations>
+          custom: for_billing_consistency (must be false when self_pay)
+        </validations>
+        <methods>
+          self_pay?: boolean (checks verification_status == 'self_pay')
+          for_billing?: boolean (checks for_billing == true)
+        </methods>
+      </model>
+    </models>
+
+    <configuration>
+      <config file="config/initializers/self_pay_config.rb">
+        Rails.configuration.self_pay = {
+          rates: {
+            initial_assessment: { amount_cents, description, services_included[] },
+            therapy_session: { amount_cents, description }
+          },
+          financial_assistance: { enabled, contact: { phone, email, description } },
+          messaging: { option_title, option_description, payment_deferral_note }
+        }
+      </config>
+    </configuration>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard category="Model Testing">
+        - Use RSpec with shoulda-matchers for associations, validations, enums
+        - Test PHI encryption by querying raw database values
+        - Test callbacks and state transitions
+        - Test helper methods (self_pay?, for_billing?)
+        - Follow spec/models/insurance_spec.rb pattern
+      </standard>
+
+      <standard category="Mutation Testing">
+        - Test successful execution with valid inputs
+        - Test all validation failures with specific error messages
+        - Test authorization (session ownership)
+        - Test session expiration handling
+        - Test PHI encryption in created/updated records
+        - Test audit log creation with correct action and details
+        - Test GraphQL subscription triggering
+        - Follow spec/graphql/mutations/intake/submit_parent_info_spec.rb pattern
+      </standard>
+
+      <standard category="Service Testing">
+        - Test core business logic with various inputs
+        - Test edge cases and boundary conditions
+        - Test error handling for exceptional cases
+        - Mock external dependencies
+        - Test currency formatting precision
+        - Test configuration access and defaults
+      </standard>
+
+      <standard category="Integration Testing">
+        - Test complete flows end-to-end
+        - Test state transitions (verification failed -> self-pay -> assessment)
+        - Test switching back and forth (self-pay -> insurance -> self-pay)
+        - Test subscription events in realistic scenarios
+        - Test data preservation across transitions
+      </standard>
+    </standards>
+
+    <locations>
+      <location>spec/models/insurance_spec.rb (extend existing)</location>
+      <location>spec/services/insurance/self_pay_service_spec.rb (new)</location>
+      <location>spec/services/insurance/financial_assistance_checker_spec.rb (new)</location>
+      <location>spec/graphql/mutations/insurance/select_self_pay_spec.rb (new)</location>
+      <location>spec/graphql/mutations/insurance/switch_to_insurance_spec.rb (new)</location>
+      <location>spec/graphql/types/self_pay_info_type_spec.rb (new)</location>
+      <location>spec/integration/self_pay_flow_spec.rb (new)</location>
+    </locations>
+
+    <ideas>
+      <testIdea ac="AC1,AC2,AC9">
+        Test selectSelfPay mutation creates insurance record with self_pay status,
+        for_billing: false, and audit log entry with previous status details.
+      </testIdea>
+
+      <testIdea ac="AC2,AC8">
+        Test that switching to self-pay and back to insurance preserves all PHI fields
+        (subscriber_name, member_id, group_number, policy_number).
+      </testIdea>
+
+      <testIdea ac="AC3,AC6">
+        Test SelfPayService generates correct currency format ($150.00), description with
+        services included, paymentDeferred: true, and deferral_note from config.
+      </testIdea>
+
+      <testIdea ac="AC4">
+        Test financial assistance info shown when enabled in config, including phone,
+        email, and description. Test not shown when disabled.
+      </testIdea>
+
+      <testIdea ac="AC5">
+        Test that after self-pay selection, session can transition to assessment_complete
+        without insurance verification_status being 'verified'.
+      </testIdea>
+
+      <testIdea ac="AC7">
+        Test messaging in selfPayInfo uses positive framing from config
+        (option_title: "Continue with Self-Pay", not "Use Self-Pay as Fallback").
+      </testIdea>
+
+      <testIdea ac="AC8">
+        Test switchToInsurance mutation changes status from self_pay to pending,
+        sets for_billing: true, preserves all data, creates audit log.
+      </testIdea>
+
+      <testIdea ac="AC10">
+        Test insuranceStatusChanged subscription fires when self-pay selected,
+        payload includes full insurance object with selfPayInfo resolver working.
+      </testIdea>
+
+      <testIdea category="Edge Cases">
+        Test selecting self-pay when no prior insurance data exists (create new record).
+        Test selecting self-pay when insurance already exists (update existing).
+        Test switching to insurance when already on insurance (INVALID_STATE error).
+        Test authorization failure (different session trying to modify).
+        Test expired session rejection.
+        Test migration handles existing self_pay records correctly.
+      </testIdea>
+
+      <testIdea category="Currency Formatting">
+        Test format_currency handles: 0 cents -> "$0.00", 15000 cents -> "$150.00",
+        12050 cents -> "$120.50", nil -> "$0.00".
+      </testIdea>
+
+      <testIdea category="Callbacks">
+        Test Insurance before_save callback sets for_billing: false when status
+        changes to self_pay. Test validation prevents for_billing: true with self_pay status.
+      </testIdea>
+    </ideas>
+  </tests>
+
+  <implementation_notes>
+    <note category="Schema" priority="high">
+      Insurance table already exists. Only add for_billing column via migration.
+      Do NOT create new table or modify enum definition.
+    </note>
+
+    <note category="Enum" priority="high">
+      self_pay enum value already defined as 5 in Insurance model.
+      Use insurance.self_pay? for boolean checks, not integer comparison.
+    </note>
+
+    <note category="Subscription" priority="medium">
+      insuranceStatusChanged subscription likely defined in Epic 4 Story 4.4.
+      Trigger using: DaybreakHealthBackendSchema.subscriptions.trigger('insuranceStatusChanged', {session_id: session.id}, {insurance: insurance})
+    </note>
+
+    <note category="Configuration" priority="medium">
+      Rate card in config/initializers allows admin flexibility without database changes.
+      Use environment-specific overrides for dev/staging/production pricing.
+    </note>
+
+    <note category="Messaging" priority="high">
+      All user-facing messages must use dignified, positive framing per AC7.
+      Review all strings in service, mutations, and GraphQL types for tone.
+    </note>
+
+    <note category="Authorization" priority="high">
+      Follow SubmitParentInfo pattern: check context[:current_session]&.id == session.id
+      Return UNAUTHENTICATED error if check fails.
+    </note>
+
+    <note category="Session ID Format" priority="medium">
+      Session IDs use CUID format with sess_ prefix (e.g., sess_abc123...).
+      Extract UUID by removing prefix and re-adding hyphens (see SubmitParentInfo).
+    </note>
+
+    <note category="Testing" priority="high">
+      Follow existing test patterns from spec/graphql/mutations/intake/submit_parent_info_spec.rb
+      and spec/models/insurance_spec.rb. Maintain consistency in test structure and assertions.
+    </note>
+
+    <note category="Financial Assistance" priority="low">
+      MVP shows financial assistance to everyone (let assistance team determine eligibility).
+      FinancialAssistanceChecker service is simple for MVP, can be enhanced post-MVP.
+    </note>
+  </implementation_notes>
+</story-context>

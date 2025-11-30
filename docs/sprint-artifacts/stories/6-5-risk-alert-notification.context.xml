@@ -1,0 +1,296 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>5</storyId>
+    <title>Risk Alert Notification</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/6-5-risk-alert-notification.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>clinical supervisor</asA>
+    <iWant>to be immediately alerted when risk indicators are detected</iWant>
+    <soThat>I can ensure appropriate follow-up and safety</soThat>
+    <tasks>
+- Task 1: Create RiskAlert model and migration (AC: Alert data structure)
+- Task 2: Implement immediate notification service (AC: Multiple channels delivery)
+- Task 3: Create GraphQL mutation for risk alert acknowledgment (AC: Acknowledgment tracking)
+- Task 4: Implement escalation job for unacknowledged alerts (AC: 15-minute escalation)
+- Task 5: Create GraphQL subscription for dashboard alerts (AC: Real-time dashboard)
+- Task 6: Integrate with risk detection workflow (AC: 30-second delivery SLA)
+- Task 7: Implement comprehensive audit logging (AC: Audit trail)
+- Task 8: Create email and SMS templates (AC: Alert content)
+- Task 9: Add configuration for on-call rotation (AC: On-call contacts)
+- Task 10: Add GraphQL types and queries for risk alerts (AC: Admin visibility)
+- Task 11: End-to-end testing (AC: All acceptance criteria)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+**Given** risk indicators are detected in assessment
+**When** risk detection triggers
+**Then**
+- Immediate alert (not queued) to clinical escalation contacts
+- Alert includes:
+  - Session ID and timestamp
+  - Specific risk indicators detected
+  - Context (exact response that triggered)
+  - Current session status
+  - Parent contact information
+  - Direct link to session details
+- Multiple channels: email + SMS to on-call + dashboard alert
+- Acknowledgment required from recipient
+- Escalation if not acknowledged within 15 minutes
+
+**And** alert delivered within 30 seconds of detection
+**And** audit trail of alert, delivery, and acknowledgment
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR35 - Risk Alert Notification</section>
+        <snippet>System alerts on detected risk indicators immediately via email + dashboard. Critical for safety. Multiple notification channels required.</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Domain-Specific Requirements - HIPAA Compliance</section>
+        <snippet>All PHI must be encrypted at rest and in transit. Business Associate Agreements (BAAs) required for all vendors handling PHI. Complete audit trails required.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Background Jobs - Sidekiq</section>
+        <snippet>Sidekiq for background jobs with Redis backend. Critical queue prioritized (concurrency: 3). Retry mechanism with exponential backoff for AWS service errors.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Security Architecture - Data Protection</section>
+        <snippet>PHI encryption using Rails 7 encryption (AES-256). AWS SES for email (HIPAA BAA available). AWS SNS for SMS recommended (HIPAA BAA, integrated with AWS).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Logging Strategy - PHI-Safe</section>
+        <snippet>NEVER log PHI directly. Use existence flags only (e.g., has_child_data: true). All audit trails must be PHI-safe while providing sufficient context.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 6 - Story 6.5</section>
+        <snippet>Risk Alert Notification: Immediate alert (not queued) to clinical escalation contacts with session ID, risk indicators, context, parent contact, and session details link. Multiple channels: email + SMS + dashboard.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/stories/5-3-risk-indicator-detection-and-protocols.md</path>
+        <title>Story 5.3 - Risk Indicator Detection</title>
+        <section>Prerequisites for Risk Alerts</section>
+        <snippet>Assessment::RiskDetectorService must exist and detect risk indicators. OnboardingSession has risk_flags field (array). Assessment model has risk-related fields.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/jobs/escalation_notification_job.rb</path>
+        <kind>background_job</kind>
+        <symbol>EscalationNotificationJob</symbol>
+        <lines>1-62</lines>
+        <reason>Existing pattern for care team notifications. Shows Sidekiq job structure, error handling, and logging patterns to follow for risk alert jobs.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-160</lines>
+        <reason>Main session model with PHI encryption (encrypts_phi), enums, associations, and audit logging patterns. Will need to add risk alert associations.</reason>
+      </artifact>
+      <artifact>
+        <path>config/initializers/contact_options.rb</path>
+        <kind>initializer</kind>
+        <symbol>ContactOptions</symbol>
+        <lines>1-125</lines>
+        <reason>Pattern for environment-based configuration with validation. Similar pattern needed for escalation contacts configuration.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/encryptable.rb</path>
+        <kind>concern</kind>
+        <symbol>Encryptable</symbol>
+        <lines>N/A</lines>
+        <reason>PHI encryption concern used for triggered_context field. Must use encrypts_phi for risk alert sensitive data.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/concerns/auditable.rb</path>
+        <kind>concern</kind>
+        <symbol>Auditable</symbol>
+        <lines>N/A</lines>
+        <reason>Audit logging concern pattern. All risk alert actions must be audited.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>3.3.x</ruby>
+      <rails>7.2.3</rails>
+      <database>
+        <postgresql>16.x</postgresql>
+      </database>
+      <background_jobs>
+        <sidekiq>7.2</sidekiq>
+        <sidekiq-cron>1.9</sidekiq-cron>
+        <redis>5.0</redis>
+      </background_jobs>
+      <graphql>
+        <graphql-ruby>2.2</graphql-ruby>
+      </graphql>
+      <auth>
+        <jwt>2.7</jwt>
+        <pundit>2.3</pundit>
+      </auth>
+      <infrastructure>
+        <aws_ses>For email notifications (HIPAA BAA available)</aws_ses>
+        <aws_sns>For SMS notifications (HIPAA BAA, recommended over Twilio)</aws_sns>
+        <action_cable>For real-time dashboard alerts via GraphQL subscriptions</action_cable>
+      </infrastructure>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>All PHI fields (triggered_context, parent contact info) must use Rails 7 encrypts_phi for column-level encryption</constraint>
+    <constraint>Risk alerts must be sent synchronously (bypass Sidekiq queue) with 5-second timeout, fallback to async if timeout</constraint>
+    <constraint>30-second delivery SLA required - alert must reach recipients within 30 seconds of risk detection</constraint>
+    <constraint>Multiple notification channels executed in parallel - failure in one channel must not block others</constraint>
+    <constraint>PHI-safe logging required - no sensitive content in logs, only existence flags and timestamps</constraint>
+    <constraint>Acknowledgment tracking required - clinical supervisor must acknowledge receipt within 15 minutes</constraint>
+    <constraint>Escalation to secondary contacts if not acknowledged within 15 minutes</constraint>
+    <constraint>Complete audit trail required for HIPAA compliance - log creation, delivery attempts, acknowledgments, escalations</constraint>
+    <constraint>AWS SES and SNS must have HIPAA Business Associate Agreements (BAAs) in place</constraint>
+    <constraint>Notification delivery status tracked per channel in JSONB field</constraint>
+    <constraint>7-year retention required per HIPAA for all risk alert records</constraint>
+    <constraint>Authorization: only clinical supervisors and admins can acknowledge alerts</constraint>
+    <constraint>Deep links to session details must use secure, time-limited tokens</constraint>
+    <constraint>SMS must not contain PHI - link only approach</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>RiskAlert GraphQL Type</name>
+      <kind>GraphQL Type</kind>
+      <signature>type RiskAlertType { id, sessionId, riskIndicators, triggeredAt, acknowledgedAt, acknowledgedBy, escalatedAt, notificationChannelsSent }</signature>
+      <path>app/graphql/types/risk_alert_type.rb</path>
+    </interface>
+    <interface>
+      <name>AcknowledgeRiskAlert Mutation</name>
+      <kind>GraphQL Mutation</kind>
+      <signature>mutation acknowledgeRiskAlert(input: AcknowledgeRiskAlertInput!): RiskAlert!</signature>
+      <path>app/graphql/mutations/alerts/acknowledge_risk_alert.rb</path>
+    </interface>
+    <interface>
+      <name>RiskAlertTriggered Subscription</name>
+      <kind>GraphQL Subscription</kind>
+      <signature>subscription riskAlertTriggered: RiskAlert!</signature>
+      <path>app/graphql/subscriptions/risk_alert_triggered.rb</path>
+    </interface>
+    <interface>
+      <name>Notification::RiskAlertService</name>
+      <kind>Service Class</kind>
+      <signature>def deliver(risk_alert:) - sends alerts via email, SMS, dashboard</signature>
+      <path>app/services/notification/risk_alert_service.rb</path>
+    </interface>
+    <interface>
+      <name>Assessment::RiskDetectorService</name>
+      <kind>Service Class</kind>
+      <signature>Existing service from Story 5.3 that detects risk indicators and triggers alerts</signature>
+      <path>app/services/assessment/risk_detector_service.rb</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+Rails 7 + RSpec testing standards:
+- Model specs: validations, associations, state transitions, scopes (spec/models/)
+- Service specs: business logic, error handling, external API interactions (spec/services/)
+- Job specs: execution logic, retry behavior, scheduling (spec/jobs/)
+- GraphQL specs: mutations, queries, subscriptions with authorization (spec/graphql/)
+- Integration specs: full workflows from detection to acknowledgment (spec/integration/)
+- Factory Bot for test data generation (spec/factories/)
+- Shoulda Matchers for concise model assertions
+- Pundit Matchers for authorization testing
+- Time-sensitive specs: use ActiveSupport::Testing::TimeHelpers (travel_to, freeze_time)
+- Performance assertions for 30-second SLA requirement
+- PHI encryption verification in all specs touching sensitive data
+    </standards>
+    <locations>
+      <location>spec/models/risk_alert_spec.rb</location>
+      <location>spec/services/notification/risk_alert_service_spec.rb</location>
+      <location>spec/jobs/risk_alert_escalation_job_spec.rb</location>
+      <location>spec/graphql/mutations/alerts/acknowledge_risk_alert_spec.rb</location>
+      <location>spec/graphql/subscriptions/risk_alert_triggered_spec.rb</location>
+      <location>spec/graphql/types/risk_alert_type_spec.rb</location>
+      <location>spec/integration/risk_alert_flow_spec.rb</location>
+      <location>spec/factories/risk_alerts.rb</location>
+    </locations>
+    <ideas>
+      <idea ac="Alert data structure">
+        - Test RiskAlert model creation with all required fields
+        - Verify PHI encryption on triggered_context field
+        - Test associations to OnboardingSession
+        - Validate state transitions (triggered → pending_acknowledgment → acknowledged/escalated)
+      </idea>
+      <idea ac="Multiple channels delivery">
+        - Test parallel execution of email, SMS, and dashboard notifications
+        - Verify independent success/failure per channel
+        - Test retry logic for failed notifications (max 3 retries, exponential backoff)
+        - Verify notification_channels_sent JSONB tracking
+      </idea>
+      <idea ac="Acknowledgment tracking">
+        - Test AcknowledgeRiskAlert mutation with valid input
+        - Verify authorization (clinical supervisor or admin only)
+        - Test acknowledgment timestamp and user tracking
+        - Test idempotency of acknowledgment (already acknowledged alerts)
+      </idea>
+      <idea ac="15-minute escalation">
+        - Test RiskAlertEscalationJob identifies alerts > 15 minutes without ack
+        - Verify secondary contact notification
+        - Test job scheduling (runs every 5 minutes via sidekiq-cron)
+        - Test no escalation if already acknowledged
+      </idea>
+      <idea ac="Real-time dashboard">
+        - Test RiskAlertTriggered subscription fires when alert created
+        - Verify authorization filter (clinical supervisors only)
+        - Test subscription delivers full alert payload
+      </idea>
+      <idea ac="30-second delivery SLA">
+        - Test synchronous execution bypasses Sidekiq queue
+        - Verify 5-second timeout with fallback to async
+        - Performance test: measure actual delivery time
+        - Test monitoring/logging of SLA violations
+      </idea>
+      <idea ac="Audit trail">
+        - Test audit log created on alert creation
+        - Verify all notification attempts logged (success/failure per channel)
+        - Test acknowledgment logged with user and timestamp
+        - Test escalation events logged
+        - Verify PHI-safe logging (no sensitive content)
+      </idea>
+      <idea ac="Alert content">
+        - Test email template includes all required fields (session ID, risk indicators, context, parent contact, link)
+        - Test SMS template is concise with link only (no PHI)
+        - Test deep link generation with secure tokens
+        - Test mobile rendering of email templates
+      </idea>
+      <idea ac="On-call contacts">
+        - Test configuration loading from config/initializers/escalation_contacts.rb
+        - Verify environment variable support for contact lists
+        - Test primary and secondary contact list handling
+        - Test validation on application boot
+      </idea>
+      <idea ac="Admin visibility">
+        - Test riskAlerts query with filtering (status, date range)
+        - Test riskAlert(id) query for single alert details
+        - Verify authorization on queries
+      </idea>
+    </ideas>
+  </tests>
+</story-context>

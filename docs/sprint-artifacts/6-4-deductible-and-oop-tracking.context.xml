@@ -1,0 +1,696 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="6-4-deductible-and-oop-tracking" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>4</storyId>
+    <title>Deductible & Out-of-Pocket Tracking</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/epics.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to track my deductible progress and out-of-pocket spending</iWant>
+    <soThat>I can plan my healthcare expenses</soThat>
+
+    <userStoryDetails>
+      <requirementsContext>
+        This story is part of Epic 6: Cost Estimation Tool (P1 - Should-have). It provides transparent deductible and out-of-pocket maximum tracking to help parents understand their financial responsibility. This builds on Story 6.2 (Insurance Cost Estimation) by providing detailed tracking of deductible progress, OOP max tracking, and projections for when these thresholds will be met.
+      </requirementsContext>
+
+      <functionalRequirementsCovered>
+        <requirement id="Epic6">Cost Estimation Tool - Deductible and OOP tracking component</requirement>
+      </functionalRequirementsCovered>
+
+      <keyArchitectureConstraints>
+        <constraint>DeductibleTracker service to manage tracking logic and calculations</constraint>
+        <constraint>Store snapshots from eligibility checks in verification_result JSONB</constraint>
+        <constraint>Allow manual override with audit trail for user-provided data</constraint>
+        <constraint>GraphQL query: deductibleStatus(sessionId: ID!): DeductibleStatus!</constraint>
+        <constraint>Visual progress indicator data with percentages and projections</constraint>
+        <constraint>Distinguish between individual and family deductibles</constraint>
+        <constraint>Track plan year reset dates for accurate calculations</constraint>
+      </keyArchitectureConstraints>
+    </userStoryDetails>
+
+    <tasks>
+      <task id="1" status="pending">Create DeductibleStatus GraphQL Type (AC1, AC2, AC5)
+        - Define DeductibleStatusType with fields:
+          - deductible_amount: Float (total deductible)
+          - deductible_met: Float (amount already met)
+          - deductible_remaining: Float (amount still owed)
+          - oop_max_amount: Float (total out-of-pocket max)
+          - oop_met: Float (OOP amount already met)
+          - oop_remaining: Float (OOP amount still owed)
+          - is_family_plan: Boolean (family vs individual)
+          - year_reset_date: ISO8601DateTime (plan year reset)
+          - progress_percentage: Integer (visual indicator 0-100)
+          - sessions_until_deductible_met: Integer (projection)
+        - Add to Types::QueryType as deductibleStatus field
+        - Document field descriptions with examples
+      </task>
+
+      <task id="2" status="pending">Create DeductibleTracker Service (AC1, AC2, AC3, AC4)
+        - Create app/services/billing/deductible_tracker.rb
+        - Implement initialize(insurance:)
+        - Method: current_status -> DeductibleStatus hash
+        - Extract deductible data from verification_result
+        - Extract OOP max data from verification_result
+        - Detect family vs individual plan type
+        - Calculate remaining amounts (deductible_amount - deductible_met)
+        - Calculate progress percentage
+        - Handle missing data gracefully (return nil fields)
+        - Add RSpec unit tests
+      </task>
+
+      <task id="3" status="pending">Implement Session Projection Logic (AC4)
+        - Add method to DeductibleTracker: sessions_until_deductible_met
+        - Retrieve session cost from configuration or estimate
+        - Calculate: sessions = deductible_remaining / session_cost
+        - Round up to next whole session
+        - Handle edge cases: deductible already met, no session cost available
+        - Add tests for various scenarios (halfway met, almost met, not met)
+      </task>
+
+      <task id="4" status="pending">Add Plan Year Reset Date Detection (AC5)
+        - Extract plan year start date from verification_result
+        - Calculate next reset date based on plan year cycle
+        - Common patterns: calendar year (Jan 1), policy anniversary, fiscal year
+        - Default to Jan 1 if plan year not specified
+        - Add helper method: plan_year_reset_date
+        - Test with various plan year scenarios
+      </task>
+
+      <task id="5" status="pending">Implement Family vs Individual Distinction (AC3)
+        - Add logic to detect plan type from verification_result
+        - Check for family_deductible vs individual_deductible fields
+        - Check for member_count or dependent_count indicators
+        - Set is_family_plan boolean flag
+        - Add tests with both plan types
+      </task>
+
+      <task id="6" status="pending">Enhance Insurance Model with Deductible Helpers (AC1, AC2)
+        - Add method: out_of_pocket_max_amount
+        - Add method: out_of_pocket_met
+        - Add method: out_of_pocket_remaining
+        - Add method: is_family_plan?
+        - Add method: plan_year_reset_date
+        - Extract from verification_result["coverage"]["out_of_pocket_max"]
+        - Add RSpec model tests
+      </task>
+
+      <task id="7" status="pending">Create DeductibleStatus GraphQL Query (AC all)
+        - Create app/graphql/types/queries/deductible_status.rb
+        - Argument: sessionId (ID!, required)
+        - Authorization: verify session ownership
+        - Retrieve insurance record from session
+        - Return error if insurance not verified
+        - Call DeductibleTracker.new(insurance).current_status
+        - Map service response to DeductibleStatusType
+        - Add integration test with mocked insurance data
+      </task>
+
+      <task id="8" status="pending">Implement Manual Override with Audit Trail (AC6)
+        - Create mutation: updateDeductibleOverride
+        - Arguments: sessionId, deductible_met, oop_met, source (manual/eligibility)
+        - Store in verification_result["deductible_override"]
+        - Include override_timestamp, override_by, override_reason
+        - Audit log: DEDUCTIBLE_OVERRIDE action
+        - Prioritize manual override over API data in tracker
+        - Add tests for override precedence
+      </task>
+
+      <task id="9" status="pending">Add Visual Progress Indicator Data (AC5)
+        - Method in DeductibleTracker: progress_percentage
+        - Calculate: (deductible_met / deductible_amount) * 100
+        - Calculate OOP progress: (oop_met / oop_max_amount) * 100
+        - Return integer 0-100 for progress bars
+        - Handle division by zero (deductible_amount = 0)
+        - Add tests for edge cases (0%, 100%, no deductible plan)
+      </task>
+
+      <task id="10" status="pending">Sync Deductible Data from Eligibility Checks (AC6)
+        - Update EligibilityVerificationJob to extract deductible data
+        - Store snapshot timestamp in verification_result
+        - Preserve historical snapshots for trend analysis
+        - Array: verification_result["deductible_history"]
+        - Each snapshot: { timestamp, deductible_met, oop_met, source }
+        - Limit history to last 12 months
+      </task>
+
+      <task id="11" status="pending">Add Configuration for Session Costs (AC4)
+        - Create config/session_rates.yml
+        - Define default rates: intake, individual_therapy, family_therapy
+        - Load in config/initializers/session_rates.rb
+        - Use rates for deductible projection calculations
+        - Allow override per contract/organization (future)
+        - Document rate structure and update process
+      </task>
+
+      <task id="12" status="pending">Integration Testing (AC all)
+        - Test full flow: verified insurance -> deductibleStatus query
+        - Test with family plan (AC3)
+        - Test with individual plan (AC3)
+        - Test session projection (AC4)
+        - Test manual override (AC6)
+        - Test missing deductible data (graceful degradation)
+        - Test expired cache (AC6 - sync with eligibility)
+        - Add spec/integration/deductible_tracking_spec.rb
+      </task>
+
+      <task id="13" status="pending">Update CoverageDetailsType Integration (existing)
+        - Ensure CoverageDetailsType.deductible uses DeductibleTracker
+        - Keep backward compatibility with formatted string
+        - Consider adding deductible_details field with full status
+        - Test integration between coverage and deductible tracking
+      </task>
+
+      <task id="14" status="pending">Documentation and Examples
+        - Add GraphQL schema documentation for DeductibleStatusType
+        - Create example queries in docs/api_examples/
+        - Document manual override process for ops team
+        - Add inline code documentation for service methods
+        - Update insurance_glossary.yml if needed
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">
+      <given>parent has insurance with deductible</given>
+      <when>viewing cost information</when>
+      <then>current deductible status shows: amount met, remaining</then>
+    </criterion>
+
+    <criterion id="AC2">
+      <given>parent has out-of-pocket maximum</given>
+      <when>viewing cost information</when>
+      <then>out-of-pocket max tracking shows: spent, remaining</then>
+    </criterion>
+
+    <criterion id="AC3">
+      <given>insurance plan type is identified</given>
+      <when>displaying deductible</when>
+      <then>family vs. individual deductible distinction is clear</then>
+    </criterion>
+
+    <criterion id="AC4">
+      <given>deductible status is displayed</given>
+      <when>calculating projection</when>
+      <then>projection shows "X more sessions until deductible met" based on session cost</then>
+    </criterion>
+
+    <criterion id="AC5">
+      <given>deductible tracking is active</given>
+      <when>displaying progress</when>
+      <then>visual progress indicator (percentage bar) is provided with year reset date shown</then>
+    </criterion>
+
+    <criterion id="AC6">
+      <given>deductible data is available</given>
+      <when>syncing with eligibility</when>
+      <then>data is synced with eligibility API when available, with manual entry option if data not available</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md" relevance="medium">
+        <section>Cost Estimation Tool - Epic 6 context</section>
+        <section>Insurance Processing (FR19-25) - Coverage details and verification</section>
+        <section>Non-Functional Requirements - Performance and user experience</section>
+      </doc>
+
+      <doc path="docs/epics.md" relevance="critical">
+        <section>Epic 6: Cost Estimation Tool - Story 6.4 definition</section>
+        <section>Story 6.2: Insurance Cost Estimation (prerequisite for deductible tracking)</section>
+        <section>Story 6.1: Cost Calculation Engine (session rates and pricing)</section>
+        <section>Epic 4: Insurance Verification - Eligibility data source</section>
+      </doc>
+
+      <doc path="docs/architecture.md" relevance="high">
+        <section>Service Pattern - app/services/billing/ structure</section>
+        <section>GraphQL Types and Queries - Type definition patterns</section>
+        <section>Data Architecture - JSONB storage for verification_result</section>
+        <section>Audit Logging - Manual override tracking</section>
+      </doc>
+
+      <doc path="config/insurance_glossary.yml" relevance="high">
+        <section>Deductible definition and examples</section>
+        <section>Out-of-pocket maximum definition</section>
+        <section>Plain language explanations for parents</section>
+      </doc>
+
+      <doc path="docs/test-cases/insurance_coverages.csv" relevance="medium">
+        <section>Test data for insurance coverage scenarios</section>
+        <section>Sample deductible and OOP max values</section>
+        <note>Use for seeding realistic test data</note>
+      </doc>
+
+      <doc path="docs/test-cases/contracts.csv" relevance="medium">
+        <section>Service pricing terms for session cost calculations</section>
+        <section>Individual therapy and family therapy rates</section>
+        <note>Use for projection calculations</note>
+      </doc>
+    </docs>
+
+    <code>
+      <existingFiles>
+        <file path="app/models/insurance.rb" relevance="critical">
+          <purpose>Insurance model with verification_result JSONB storage and coverage helper methods</purpose>
+          <keyFeatures>
+            <feature>verification_result JSONB field stores eligibility response</feature>
+            <feature>Helper methods: deductible_amount, deductible_met, copay_amount, coinsurance_percentage</feature>
+            <feature>Method: coverage_effective_date, coverage_termination_date</feature>
+            <feature>Encryptable concern for PHI encryption</feature>
+            <feature>Auditable concern for change tracking</feature>
+          </keyFeatures>
+          <missingFeatures>
+            <feature>out_of_pocket_max_amount method</feature>
+            <feature>out_of_pocket_met method</feature>
+            <feature>is_family_plan? method</feature>
+            <feature>plan_year_reset_date method</feature>
+          </missingFeatures>
+        </file>
+
+        <file path="app/services/insurance_services/coverage_formatter.rb" relevance="high">
+          <purpose>Formats coverage details for display, including deductible</purpose>
+          <keyFeatures>
+            <feature>format_deductible: "$500 ($100 met)" string formatting</feature>
+            <feature>format_out_of_pocket_max: OOP max formatting (exists but not exposed)</feature>
+            <feature>format_coinsurance: percentage formatting</feature>
+          </keyFeatures>
+          <integration>Can be used by DeductibleTracker for consistent formatting</integration>
+        </file>
+
+        <file path="app/graphql/types/coverage_details_type.rb" relevance="high">
+          <purpose>GraphQL type for coverage details display</purpose>
+          <currentFields>
+            <field>copay_amount: String</field>
+            <field>deductible: String (formatted, e.g., "$500 ($100 met)")</field>
+            <field>coinsurance: Integer</field>
+            <field>services_covered: [String]</field>
+            <field>effective_date: String</field>
+          </currentFields>
+          <note>Story 6.4 adds separate DeductibleStatusType for detailed tracking</note>
+        </file>
+
+        <file path="app/graphql/types/insurance_type.rb" relevance="medium">
+          <purpose>GraphQL type for Insurance model</purpose>
+          <note>May expose deductibleStatus as field on InsuranceType</note>
+        </file>
+
+        <file path="app/jobs/eligibility_verification_job.rb" relevance="high">
+          <purpose>Background job for eligibility verification</purpose>
+          <integration>Should extract and store deductible data in verification_result</integration>
+          <note>Update to populate deductible_history snapshots</note>
+        </file>
+
+        <file path="app/services/eligibility/base_adapter.rb" relevance="medium">
+          <purpose>Base adapter for eligibility API integrations</purpose>
+          <integration>Ensure adapters return deductible and OOP max data</integration>
+        </file>
+
+        <file path="app/models/concerns/auditable.rb" relevance="medium">
+          <purpose>Audit logging concern for model changes</purpose>
+          <integration>Used for manual override audit trail</integration>
+        </file>
+
+        <file path="config/insurance_glossary.yml" relevance="medium">
+          <purpose>Plain language insurance term definitions</purpose>
+          <terms>deductible, out_of_pocket_max, coinsurance</terms>
+          <note>Reference for user-friendly explanations</note>
+        </file>
+      </existingFiles>
+
+      <newFiles>
+        <file path="app/services/billing/deductible_tracker.rb">
+          <purpose>Core service for deductible and OOP tracking logic</purpose>
+          <methods>
+            <method>current_status: Returns complete deductible status hash</method>
+            <method>sessions_until_deductible_met: Projection calculation</method>
+            <method>progress_percentage: Visual indicator data (0-100)</method>
+            <method>plan_year_reset_date: Next reset date</method>
+          </methods>
+        </file>
+
+        <file path="app/graphql/types/deductible_status_type.rb">
+          <purpose>GraphQL type for detailed deductible tracking</purpose>
+          <fields>All fields per AC requirements and task 1</fields>
+        </file>
+
+        <file path="app/graphql/mutations/billing/update_deductible_override.rb">
+          <purpose>Mutation for manual deductible data override</purpose>
+          <arguments>sessionId, deductible_met, oop_met, override_reason</arguments>
+        </file>
+
+        <file path="config/session_rates.yml">
+          <purpose>Configuration for default session costs</purpose>
+          <structure>
+            rates:
+              intake: 150
+              individual_therapy: 100
+              family_therapy: 125
+          </structure>
+        </file>
+
+        <file path="config/initializers/session_rates.rb">
+          <purpose>Load session rates configuration</purpose>
+        </file>
+
+        <file path="spec/services/billing/deductible_tracker_spec.rb">
+          <purpose>Unit tests for DeductibleTracker service</purpose>
+        </file>
+
+        <file path="spec/graphql/types/deductible_status_type_spec.rb">
+          <purpose>Unit tests for DeductibleStatusType</purpose>
+        </file>
+
+        <file path="spec/graphql/queries/deductible_status_spec.rb">
+          <purpose>Integration tests for deductibleStatus query</purpose>
+        </file>
+
+        <file path="spec/integration/deductible_tracking_spec.rb">
+          <purpose>End-to-end integration tests for deductible tracking</purpose>
+        </file>
+      </newFiles>
+    </code>
+
+    <dependencies>
+      <ruby>
+        <version>3.3.x</version>
+        <gem name="rails" version="~> 7.2.3">Rails framework with JSONB support</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL server for type definitions</gem>
+        <gem name="rspec-rails" version="~> 6.1">Testing framework</gem>
+        <gem name="factory_bot_rails" version="~> 6.4">Test fixtures</gem>
+      </ruby>
+
+      <environment>
+        <var name="SESSION_RATES_PATH">Path to session rates configuration file (optional)</var>
+      </environment>
+
+      <configuration>
+        <file>config/session_rates.yml - Session cost configuration</file>
+        <file>config/insurance_glossary.yml - Insurance term definitions (existing)</file>
+      </configuration>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Data Source: Deductible data MUST come from verification_result JSONB field</constraint>
+    <constraint>Manual Override: Manual entries MUST be audited with timestamp, user, and reason</constraint>
+    <constraint>Authorization: Only session owner can view deductible status</constraint>
+    <constraint>Graceful Degradation: Missing deductible data MUST return nil, not errors</constraint>
+    <constraint>Family Plans: MUST distinguish between individual and family deductibles/OOP max</constraint>
+    <constraint>Projection Accuracy: Session cost MUST be configurable, not hardcoded</constraint>
+    <constraint>Plan Year: MUST track and display plan year reset date for context</constraint>
+    <constraint>Progress Indicator: MUST return percentage (0-100) for visual display</constraint>
+    <constraint>Data Freshness: Deductible data MUST sync from latest eligibility check</constraint>
+    <constraint>Historical Tracking: SHOULD store deductible history for trend analysis (12 months)</constraint>
+    <constraint>Privacy: Deductible amounts are PHI-adjacent, handle with care in logging</constraint>
+    <constraint>Testing: MUST achieve 90%+ test coverage for DeductibleTracker service</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Billing::DeductibleTracker#current_status</name>
+      <kind>service_method</kind>
+      <signature>current_status -> Hash</signature>
+      <path>app/services/billing/deductible_tracker.rb</path>
+      <description>Returns complete deductible status including deductible, OOP max, progress, and projections</description>
+      <returns>
+        {
+          deductible_amount: Float,
+          deductible_met: Float,
+          deductible_remaining: Float,
+          oop_max_amount: Float,
+          oop_met: Float,
+          oop_remaining: Float,
+          is_family_plan: Boolean,
+          year_reset_date: DateTime,
+          progress_percentage: Integer,
+          sessions_until_deductible_met: Integer
+        }
+      </returns>
+    </interface>
+
+    <interface>
+      <name>Billing::DeductibleTracker#sessions_until_deductible_met</name>
+      <kind>service_method</kind>
+      <signature>sessions_until_deductible_met -> Integer</signature>
+      <path>app/services/billing/deductible_tracker.rb</path>
+      <description>Calculates number of therapy sessions until deductible is met based on session cost</description>
+    </interface>
+
+    <interface>
+      <name>Types::DeductibleStatusType</name>
+      <kind>graphql_type</kind>
+      <signature>deductible_amount, deductible_met, deductible_remaining, oop_max_amount, oop_met, oop_remaining, is_family_plan, year_reset_date, progress_percentage, sessions_until_deductible_met</signature>
+      <path>app/graphql/types/deductible_status_type.rb</path>
+      <description>GraphQL type exposing detailed deductible and OOP tracking information</description>
+    </interface>
+
+    <interface>
+      <name>Query.deductibleStatus</name>
+      <kind>graphql_query</kind>
+      <signature>deductibleStatus(sessionId: ID!): DeductibleStatus</signature>
+      <path>app/graphql/types/query_type.rb</path>
+      <description>GraphQL query to retrieve deductible status for a session's insurance</description>
+    </interface>
+
+    <interface>
+      <name>Mutations::Billing::UpdateDeductibleOverride</name>
+      <kind>graphql_mutation</kind>
+      <signature>updateDeductibleOverride(sessionId: ID!, deductibleMet: Float, oopMet: Float, overrideReason: String): Insurance</signature>
+      <path>app/graphql/mutations/billing/update_deductible_override.rb</path>
+      <description>Mutation to manually override deductible data with audit trail</description>
+    </interface>
+
+    <interface>
+      <name>Insurance#out_of_pocket_max_amount</name>
+      <kind>model_method</kind>
+      <signature>out_of_pocket_max_amount -> Float</signature>
+      <path>app/models/insurance.rb</path>
+      <description>Returns OOP max amount from verification_result</description>
+    </interface>
+
+    <interface>
+      <name>Insurance#is_family_plan?</name>
+      <kind>model_method</kind>
+      <signature>is_family_plan? -> Boolean</signature>
+      <path>app/models/insurance.rb</path>
+      <description>Determines if plan is family vs individual based on verification data</description>
+    </interface>
+
+    <interface>
+      <name>Insurance#plan_year_reset_date</name>
+      <kind>model_method</kind>
+      <signature>plan_year_reset_date -> Date</signature>
+      <path>app/models/insurance.rb</path>
+      <description>Returns next plan year reset date based on plan year cycle</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Rails project uses RSpec for testing with Factory Bot for fixtures and Shoulda Matchers for model testing. Test structure follows Rails conventions with spec/models/, spec/services/, spec/graphql/, and spec/integration/ directories. Service layer tests focus on business logic with mocked dependencies. GraphQL tests verify type definitions, query authorization, and data transformation. Integration tests cover full flow from eligibility data through tracking service to GraphQL response. Test coverage target: 90%+ for all new code, especially DeductibleTracker service.
+    </standards>
+
+    <locations>
+      <location>spec/services/billing/deductible_tracker_spec.rb</location>
+      <location>spec/graphql/types/deductible_status_type_spec.rb</location>
+      <location>spec/graphql/queries/deductible_status_spec.rb</location>
+      <location>spec/graphql/mutations/billing/update_deductible_override_spec.rb</location>
+      <location>spec/models/insurance_spec.rb (add new method tests)</location>
+      <location>spec/integration/deductible_tracking_spec.rb</location>
+      <location>spec/factories/insurances.rb (add deductible scenarios)</location>
+    </locations>
+
+    <ideas>
+      <idea acceptance_criteria="AC1">Test deductible status query returns met and remaining amounts for active insurance</idea>
+      <idea acceptance_criteria="AC1">Test deductible calculation: remaining = amount - met</idea>
+      <idea acceptance_criteria="AC2">Test OOP max tracking returns spent and remaining amounts</idea>
+      <idea acceptance_criteria="AC2">Test OOP calculation handles missing OOP max data (nil)</idea>
+      <idea acceptance_criteria="AC3">Test family plan detection from verification_result (family_deductible field)</idea>
+      <idea acceptance_criteria="AC3">Test individual plan detection (no family indicators)</idea>
+      <idea acceptance_criteria="AC4">Test session projection: deductible_remaining $300 / session_cost $100 = 3 sessions</idea>
+      <idea acceptance_criteria="AC4">Test projection rounds up (e.g., 2.3 sessions -> 3 sessions)</idea>
+      <idea acceptance_criteria="AC4">Test projection when deductible already met (returns 0)</idea>
+      <idea acceptance_criteria="AC5">Test progress percentage calculation: (met / amount) * 100</idea>
+      <idea acceptance_criteria="AC5">Test year reset date extraction from plan_year_start in verification_result</idea>
+      <idea acceptance_criteria="AC5">Test default to Jan 1 if plan year not specified</idea>
+      <idea acceptance_criteria="AC6">Test manual override stores timestamp and reason in verification_result</idea>
+      <idea acceptance_criteria="AC6">Test manual override takes precedence over API data</idea>
+      <idea acceptance_criteria="AC6">Test audit log created on manual override (DEDUCTIBLE_OVERRIDE action)</idea>
+      <idea>Test deductible_history snapshots stored on each eligibility check</idea>
+      <idea>Test historical snapshots limited to 12 months</idea>
+      <idea>Test authorization: only session owner can query deductibleStatus</idea>
+      <idea>Test unauthorized access returns FORBIDDEN error</idea>
+      <idea>Test query with unverified insurance returns clear error</idea>
+      <idea>Test graceful handling of missing deductible data (returns nil fields, no error)</idea>
+      <idea>Integration test: full flow from verified insurance -> deductibleStatus query with all fields</idea>
+      <idea>Integration test: manual override flow with audit verification</idea>
+    </ideas>
+  </tests>
+
+  <dataStructures>
+    <structure name="verification_result.coverage.deductible">
+      <description>Deductible data structure in verification_result JSONB</description>
+      <example>
+        {
+          "amount": 500.00,
+          "met": 100.00,
+          "remaining": 400.00,
+          "type": "individual",
+          "plan_year_start": "2025-01-01"
+        }
+      </example>
+    </structure>
+
+    <structure name="verification_result.coverage.family_deductible">
+      <description>Family deductible data (if applicable)</description>
+      <example>
+        {
+          "amount": 1000.00,
+          "met": 300.00,
+          "remaining": 700.00,
+          "type": "family"
+        }
+      </example>
+    </structure>
+
+    <structure name="verification_result.coverage.out_of_pocket_max">
+      <description>Out-of-pocket maximum data structure</description>
+      <example>
+        {
+          "amount": 3000.00,
+          "met": 500.00,
+          "remaining": 2500.00,
+          "type": "individual"
+        }
+      </example>
+    </structure>
+
+    <structure name="verification_result.deductible_override">
+      <description>Manual override data with audit trail</description>
+      <example>
+        {
+          "deductible_met": 150.00,
+          "oop_met": 200.00,
+          "override_timestamp": "2025-11-30T10:00:00Z",
+          "override_by": "admin_user_id",
+          "override_reason": "Patient provided updated EOB",
+          "source": "manual"
+        }
+      </example>
+    </structure>
+
+    <structure name="verification_result.deductible_history">
+      <description>Historical deductible snapshots for trend tracking</description>
+      <example>
+        [
+          {
+            "timestamp": "2025-11-01T00:00:00Z",
+            "deductible_met": 50.00,
+            "oop_met": 75.00,
+            "source": "eligibility_api"
+          },
+          {
+            "timestamp": "2025-11-15T00:00:00Z",
+            "deductible_met": 100.00,
+            "oop_met": 125.00,
+            "source": "eligibility_api"
+          }
+        ]
+      </example>
+    </structure>
+
+    <structure name="config/session_rates.yml">
+      <description>Session cost configuration for projections</description>
+      <example>
+        rates:
+          intake: 150
+          individual_therapy: 100
+          family_therapy: 125
+        default: individual_therapy
+      </example>
+    </structure>
+  </dataStructures>
+
+  <relatedStories>
+    <story id="6.1" relationship="prerequisite">
+      <title>Cost Calculation Engine</title>
+      <relevance>Provides session cost rates needed for deductible projections</relevance>
+    </story>
+
+    <story id="6.2" relationship="prerequisite">
+      <title>Insurance Cost Estimation</title>
+      <relevance>Establishes coverage details and eligibility data foundation</relevance>
+    </story>
+
+    <story id="4.4" relationship="data-source">
+      <title>Real-Time Eligibility Verification</title>
+      <relevance>Source of deductible and OOP data via eligibility API</relevance>
+    </story>
+
+    <story id="6.5" relationship="sibling">
+      <title>Payment Plan Options</title>
+      <relevance>Uses deductible projections to inform payment plan calculations</relevance>
+    </story>
+  </relatedStories>
+
+  <businessLogic>
+    <rule name="Deductible Met Calculation">
+      <description>Calculate amount remaining on deductible</description>
+      <formula>remaining = deductible_amount - deductible_met</formula>
+      <constraint>remaining cannot be negative (min 0)</constraint>
+    </rule>
+
+    <rule name="Session Projection">
+      <description>Estimate sessions until deductible met</description>
+      <formula>sessions = CEILING(deductible_remaining / session_cost)</formula>
+      <constraint>If deductible_met >= deductible_amount, return 0</constraint>
+      <constraint>If session_cost not available, return nil</constraint>
+    </rule>
+
+    <rule name="Progress Percentage">
+      <description>Visual progress indicator calculation</description>
+      <formula>progress = (deductible_met / deductible_amount) * 100</formula>
+      <constraint>Clamp to 0-100 range</constraint>
+      <constraint>Return 0 if deductible_amount is 0</constraint>
+    </rule>
+
+    <rule name="Plan Year Reset Date">
+      <description>Calculate next plan year reset</description>
+      <logic>
+        1. Extract plan_year_start from verification_result
+        2. If calendar year (Jan 1), return next Jan 1
+        3. If policy anniversary, calculate from effective_date
+        4. Default to Jan 1 if not specified
+      </logic>
+    </rule>
+
+    <rule name="Manual Override Precedence">
+      <description>Manual overrides take precedence over API data</description>
+      <logic>
+        1. Check for deductible_override in verification_result
+        2. If exists and recent (within plan year), use override values
+        3. Otherwise, use API data from coverage.deductible
+        4. Always log which source is being used
+      </logic>
+    </rule>
+
+    <rule name="Family vs Individual Detection">
+      <description>Determine if plan is family or individual</description>
+      <logic>
+        1. Check for family_deductible field in verification_result
+        2. Check for member_count > 1 or has_dependents flag
+        3. If family_deductible exists, use family amounts
+        4. Otherwise, use individual deductible amounts
+        5. Set is_family_plan flag accordingly
+      </logic>
+    </rule>
+  </businessLogic>
+</story-context>

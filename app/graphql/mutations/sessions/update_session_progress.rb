@@ -78,6 +78,9 @@ module Mutations
         merger = ::Sessions::ProgressMerger.new(session, progress)
         merged_progress = merger.call
 
+        # Calculate progress indicators before update (for subscription)
+        progress_before = Conversation::ProgressService.new(session).calculate
+
         # Update session
         session.transaction do
           # Auto-transition to in_progress on first update
@@ -86,16 +89,34 @@ module Mutations
           # Update progress and extend expiration
           session.progress = merged_progress
           session.extend_expiration
+
+          # AC7: Track last percentage for monotonic progress enforcement
+          # This is recalculated by ProgressService but stored for reference
+          session.progress['last_percentage'] = progress_before[:percentage]
+
           session.save!
 
-          # Write to cache
+          # AC7: Invalidate progress cache when session data changes
+          Conversation::ProgressService.invalidate_cache(session)
+
+          # Calculate new progress after update (will recalculate and re-cache)
+          progress_after = Conversation::ProgressService.new(session).calculate
+
+          # Write session progress to cache
           cache_session_progress(session)
 
-          # Trigger subscription
+          # Trigger sessionUpdated subscription
           DaybreakHealthBackendSchema.subscriptions.trigger(
             'sessionUpdated',
             { session_id: session.id.to_s },
             session
+          )
+
+          # AC6: Trigger progressUpdated subscription with new progress data
+          DaybreakHealthBackendSchema.subscriptions.trigger(
+            'progressUpdated',
+            { session_id: session.id.to_s },
+            progress_after
           )
         end
 

@@ -1,0 +1,625 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <metadata>
+    <story-id>5-3-ai-matching-algorithm</story-id>
+    <story-title>AI Matching Algorithm</story-title>
+    <epic-id>5</epic-id>
+    <epic-title>Enhanced Scheduling Module</epic-title>
+    <created-date>2025-11-30</created-date>
+    <prerequisites>
+      <prerequisite>Story 5.1 - Therapist Data Model &amp; Profiles</prerequisite>
+      <prerequisite>Story 5.2 - Availability Management</prerequisite>
+      <prerequisite>Epic 3 - Conversational AI Intake (child data collection)</prerequisite>
+    </prerequisites>
+  </metadata>
+
+  <story-definition>
+    <user-story>
+      As the **system**,
+      I want **to analyze child assessment data and recommend matching therapists**,
+      So that **parents receive personalized therapist suggestions**.
+    </user-story>
+
+    <acceptance-criteria>
+      <criterion id="AC1">
+        <description>AI analyzes: child age, concerns, assessment scores, insurance</description>
+      </criterion>
+      <criterion id="AC2">
+        <description>Matching factors weighted:
+  - Specialization match to child's concerns (high weight)
+  - Age range fit (high weight)
+  - Insurance acceptance (required filter)
+  - Availability within 2 weeks (preferred)
+  - Treatment modality fit</description>
+      </criterion>
+      <criterion id="AC3">
+        <description>Returns ranked list of therapists with match scores</description>
+      </criterion>
+      <criterion id="AC4">
+        <description>Match reasoning explained for each recommendation</description>
+      </criterion>
+      <criterion id="AC5">
+        <description>Minimum 3 recommendations when possible</description>
+      </criterion>
+      <criterion id="AC6">
+        <description>Matching completes within 3 seconds</description>
+      </criterion>
+      <criterion id="AC7">
+        <description>Match scores are explainable to parents</description>
+      </criterion>
+    </acceptance-criteria>
+
+    <technical-notes>
+      <note>MatchingService in app/services/scheduling/</note>
+      <note>Use LLM for semantic matching of concerns to specializations</note>
+      <note>Cache therapist profiles for performance</note>
+      <note>Store match results for analytics</note>
+    </technical-notes>
+  </story-definition>
+
+  <domain-context>
+    <prd-reference>
+      <section>Epic 5: Enhanced Scheduling Module (P0)</section>
+      <requirement>Story 5.3: AI Matching Algorithm</requirement>
+      <excerpt>
+The system analyzes child assessment data and recommends matching therapists based on:
+- Specialization match to child's concerns (high weight)
+- Age range fit (high weight)
+- Insurance acceptance (required filter)
+- Availability within 2 weeks (preferred)
+- Treatment modality fit
+
+The AI uses LLM for semantic matching of concerns to specializations, caching therapist
+profiles for performance, and storing match results for analytics.
+      </excerpt>
+    </prd-reference>
+
+    <epic-reference>
+      <goal>Enable AI-assisted therapist matching based on child's needs and assessment data, allowing parents to see recommended therapists and book appointments.</goal>
+      <user-value>Parents are matched with the most appropriate therapist for their child's specific needs, reducing time to first appointment.</user-value>
+      <priority>P0 (Must-have)</priority>
+    </epic-reference>
+
+    <functional-requirements>
+      <requirement id="FR26">System administers standardized screening questions conversationally</requirement>
+      <requirement id="FR27">System adapts assessment depth based on initial responses</requirement>
+      <requirement id="FR30">System generates assessment summary for clinical review</requirement>
+    </functional-requirements>
+  </domain-context>
+
+  <architecture-context>
+    <design-patterns>
+      <pattern name="Service Layer Pattern">
+        <description>Business logic encapsulated in service classes under app/services/</description>
+        <application>MatchingService will contain all matching algorithm logic</application>
+      </pattern>
+      <pattern name="AI Provider Pattern (ADR-002)">
+        <description>Agnostic AI provider interface for LLM operations</description>
+        <application>Use Ai::Client for semantic matching of concerns to specializations</application>
+      </pattern>
+      <pattern name="Caching Pattern">
+        <description>Cache expensive operations using Rails.cache (Redis backend)</description>
+        <application>Cache therapist profiles and matching results for performance</application>
+      </pattern>
+    </design-patterns>
+
+    <data-models>
+      <model name="Therapist">
+        <location>To be created in Story 5.1</location>
+        <fields>
+          <field>name - Therapist full name</field>
+          <field>credentials - License type, number, state, expiration</field>
+          <field>specializations[] - Array of specializations (anxiety, depression, ADHD, trauma, behavioral issues, etc.)</field>
+          <field>age_ranges[] - Age ranges served</field>
+          <field>treatment_modalities[] - Treatment approaches</field>
+          <field>bio - Therapist biography</field>
+          <field>photo_url - Profile photo URL</field>
+          <field>active - Active/inactive status</field>
+          <field>languages - Languages spoken</field>
+          <field>insurance_panels - Insurance panels accepted</field>
+        </fields>
+      </model>
+
+      <model name="TherapistAvailability">
+        <location>To be created in Story 5.2</location>
+        <fields>
+          <field>therapist_id - Foreign key to Therapist</field>
+          <field>day_of_week - 0-6 (Sunday-Saturday)</field>
+          <field>start_time - Time slot start</field>
+          <field>end_time - Time slot end</field>
+          <field>timezone - Therapist timezone</field>
+        </fields>
+      </model>
+
+      <model name="Child">
+        <location>app/models/child.rb</location>
+        <relevant-fields>
+          <field>first_name - Child's first name (encrypted PHI)</field>
+          <field>last_name - Child's last name (encrypted PHI)</field>
+          <field>date_of_birth - Date of birth (encrypted PHI)</field>
+          <field>primary_concerns - Parent's primary concerns (encrypted PHI)</field>
+          <field>medical_history - Medical history JSON (encrypted PHI)</field>
+          <field>onboarding_session_id - Link to session</field>
+        </relevant-fields>
+        <methods>
+          <method>age - Calculates age from date_of_birth</method>
+          <method>parsed_medical_history - Returns medical history as Hash</method>
+        </methods>
+      </model>
+
+      <model name="OnboardingSession">
+        <location>app/models/onboarding_session.rb</location>
+        <relevant-fields>
+          <field>progress - JSONB with assessment data and collected information</field>
+          <field>status - Session status (assessment_complete for matching)</field>
+        </relevant-fields>
+      </model>
+
+      <model name="Insurance">
+        <location>app/models/insurance.rb</location>
+        <relevant-fields>
+          <field>payer_name - Insurance payer name</field>
+          <field>verification_status - Eligibility verification status</field>
+          <field>verification_result - JSONB with coverage details</field>
+        </relevant-fields>
+      </model>
+
+      <model name="Assessment">
+        <location>app/models/assessment.rb</location>
+        <relevant-fields>
+          <field>assessment_data - JSONB with screening responses</field>
+          <field>scores - Calculated assessment scores</field>
+        </relevant-fields>
+      </model>
+    </data-models>
+
+    <existing-services>
+      <service name="Ai::Client">
+        <location>app/services/ai/client.rb</location>
+        <purpose>Main AI client service with provider selection logic</purpose>
+        <methods>
+          <method signature="chat(messages:, context: {})">Non-streaming chat completion</method>
+          <method signature="stream(messages:, context: {}, &amp;block)">Streaming chat completion</method>
+        </methods>
+        <usage>Use for semantic matching of child concerns to therapist specializations</usage>
+      </service>
+
+      <service name="Ai::ContextManager">
+        <location>app/services/ai/context_manager.rb</location>
+        <purpose>Manages conversation state and field collection</purpose>
+        <relevant-methods>
+          <method>collected_fields - Get list of collected field names</method>
+          <method>session_progress - Get session progress summary</method>
+        </relevant-methods>
+      </service>
+    </existing-services>
+
+    <technology-stack>
+      <backend>Ruby on Rails 7.x API-only mode</backend>
+      <database>PostgreSQL 16.x with JSONB support</database>
+      <cache>Redis 7.x via Rails.cache</cache>
+      <ai-provider>Anthropic Claude (primary), OpenAI (fallback)</ai-provider>
+      <background-jobs>Sidekiq for async processing</background-jobs>
+    </technology-stack>
+  </architecture-context>
+
+  <test-data-context>
+    <test-data-files>
+      <file name="clinicians_anonymized.csv">
+        <location>docs/test-cases/clinicians_anonymized.csv</location>
+        <purpose>Therapist profiles, credentials, specializations</purpose>
+        <structure>
+          <column>id - Therapist UUID</column>
+          <column>first_name, last_name - Therapist name</column>
+          <column>profile_data - JSON with bio, specialties, modalities, ethnicity</column>
+          <column>specialties - Array of specializations</column>
+          <column>care_languages - Languages spoken</column>
+          <column>states_active - Licensed states</column>
+          <column>capacity_total - Total patient capacity</column>
+          <column>capacity_available - Available slots</column>
+        </structure>
+        <sample-specializations>
+          <specialization>anxiety</specialization>
+          <specialization>depression</specialization>
+          <specialization>ADHD</specialization>
+          <specialization>trauma</specialization>
+          <specialization>behavioral issues</specialization>
+        </sample-specializations>
+      </file>
+
+      <file name="clinician_availabilities.csv">
+        <location>docs/test-cases/clinician_availabilities.csv</location>
+        <purpose>Therapist availability slots</purpose>
+        <structure>
+          <column>user_id - Therapist ID (links to clinicians_anonymized.csv)</column>
+          <column>day_of_week - 0-6 (Sunday-Saturday)</column>
+          <column>range_start - Slot start time (UTC)</column>
+          <column>range_end - Slot end time (UTC)</column>
+          <column>timezone - Therapist timezone (e.g., America/Los_Angeles)</column>
+          <column>is_repeating - Whether slot repeats weekly</column>
+        </structure>
+      </file>
+
+      <file name="clinician_credentialed_insurances.csv">
+        <location>docs/test-cases/clinician_credentialed_insurances.csv</location>
+        <purpose>Which insurances each therapist accepts</purpose>
+        <structure>
+          <column>care_provider_profile_id - Therapist ID</column>
+          <column>credentialed_insurance_id - Insurance plan ID</column>
+        </structure>
+        <usage>Join with credentialed_insurances.csv to get insurance panel details</usage>
+      </file>
+
+      <file name="credentialed_insurances.csv">
+        <location>docs/test-cases/credentialed_insurances.csv</location>
+        <purpose>Insurance payer/network definitions</purpose>
+        <structure>
+          <column>id - Insurance plan UUID</column>
+          <column>name - Payer name (e.g., "Anthem Blue Cross CA", "Kaiser SoCal")</column>
+        </structure>
+      </file>
+    </test-data-files>
+
+    <test-scenarios>
+      <scenario name="Perfect Match">
+        <description>Child with anxiety concerns matched to therapist specializing in anxiety</description>
+        <setup>
+          - Child age: 10
+          - Concerns: "anxiety, social anxiety"
+          - Insurance: Anthem Blue Cross CA
+          - Available therapists with anxiety specialization and Anthem acceptance
+        </setup>
+        <expected>Top match has high score (90+), anxiety specialization, accepts Anthem</expected>
+      </scenario>
+
+      <scenario name="Multiple Specializations">
+        <description>Child with ADHD and anxiety matched to therapist with both</description>
+        <setup>
+          - Child age: 12
+          - Concerns: "ADHD, trouble focusing, anxiety about school"
+          - Insurance: Kaiser SoCal
+          - Therapists with varying specialization overlaps
+        </setup>
+        <expected>Therapist with both ADHD and anxiety specializations ranks highest</expected>
+      </scenario>
+
+      <scenario name="Age Range Filtering">
+        <description>Teenage child only matched to therapists serving teens</description>
+        <setup>
+          - Child age: 16
+          - Concerns: "depression, self-harm thoughts"
+          - Insurance: Verified
+          - Mix of therapists with different age ranges
+        </setup>
+        <expected>Only therapists with age_range including 16 are returned</expected>
+      </scenario>
+
+      <scenario name="Insurance Filtering">
+        <description>Only therapists accepting child's insurance are matched</description>
+        <setup>
+          - Child age: 8
+          - Concerns: "behavioral issues"
+          - Insurance: Molina California
+          - Mix of therapists with different insurance panels
+        </setup>
+        <expected>All returned therapists accept Molina California</expected>
+      </scenario>
+
+      <scenario name="Availability Weighting">
+        <description>Therapists with sooner availability rank higher</description>
+        <setup>
+          - Child age: 14
+          - Concerns: "anxiety"
+          - Insurance: Aetna
+          - Therapists with availability in 1 day vs 10 days vs 20 days
+        </setup>
+        <expected>Therapist available within 2 weeks ranks higher than 20+ days out</expected>
+      </scenario>
+
+      <scenario name="Minimum 3 Recommendations">
+        <description>System returns at least 3 matches when available</description>
+        <setup>
+          - Child age: 11
+          - Concerns: "depression"
+          - Insurance: Blue Shield California
+          - 5+ therapists matching criteria
+        </setup>
+        <expected>Exactly 3 therapist recommendations returned</expected>
+      </scenario>
+
+      <scenario name="Semantic Matching">
+        <description>AI understands synonym concerns (e.g., "sad" → depression)</description>
+        <setup>
+          - Child age: 9
+          - Concerns: "feels really sad all the time, no energy"
+          - Insurance: Verified
+          - Therapists with depression specialization
+        </setup>
+        <expected>Depression specialists matched despite "sad" vs "depression" wording</expected>
+      </scenario>
+    </test-scenarios>
+  </test-data-context>
+
+  <implementation-context>
+    <service-structure>
+      <service-class name="Scheduling::MatchingService">
+        <location>app/services/scheduling/matching_service.rb</location>
+        <responsibility>Core matching algorithm logic</responsibility>
+        <methods>
+          <method name="match">
+            <signature>match(session_id:)</signature>
+            <description>Main matching method - analyzes session data and returns ranked therapist matches</description>
+            <returns>Array of TherapistMatch objects with scores and reasoning</returns>
+          </method>
+          <method name="extract_matching_criteria">
+            <signature>extract_matching_criteria(session)</signature>
+            <description>Extracts child age, concerns, insurance, assessment data from session</description>
+            <returns>Hash with matching criteria</returns>
+          </method>
+          <method name="filter_by_insurance">
+            <signature>filter_by_insurance(therapists, insurance_payer)</signature>
+            <description>Hard filter - removes therapists not accepting insurance</description>
+            <returns>Filtered therapist array</returns>
+          </method>
+          <method name="filter_by_age_range">
+            <signature>filter_by_age_range(therapists, child_age)</signature>
+            <description>Hard filter - removes therapists not serving child's age</description>
+            <returns>Filtered therapist array</returns>
+          </method>
+          <method name="score_therapists">
+            <signature>score_therapists(therapists, criteria)</signature>
+            <description>Calculates match scores for each therapist</description>
+            <returns>Array of TherapistMatch objects with scores</returns>
+          </method>
+          <method name="semantic_specialization_match">
+            <signature>semantic_specialization_match(concerns, specializations)</signature>
+            <description>Uses AI to match concerns to specializations semantically</description>
+            <returns>Float score 0.0-1.0</returns>
+          </method>
+          <method name="availability_score">
+            <signature>availability_score(therapist)</signature>
+            <description>Scores based on next available appointment date</description>
+            <returns>Float score 0.0-1.0 (1.0 = within 2 weeks)</returns>
+          </method>
+          <method name="calculate_final_score">
+            <signature>calculate_final_score(component_scores)</signature>
+            <description>Weighted combination of all scoring components</description>
+            <returns>Float score 0-100</returns>
+          </method>
+          <method name="generate_match_reasoning">
+            <signature>generate_match_reasoning(therapist, scores, criteria)</signature>
+            <description>Explains why therapist was matched (for AC4, AC7)</description>
+            <returns>String explanation</returns>
+          </method>
+        </methods>
+        <scoring-weights>
+          <weight component="specialization_match">0.40 (40%)</weight>
+          <weight component="age_range_fit">0.30 (30%)</weight>
+          <weight component="availability">0.20 (20%)</weight>
+          <weight component="treatment_modality">0.10 (10%)</weight>
+        </scoring-weights>
+      </service-class>
+
+      <value-object name="TherapistMatch">
+        <location>app/services/scheduling/therapist_match.rb</location>
+        <attributes>
+          <attribute>therapist - Therapist model instance</attribute>
+          <attribute>score - Float 0-100 overall match score</attribute>
+          <attribute>component_scores - Hash of individual scoring components</attribute>
+          <attribute>reasoning - String explanation of match</attribute>
+          <attribute>next_availability - Date of next available slot</attribute>
+        </attributes>
+      </value-object>
+    </service-structure>
+
+    <caching-strategy>
+      <cache-key pattern="therapist_profiles_all">
+        <ttl>1 hour</ttl>
+        <invalidation>On therapist profile update</invalidation>
+        <purpose>Cache all active therapist profiles to avoid repeated DB queries</purpose>
+      </cache-key>
+      <cache-key pattern="therapist_availability_{therapist_id}">
+        <ttl>15 minutes</ttl>
+        <invalidation>On availability update</invalidation>
+        <purpose>Cache therapist availability calculations</purpose>
+      </cache-key>
+      <cache-key pattern="therapist_insurances_{therapist_id}">
+        <ttl>1 hour</ttl>
+        <invalidation>On insurance panel update</invalidation>
+        <purpose>Cache therapist insurance acceptance</purpose>
+      </cache-key>
+      <cache-key pattern="match_result_{session_id}">
+        <ttl>10 minutes</ttl>
+        <invalidation>On session assessment update</invalidation>
+        <purpose>Cache match results for same session (avoid re-matching on page refresh)</purpose>
+      </cache-key>
+    </caching-strategy>
+
+    <ai-integration>
+      <semantic-matching-prompt>
+        <purpose>Match child concerns to therapist specializations using semantic understanding</purpose>
+        <input>
+          <field>child_concerns - Parent's description of concerns</field>
+          <field>therapist_specializations - Array of specializations</field>
+        </input>
+        <output>Match score 0.0-1.0 indicating semantic similarity</output>
+        <example>
+          Input: "My child is very sad and has no energy" + ["depression", "anxiety"]
+          Output: { depression: 0.9, anxiety: 0.5 }
+          Reasoning: "Sadness and low energy are core depression symptoms"
+        </example>
+      </semantic-matching-prompt>
+
+      <provider-configuration>
+        <primary>Anthropic Claude (via Ai::Client)</primary>
+        <model>claude-3-haiku for fast semantic matching</model>
+        <timeout>2 seconds (to meet AC6 3-second total requirement)</timeout>
+        <retry>Sidekiq exponential backoff on rate limits</retry>
+      </provider-configuration>
+    </ai-integration>
+
+    <analytics-storage>
+      <match-results-table>
+        <purpose>Store match results for analytics and improvement</purpose>
+        <schema>
+          <column>id - UUID</column>
+          <column>onboarding_session_id - Session FK</column>
+          <column>matched_therapists - JSONB array of TherapistMatch data</column>
+          <column>criteria_used - JSONB of matching criteria</column>
+          <column>processing_time_ms - Integer matching duration</column>
+          <column>selected_therapist_id - Which therapist parent chose (nullable)</column>
+          <column>created_at - Timestamp</column>
+        </schema>
+        <analytics-queries>
+          <query>Which specializations are most commonly matched?</query>
+          <query>What is average match score for selected vs. non-selected therapists?</query>
+          <query>Are parents choosing highest-scored matches or preferring other factors?</query>
+          <query>What is p95/p99 matching performance time?</query>
+        </analytics-queries>
+      </match-results-table>
+    </analytics-storage>
+
+    <performance-requirements>
+      <requirement id="PERF-1">
+        <description>Matching completes within 3 seconds (AC6)</description>
+        <strategy>
+          - Cache therapist profiles (avoid N+1 queries)
+          - Parallel AI semantic matching for top candidates
+          - Index database queries on therapist filters
+        </strategy>
+      </requirement>
+      <requirement id="PERF-2">
+        <description>Scale to 100 concurrent matching requests</description>
+        <strategy>
+          - Stateless matching service (no instance variables)
+          - Redis cache for profile data
+          - Database connection pooling
+        </strategy>
+      </requirement>
+    </performance-requirements>
+  </implementation-context>
+
+  <integration-points>
+    <upstream-dependencies>
+      <dependency>Story 5.1 - Therapist model and data seeding</dependency>
+      <dependency>Story 5.2 - TherapistAvailability model and availability calculation</dependency>
+      <dependency>Epic 3 - Child model with concerns and medical history</dependency>
+      <dependency>Epic 4 - Insurance model with payer verification</dependency>
+    </upstream-dependencies>
+
+    <downstream-consumers>
+      <consumer>Story 5.4 - Matching Recommendations API (GraphQL query)</consumer>
+      <consumer>Story 5.5 - Booking &amp; Confirmation (selected therapist)</consumer>
+    </downstream-consumers>
+
+    <external-services>
+      <service name="Anthropic Claude API">
+        <purpose>Semantic matching of concerns to specializations</purpose>
+        <rate-limits>Handled by Ai::Client with Sidekiq retry</rate-limits>
+        <error-handling>Graceful degradation to keyword matching on API failure</error-handling>
+      </service>
+    </external-services>
+  </integration-points>
+
+  <validation-criteria>
+    <validation id="V1">
+      <description>All tests pass with >95% code coverage for MatchingService</description>
+    </validation>
+    <validation id="V2">
+      <description>Matching returns results in &lt;3 seconds for p95 of requests</description>
+    </validation>
+    <validation id="V3">
+      <description>Semantic matching correctly identifies depression from "sad", anxiety from "worried"</description>
+    </validation>
+    <validation id="V4">
+      <description>Insurance filtering never returns therapists not accepting child's insurance</description>
+    </validation>
+    <validation id="V5">
+      <description>Age filtering never returns therapists outside child's age range</description>
+    </validation>
+    <validation id="V6">
+      <description>Match reasoning is clear, non-technical, parent-friendly language</description>
+    </validation>
+    <validation id="V7">
+      <description>Cache hit rate >80% for repeated matching requests on same session</description>
+    </validation>
+    <validation id="V8">
+      <description>Minimum 3 recommendations returned when 3+ therapists match criteria</description>
+    </validation>
+  </validation-criteria>
+
+  <references>
+    <document>
+      <name>Product Requirements Document (PRD)</name>
+      <location>docs/prd.md</location>
+      <relevant-sections>
+        <section>Epic 5: Enhanced Scheduling Module (P0)</section>
+        <section>Story 5.3: AI Matching Algorithm</section>
+      </relevant-sections>
+    </document>
+    <document>
+      <name>Epic Breakdown</name>
+      <location>docs/epics.md</location>
+      <relevant-sections>
+        <section>Epic 5 Stories 5.1-5.3</section>
+      </relevant-sections>
+    </document>
+    <document>
+      <name>Existing AI Services</name>
+      <location>app/services/ai/</location>
+      <files>
+        <file>client.rb - Main AI client</file>
+        <file>context_manager.rb - Conversation state management</file>
+        <file>providers/anthropic_provider.rb - Anthropic integration</file>
+      </files>
+    </document>
+    <document>
+      <name>Test Data Files</name>
+      <location>docs/test-cases/</location>
+      <files>
+        <file>clinicians_anonymized.csv - Therapist profiles</file>
+        <file>clinician_availabilities.csv - Availability data</file>
+        <file>clinician_credentialed_insurances.csv - Insurance panels</file>
+        <file>credentialed_insurances.csv - Insurance definitions</file>
+      </files>
+    </document>
+  </references>
+
+  <risk-assessment>
+    <risk level="HIGH">
+      <description>AI semantic matching may be slow or inaccurate</description>
+      <mitigation>
+        - Use fast model (claude-3-haiku)
+        - Cache AI matching results
+        - Fallback to keyword matching if AI unavailable
+        - Comprehensive test coverage for edge cases
+      </mitigation>
+    </risk>
+    <risk level="MEDIUM">
+      <description>Matching algorithm may exhibit bias toward certain specializations</description>
+      <mitigation>
+        - Store match results for analytics review
+        - Monitor match score distributions
+        - A/B test weighting factors
+        - Clinical review of recommendations
+      </mitigation>
+    </risk>
+    <risk level="MEDIUM">
+      <description>Performance may degrade with large therapist pool (1000+ therapists)</description>
+      <mitigation>
+        - Aggressive caching of therapist profiles
+        - Database indexes on filter columns
+        - Limit initial candidate pool before detailed scoring
+        - Monitor p95/p99 performance metrics
+      </mitigation>
+    </risk>
+    <risk level="LOW">
+      <description>Availability data may become stale between matching and booking</description>
+      <mitigation>
+        - Short cache TTL on availability (15 minutes)
+        - Re-verify availability before booking (Story 5.5)
+        - Optimistic locking on appointment creation
+      </mitigation>
+    </risk>
+  </risk-assessment>
+</story-context>

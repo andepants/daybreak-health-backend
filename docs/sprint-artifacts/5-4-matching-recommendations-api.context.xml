@@ -1,0 +1,592 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="5-4-matching-recommendations-api" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>4</storyId>
+    <title>Matching Recommendations API</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/epics.md#Story-5.4-Matching-Recommendations-API</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to see recommended therapists with explanations</iWant>
+    <soThat>I can make an informed choice about my child's therapist</soThat>
+
+    <tasks>
+      <task id="0" status="pending" blocking="true">
+        <title>Create Therapist and Supporting Models</title>
+        <subtasks>
+          - Create migration for therapists table (id:uuid, name, credentials, bio, photo_url, active, languages[], created_at, updated_at)
+          - Create Therapist model with associations and validations
+          - Create TherapistSpecialization join table (therapist_id, specialization)
+          - Create TherapistInsurance join table (therapist_id, payer_name)
+          - Add indexes on therapist.active, specializations, languages for filtering
+          - Create seed file using docs/test-cases/clinicians_anonymized.csv
+          - Parse specializations from profile_data JSON field
+          - Parse languages from care_languages field
+          - Parse insurance panels from docs/test-cases/clinician_credentialed_insurances.csv
+        </subtasks>
+      </task>
+
+      <task id="1" status="pending">
+        <title>Create Availability Models and Seed Data</title>
+        <subtasks>
+          - Create TherapistAvailability model (therapist_id, day_of_week, start_time, end_time, timezone)
+          - Create TherapistTimeOff model (therapist_id, date, reason)
+          - Add validations for overlapping slots
+          - Create seed file using docs/test-cases/clinician_availabilities.csv
+          - Parse timezone, range_start, range_end from CSV
+          - Support recurring weekly slots via is_repeating flag
+          - Test availability calculation with multiple therapists
+        </subtasks>
+      </task>
+
+      <task id="2" status="pending">
+        <title>Implement Availability Calculation Service</title>
+        <subtasks>
+          - Create app/services/scheduling/availability_service.rb
+          - Method: available_slots(therapist_id, date_range, duration: 50.minutes)
+          - Calculate open slots from recurring availability
+          - Subtract existing appointments (when appointment model exists)
+          - Apply time-off exclusions
+          - Handle timezone conversions for display
+          - Return array of {datetime, duration, timezone} hashes
+          - Optimize with database queries, not in-memory loops
+        </subtasks>
+      </task>
+
+      <task id="3" status="pending">
+        <title>Implement AI Matching Service</title>
+        <subtasks>
+          - Create app/services/scheduling/matching_service.rb
+          - Method: match_therapists(session_id, filters: {})
+          - Load child concerns, age, assessment data from session
+          - Load insurance payer_name if verified
+          - Build LLM prompt with child data and available therapists
+          - Use AI provider to semantically match concerns to specializations
+          - Weight factors: specialization match (40%), age range (30%), insurance (20%), availability (10%)
+          - Return array of {therapist, match_score, reasoning} hashes
+          - Minimum 3 recommendations when possible
+          - Cache therapist profiles in Redis for performance (1 hour TTL)
+        </subtasks>
+      </task>
+
+      <task id="4" status="pending">
+        <title>Create GraphQL Types for Matching</title>
+        <subtasks>
+          - Create Types::TherapistType with fields: id, name, credentials, bio, photoUrl, specializations, languages
+          - Create Types::TherapistMatchType with fields: therapist, matchScore, reasoning, nextAvailableSlots
+          - Create Types::AvailabilitySlotType with fields: datetime (ISO8601), duration (Int), timezone
+          - Add resolver for nextAvailableSlots that lazy-loads via AvailabilityService
+          - Test type definitions with RSpec
+        </subtasks>
+      </task>
+
+      <task id="5" status="pending">
+        <title>Implement therapistRecommendations Query</title>
+        <subtasks>
+          - Create Queries::Scheduling::TherapistRecommendations resolver
+          - Arguments: sessionId (required), filters (optional: gender, language, availableWithin)
+          - Validate session exists and user has access
+          - Validate onboarding is complete or insurance verified (session.insurance_pending? or assessment_complete?)
+          - Call MatchingService.match_therapists(session_id, filters)
+          - Apply filters: gender preference, language, availability window
+          - Return [TherapistMatchType!]! (empty array if no matches)
+          - Add to QueryType as field
+          - Performance target: response &lt; 2 seconds (p95)
+        </subtasks>
+      </task>
+
+      <task id="6" status="pending">
+        <title>Implement Filtering and Re-Matching</title>
+        <subtasks>
+          - Support optional filters input: { gender: String, language: String, availableWithin: String }
+          - availableWithin values: "1_week", "2_weeks", "1_month"
+          - Filter therapists by gender if specified (from profile_data.self_gender)
+          - Filter therapists by language if specified (from care_languages)
+          - Filter therapists by availability window using AvailabilityService
+          - Re-run matching with filtered set if parent requests different criteria
+          - Return empty array with clear message if no matches after filtering
+        </subtasks>
+      </task>
+
+      <task id="7" status="pending">
+        <title>Implement Caching and Performance Optimization</title>
+        <subtasks>
+          - Cache therapist profiles in Redis with 1-hour TTL
+          - Cache matching results per session_id for 15 minutes
+          - Invalidate cache when filters change
+          - Use database indexes for therapist queries (active, specializations, languages)
+          - Use connection pooling for AI provider calls
+          - Add performance monitoring for matching duration
+          - Log slow matches (> 2 seconds) for investigation
+        </subtasks>
+      </task>
+
+      <task id="8" status="pending">
+        <title>Testing</title>
+        <subtasks>
+          - Create spec/factories/therapists.rb with traits for specializations
+          - Create spec/factories/therapist_availabilities.rb
+          - Model specs for Therapist with associations and validations
+          - Model specs for TherapistAvailability with overlap validation
+          - Service specs for AvailabilityService with timezone handling
+          - Service specs for MatchingService with mock AI responses
+          - Query specs for therapistRecommendations with filters
+          - Test empty results when no matches found
+          - Test filtering by gender, language, availability
+          - Test performance: response &lt; 2 seconds
+          - Test caching behavior
+          - Integration test full matching flow from session to recommendations
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">GraphQL query returns matched therapists when onboarding is complete or insurance verified</criterion>
+    <criterion id="AC2">Each recommendation includes therapist profile (name, photo, bio, credentials)</criterion>
+    <criterion id="AC3">Each recommendation includes match score (0-100) and reasoning text</criterion>
+    <criterion id="AC4">Each recommendation includes next 3-5 available appointment slots</criterion>
+    <criterion id="AC5">Specializations relevant to child shown for each therapist</criterion>
+    <criterion id="AC6">Parent can filter by availability preference (within 1 week, 2 weeks, 1 month)</criterion>
+    <criterion id="AC7">Parent can filter by gender preference</criterion>
+    <criterion id="AC8">Parent can filter by language preference</criterion>
+    <criterion id="AC9">Parent can request re-matching with different criteria</criterion>
+    <criterion id="AC10">Recommendations personalized to session data (child age, concerns, insurance)</criterion>
+    <criterion id="AC11">Response time p95 &lt; 2 seconds</criterion>
+    <criterion id="AC12">Availability slots lazy-loaded on expansion for performance</criterion>
+    <criterion id="AC13">Minimum 3 recommendations returned when possible</criterion>
+    <criterion id="AC14">Empty array returned with clear message if no matches found</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md">Product Requirements Document - Epic 5 Enhanced Scheduling Module</doc>
+      <doc path="docs/epics.md">Epic 5: Enhanced Scheduling Module - Stories 5.1-5.4</doc>
+      <doc path="docs/test-cases/clinicians_anonymized.csv">Test data for therapist profiles with specializations</doc>
+      <doc path="docs/test-cases/clinician_availabilities.csv">Test data for therapist availability slots</doc>
+      <doc path="docs/test-cases/clinician_credentialed_insurances.csv">Test data for therapist insurance panels</doc>
+      <doc path="docs/test-cases/credentialed_insurances.csv">Insurance payer/network definitions</doc>
+    </docs>
+
+    <code>
+      <file path="app/models/onboarding_session.rb">Session model with child, parent, insurance, assessment associations</file>
+      <file path="app/models/child.rb">Child model with age calculation, concerns, medical_history</file>
+      <file path="app/models/insurance.rb">Insurance model with payer_name, verification_status</file>
+      <file path="app/models/assessment.rb">Assessment model with responses, risk_flags, summary</file>
+      <file path="app/graphql/types/query_type.rb">Existing query type - will add therapistRecommendations field</file>
+      <file path="app/services/ai/providers/anthropic_provider.rb">AI provider for semantic matching</file>
+      <file path="app/services/base_service.rb">Base service pattern for matching service</file>
+    </code>
+
+    <dependencies>
+      <dependency name="rails" version="~> 7.2.3" purpose="Framework">Already installed</dependency>
+      <dependency name="pg" version="~> 1.1" purpose="Database">Already installed</dependency>
+      <dependency name="graphql" version="~> 2.2" purpose="GraphQL API">Already installed</dependency>
+      <dependency name="redis" version="~> 5.0" purpose="Cache">Already installed</dependency>
+      <dependency name="anthropic-ruby" version="latest" purpose="AI matching">Check if installed</dependency>
+    </dependencies>
+
+    <environmentVariables>
+      <required>
+        <var name="REDIS_URL">Redis URL for caching therapist profiles and match results</var>
+        <var name="ANTHROPIC_API_KEY">Anthropic API key for semantic matching (may already exist)</var>
+      </required>
+    </environmentVariables>
+  </artifacts>
+
+  <constraints>
+    <constraint type="schema">Therapist, TherapistSpecialization, TherapistInsurance, TherapistAvailability, TherapistTimeOff tables are NEW - no existing schema</constraint>
+    <constraint type="performance">Response time must be &lt; 2 seconds (p95) per AC11</constraint>
+    <constraint type="performance">Availability slots lazy-loaded on expansion per AC12</constraint>
+    <constraint type="business">Minimum 3 recommendations when possible per AC13</constraint>
+    <constraint type="business">Empty array with clear message if no matches per AC14</constraint>
+    <constraint type="matching">Specialization match weighted at 40%, age range 30%, insurance 20%, availability 10%</constraint>
+    <constraint type="caching">Therapist profiles cached 1 hour, match results cached 15 minutes</constraint>
+    <constraint type="session">Only sessions with insurance_pending or assessment_complete status can request recommendations</constraint>
+    <constraint type="data">Use test CSV files for seeding therapist data - see docs/test-cases/</constraint>
+  </constraints>
+
+  <interfaces>
+    <graphql>
+      <query name="therapistRecommendations">
+        <arguments>
+          <arg name="sessionId" type="ID!" required="true">Onboarding session identifier</arg>
+          <arg name="filters" type="TherapistFiltersInput" required="false">Optional filters for re-matching</arg>
+        </arguments>
+        <returns>
+          <field name="matches" type="[TherapistMatchType!]!">Array of matched therapists (empty if no matches)</field>
+        </returns>
+        <errors>
+          <error code="UNAUTHENTICATED">Invalid or missing session token</error>
+          <error code="NOT_FOUND">Session not found</error>
+          <error code="VALIDATION_ERROR">Session not ready for matching (must be insurance_pending or assessment_complete)</error>
+        </errors>
+      </query>
+
+      <type name="TherapistMatchType">
+        <fields>
+          <field name="therapist" type="TherapistType!">Therapist profile information</field>
+          <field name="matchScore" type="Int!">Match score 0-100</field>
+          <field name="reasoning" type="String!">Explanation of why this therapist matches</field>
+          <field name="nextAvailableSlots" type="[AvailabilitySlotType!]!">3-5 next available appointment slots (lazy-loaded)</field>
+        </fields>
+      </type>
+
+      <type name="TherapistType">
+        <fields>
+          <field name="id" type="ID!">Therapist UUID</field>
+          <field name="name" type="String!">Full name</field>
+          <field name="credentials" type="String!">License credentials (e.g., "LCSW", "LMFT")</field>
+          <field name="bio" type="String">Therapist bio text</field>
+          <field name="photoUrl" type="String">Profile photo URL</field>
+          <field name="specializations" type="[String!]!">Array of specializations (anxiety, depression, ADHD, trauma, etc.)</field>
+          <field name="languages" type="[String!]!">Languages spoken (e.g., ["English", "Spanish"])</field>
+          <field name="ageRanges" type="[String!]!">Accepted age ranges (e.g., ["5-12", "13-18"])</field>
+        </fields>
+      </type>
+
+      <type name="AvailabilitySlotType">
+        <fields>
+          <field name="datetime" type="ISO8601DateTime!">Appointment start time in ISO8601 format</field>
+          <field name="duration" type="Int!">Appointment duration in minutes (default 50)</field>
+          <field name="timezone" type="String!">Therapist timezone (e.g., "America/Los_Angeles")</field>
+        </fields>
+      </type>
+
+      <input name="TherapistFiltersInput">
+        <fields>
+          <field name="gender" type="String">Gender preference (e.g., "Female", "Male", "Non-binary")</field>
+          <field name="language" type="String">Required language (e.g., "Spanish", "Vietnamese")</field>
+          <field name="availableWithin" type="String">Availability window: "1_week", "2_weeks", "1_month"</field>
+        </fields>
+      </input>
+    </graphql>
+
+    <models>
+      <model name="Therapist">
+        <columns>
+          - id: uuid (PK)
+          - name: string (not null)
+          - credentials: string (not null)
+          - bio: text
+          - photo_url: string
+          - active: boolean (default true)
+          - languages: string[] (array)
+          - age_ranges: string[] (array, e.g., ["5-12", "13-18"])
+          - created_at: timestamp
+          - updated_at: timestamp
+        </columns>
+        <associations>
+          - has_many :therapist_specializations
+          - has_many :therapist_insurances
+          - has_many :therapist_availabilities
+          - has_many :therapist_time_offs
+        </associations>
+        <scopes>
+          - active: where(active: true)
+          - with_specialization(spec): joins(:therapist_specializations).where(specialization: spec)
+          - with_language(lang): where("? = ANY(languages)", lang)
+        </scopes>
+      </model>
+
+      <model name="TherapistSpecialization">
+        <columns>
+          - id: bigint (PK)
+          - therapist_id: uuid (FK, not null)
+          - specialization: string (not null, values: anxiety, depression, ADHD, trauma, behavioral_issues, etc.)
+          - created_at: timestamp
+          - updated_at: timestamp
+        </columns>
+        <indexes>
+          - therapist_id, specialization (unique)
+          - specialization (for filtering)
+        </indexes>
+      </model>
+
+      <model name="TherapistInsurance">
+        <columns>
+          - id: bigint (PK)
+          - therapist_id: uuid (FK, not null)
+          - payer_name: string (not null)
+          - created_at: timestamp
+          - updated_at: timestamp
+        </columns>
+        <indexes>
+          - therapist_id, payer_name (unique)
+          - payer_name (for filtering)
+        </indexes>
+      </model>
+
+      <model name="TherapistAvailability">
+        <columns>
+          - id: bigint (PK)
+          - therapist_id: uuid (FK, not null)
+          - day_of_week: integer (0=Sunday, 6=Saturday)
+          - start_time: time (not null)
+          - end_time: time (not null)
+          - timezone: string (not null, e.g., "America/Los_Angeles")
+          - created_at: timestamp
+          - updated_at: timestamp
+        </columns>
+        <validations>
+          - validate_no_overlaps (custom validation)
+          - end_time must be after start_time
+        </validations>
+      </model>
+
+      <model name="TherapistTimeOff">
+        <columns>
+          - id: bigint (PK)
+          - therapist_id: uuid (FK, not null)
+          - date: date (not null)
+          - reason: string
+          - created_at: timestamp
+          - updated_at: timestamp
+        </columns>
+        <indexes>
+          - therapist_id, date (unique)
+        </indexes>
+      </model>
+    </models>
+
+    <services>
+      <service name="Scheduling::AvailabilityService">
+        <method name="available_slots">
+          <params>
+            - therapist_id: UUID
+            - date_range: Range (default: Date.today..14.days.from_now)
+            - duration: Integer (default: 50 minutes)
+          </params>
+          <returns>[{datetime: Time, duration: Integer, timezone: String}]</returns>
+          <description>
+            Calculates open appointment slots for therapist in date range.
+            - Loads recurring availability for therapist
+            - Generates slots for each day in range based on day_of_week
+            - Subtracts existing appointments (when appointment model exists)
+            - Applies time-off exclusions
+            - Returns array sorted by datetime
+          </description>
+        </method>
+      </service>
+
+      <service name="Scheduling::MatchingService">
+        <method name="match_therapists">
+          <params>
+            - session_id: UUID
+            - filters: Hash (optional: {gender: String, language: String, availableWithin: String})
+          </params>
+          <returns>[{therapist: Therapist, match_score: Integer, reasoning: String}]</returns>
+          <description>
+            Matches therapists to child based on AI semantic analysis.
+            - Loads child (age, concerns, medical_history) from session
+            - Loads insurance payer_name if verified
+            - Filters therapists by: active, age_range includes child age, insurance panel if applicable
+            - Applies optional filters: gender, language, availability window
+            - Builds LLM prompt with child data and filtered therapists
+            - Calls AI provider for semantic matching
+            - Parses AI response into match_score and reasoning
+            - Weights: specialization 40%, age_range 30%, insurance 20%, availability 10%
+            - Returns top 5 matches sorted by score
+            - Caches therapist profiles (1 hour) and results (15 minutes)
+          </description>
+        </method>
+      </service>
+    </services>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard name="Factory Pattern">Use FactoryBot with associations and traits</standard>
+      <standard name="Model Specs">Use shoulda-matchers for associations, validations, scopes</standard>
+      <standard name="Service Specs">Mock external dependencies (AI provider, cache)</standard>
+      <standard name="Query Specs">Test GraphQL queries with context[:current_session]</standard>
+      <standard name="Performance Tests">Use RSpec benchmark matchers for response time</standard>
+      <standard name="RSpec Conventions">Use frozen_string_literal: true, descriptive contexts, expect syntax</standard>
+    </standards>
+
+    <locations>
+      <location path="spec/models/therapist_spec.rb">NEW - Therapist model tests</location>
+      <location path="spec/models/therapist_availability_spec.rb">NEW - Availability model tests with overlap validation</location>
+      <location path="spec/factories/therapists.rb">NEW - Therapist factory with specializations trait</location>
+      <location path="spec/factories/therapist_availabilities.rb">NEW - Availability factory</location>
+      <location path="spec/services/scheduling/availability_service_spec.rb">NEW - Availability calculation tests</location>
+      <location path="spec/services/scheduling/matching_service_spec.rb">NEW - Matching service tests with mocked AI</location>
+      <location path="spec/graphql/queries/scheduling/therapist_recommendations_spec.rb">NEW - Query tests with filters</location>
+      <location path="spec/graphql/types/therapist_match_type_spec.rb">NEW - GraphQL type tests</location>
+      <location path="spec/integration/therapist_matching_flow_spec.rb">NEW - Full matching flow integration test</location>
+    </locations>
+
+    <ideas>
+      <testIdea ac="AC1" priority="high">
+        Test therapistRecommendations query returns matches when session is insurance_pending or assessment_complete
+        - Session with status started raises VALIDATION_ERROR
+        - Session with status insurance_pending returns matches
+        - Session with status assessment_complete returns matches
+        - Unauthorized session raises UNAUTHENTICATED
+      </testIdea>
+
+      <testIdea ac="AC2,AC3,AC4,AC5" priority="high">
+        Test match structure includes all required fields
+        - therapist.name present
+        - therapist.bio present
+        - therapist.credentials present (e.g., "LCSW")
+        - therapist.specializations array not empty
+        - matchScore between 0-100
+        - reasoning text explains match
+        - nextAvailableSlots has 3-5 slots
+      </testIdea>
+
+      <testIdea ac="AC6,AC7,AC8" priority="high">
+        Test filtering by availability, gender, language
+        - Filter availableWithin: "1_week" returns only therapists available in 7 days
+        - Filter gender: "Female" returns only female therapists
+        - Filter language: "Spanish" returns only Spanish-speaking therapists
+        - Multiple filters combined (AND logic)
+      </testIdea>
+
+      <testIdea ac="AC9" priority="medium">
+        Test re-matching with different criteria
+        - First call with no filters returns 5 matches
+        - Second call with gender filter returns different subset
+        - Cache invalidated when filters change
+      </testIdea>
+
+      <testIdea ac="AC10" priority="high">
+        Test personalization to session data
+        - Child with anxiety concerns matched to therapist with anxiety specialization
+        - Child age 7 matched to therapists with age_range ["5-12"]
+        - Insurance Aetna matched to therapists accepting Aetna
+        - High match score for good alignment
+      </testIdea>
+
+      <testIdea ac="AC11" priority="high">
+        Test performance &lt; 2 seconds
+        - Use RSpec benchmark matcher: expect { query }.to perform_under(2).sec
+        - Test with 100 therapists in database
+        - Test with cache hit vs cache miss
+      </testIdea>
+
+      <testIdea ac="AC12" priority="medium">
+        Test availability slots lazy-loaded
+        - Query without nextAvailableSlots field does not call AvailabilityService
+        - Query with nextAvailableSlots field calls AvailabilityService per therapist
+        - Slots returned in ISO8601 format with timezone
+      </testIdea>
+
+      <testIdea ac="AC13,AC14" priority="high">
+        Test minimum 3 recommendations and empty array handling
+        - 10 therapists available returns top 5 matches
+        - 2 therapists available returns 2 matches (not error)
+        - 0 therapists match filters returns empty array
+        - Empty array has clear message in response metadata
+      </testIdea>
+
+      <testIdea ac="general" priority="high">
+        Test AI matching service with mocked responses
+        - Mock Anthropic provider to return semantic match scores
+        - Verify prompt includes child concerns and therapist specializations
+        - Verify reasoning text parsed from AI response
+        - Verify match_score calculated with weighted factors
+      </testIdea>
+
+      <testIdea ac="general" priority="high">
+        Test availability calculation
+        - Therapist with Monday 9-5 availability returns slots on next Monday
+        - Therapist with time-off on date X has no slots on X
+        - Slots respect 50-minute duration with gaps
+        - Timezone correctly converted for display
+      </testIdea>
+
+      <testIdea ac="general" priority="medium">
+        Test caching behavior
+        - First query caches therapist profiles for 1 hour
+        - Second query within 1 hour uses cache
+        - Match results cached for 15 minutes per session_id
+        - Cache invalidated when filters change
+      </testIdea>
+
+      <testIdea ac="general" priority="medium">
+        Integration test full matching flow
+        - Create session with child (age 8, anxiety concerns)
+        - Create insurance with payer_name "Aetna"
+        - Seed therapists with various specializations and insurance
+        - Query therapistRecommendations
+        - Verify top match has anxiety specialization and accepts Aetna
+        - Verify nextAvailableSlots returns valid datetimes
+      </testIdea>
+    </ideas>
+  </tests>
+
+  <devNotes>
+    <note priority="critical">
+      PREREQUISITES: Stories 5.1 (Therapist Data Model), 5.2 (Availability Management), and 5.3 (AI Matching Algorithm) must be complete before implementing this story. This story is the API layer that exposes the matching functionality.
+    </note>
+
+    <note priority="critical">
+      TEST DATA: Use docs/test-cases/clinicians_anonymized.csv for seeding therapist profiles. Parse profile_data JSON for specializations, bio. Parse care_languages for languages. Use clinician_credentialed_insurances.csv for insurance panels.
+    </note>
+
+    <note priority="high">
+      PERFORMANCE: Response time target is &lt; 2 seconds (p95) per AC11. This requires:
+      1. Caching therapist profiles in Redis (1 hour TTL)
+      2. Caching match results per session (15 minutes TTL)
+      3. Lazy-loading availability slots only when requested
+      4. Efficient database queries with indexes on active, specializations, languages
+    </note>
+
+    <note priority="high">
+      LAZY-LOADING: nextAvailableSlots field on TherapistMatchType must be lazy-loaded. Only call AvailabilityService when field is requested in query. Use GraphQL field resolver pattern.
+    </note>
+
+    <note priority="high">
+      MATCHING WEIGHTS: Semantic matching uses weighted scoring:
+      - Specialization match: 40% (highest priority for clinical fit)
+      - Age range fit: 30% (child must be in therapist's accepted range)
+      - Insurance acceptance: 20% (financial access)
+      - Availability within 2 weeks: 10% (speed to care)
+    </note>
+
+    <note priority="medium">
+      FILTERING: Filters are optional and applied BEFORE AI matching to reduce candidates:
+      1. Gender preference filters by profile_data.self_gender
+      2. Language filters by care_languages array
+      3. availableWithin filters using AvailabilityService date range
+      Combined filters use AND logic (all must match).
+    </note>
+
+    <note priority="medium">
+      EMPTY RESULTS: When no therapists match filters, return empty array (not error). Include metadata in response with suggestion to adjust filters.
+    </note>
+
+    <note priority="medium">
+      MINIMUM RECOMMENDATIONS: Target is 3-5 recommendations per AC13. If &lt; 3 match, return all matches. If &gt; 5 match, return top 5 by score.
+    </note>
+
+    <note priority="low">
+      SESSION READINESS: Only sessions with status insurance_pending or assessment_complete can request recommendations. Earlier stages don't have enough data for matching.
+    </note>
+
+    <note priority="low">
+      CACHING STRATEGY: Two-level cache:
+      1. Therapist profiles (1 hour) - rarely change, safe to cache longer
+      2. Match results per session_id + filters hash (15 minutes) - invalidate on filter change
+    </note>
+  </devNotes>
+
+  <references>
+    <reference type="docs">docs/epics.md#Epic-5-Enhanced-Scheduling-Module</reference>
+    <reference type="docs">docs/epics.md#Story-5.1-Therapist-Data-Model-and-Profiles</reference>
+    <reference type="docs">docs/epics.md#Story-5.2-Availability-Management</reference>
+    <reference type="docs">docs/epics.md#Story-5.3-AI-Matching-Algorithm</reference>
+    <reference type="test-data">docs/test-cases/clinicians_anonymized.csv</reference>
+    <reference type="test-data">docs/test-cases/clinician_availabilities.csv</reference>
+    <reference type="test-data">docs/test-cases/clinician_credentialed_insurances.csv</reference>
+    <reference type="external">https://graphql-ruby.org/fields/resolvers.html</reference>
+    <reference type="external">https://redis.io/docs/manual/programmability/lua-scripts/</reference>
+  </references>
+</story-context>

@@ -18,6 +18,9 @@ gem "sidekiq-cron", "~> 1.9"
 # GraphQL
 gem "graphql", "~> 2.2"
 
+# GraphQL file uploads (multipart form support)
+gem "apollo_upload_server", "~> 2.1"
+
 # JWT for authentication
 gem "jwt", "~> 2.7"
 
@@ -27,6 +30,13 @@ gem "bcrypt", "~> 3.1.7"
 # Pundit for authorization
 gem "pundit", "~> 2.3"
 
+# Phone number validation
+gem "phonelib", "~> 0.8"
+
+# AI Providers
+gem "ruby-anthropic", "~> 0.4.2"  # Primary AI provider (Anthropic Claude) - renamed from 'anthropic'
+gem "ruby-openai", "~> 6.0"  # Backup AI provider (OpenAI)
+
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
@@ -34,12 +44,27 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 gem "bootsnap", require: false
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
-# gem "image_processing", "~> 1.2"
+gem "image_processing", "~> 1.2"
+
+# Active Storage S3 backend for HIPAA-compliant image storage
+gem "aws-sdk-s3", "~> 1.140"
+
+# AWS Textract for OCR insurance card extraction (Story 4.2)
+gem "aws-sdk-textract", "~> 1.50"
+
+# HEIC conversion support
+gem "ruby-vips"
+
+# MIME type detection via magic bytes (security)
+gem "marcel", "~> 1.0"
 
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 gem "rack-cors", "~> 2.0"
 
 group :development, :test do
+  # Load environment variables from .env
+  gem "dotenv-rails", "~> 3.1"
+
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
 
@@ -60,6 +85,10 @@ group :development, :test do
 
   # Pundit Matchers for authorization testing
   gem "pundit-matchers", "~> 3.1"
+
+  # VCR and WebMock for recording/replaying HTTP interactions (Textract API testing)
+  gem "vcr", "~> 6.2"
+  gem "webmock", "~> 3.19"
 end
 
 group :development do

@@ -1,0 +1,331 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>5</storyId>
+    <title>Payment Plan Options</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/epics.md#story-6-5-payment-plan-options</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent with financial concerns</asA>
+    <iWant>to see payment plan options</iWant>
+    <soThat>I can afford care for my child</soThat>
+    <tasks>
+- Task 1: Create PaymentPlanService for Calculations (AC: 2, 3, 7)
+  - Create app/services/billing/payment_plan_service.rb with BaseService
+  - Implement calculate_plans(total_amount:, options: {}) method
+  - Support plan durations: 3, 6, 12 months
+  - Calculate monthly payment amounts (total / months)
+  - Apply upfront payment discount if configured
+  - Include interest/fee calculation (if any - default 0% for MVP)
+  - Return array of plan options with monthly amounts
+  - Add RSpec tests for all calculation scenarios
+
+- Task 2: Create FinancialAssistance Eligibility Configuration (AC: 5, 6)
+  - Create config/financial_assistance.yml with eligibility rules
+  - Define income thresholds for hardship consideration
+  - Configure sliding scale discount percentages
+  - Include application process information
+  - Add config initializer to load financial assistance rules
+  - Document eligibility criteria
+
+- Task 3: Create PaymentPlan Model (AC: 8 - for billing integration)
+  - Generate migration for payment_plans table
+  - Fields: onboarding_session_id, plan_duration_months, monthly_amount, total_amount, discount_applied, payment_method_preference, status
+  - Add belongs_to :onboarding_session association
+  - Add enum for status: pending, active, completed, cancelled
+  - Add enum for payment_method_preference: card, hsa_fsa, bank_transfer
+  - Add validations for amounts and duration
+  - Create factory and model specs
+
+- Task 4: Create PaymentPlanOptionType GraphQL Type (AC: 1, 2, 3, 4)
+  - Create app/graphql/types/payment_plan_option_type.rb
+  - Fields: duration_months, monthly_amount, total_amount, interest_rate, has_fees, fee_amount
+  - Field: upfront_discount (for pay-in-full option)
+  - Field: description (human-readable plan description)
+  - Add to QueryType as paymentPlanOptions(sessionId: ID!, estimatedCost: Float!)
+
+- Task 5: Create FinancialAssistanceType GraphQL Type (AC: 5, 6)
+  - Create app/graphql/types/financial_assistance_type.rb
+  - Fields: eligible, eligibility_criteria, application_url, description
+  - Fields: sliding_scale_available, discount_range
+  - Add to QueryType as financialAssistanceInfo
+
+- Task 6: Create SavePaymentPlanSelection Mutation (AC: 8 - store selection)
+  - Create app/graphql/mutations/billing/save_payment_plan_selection.rb
+  - Accept sessionId, plan_duration_months, payment_method_preference
+  - Validate session exists and parent has authorization
+  - Create PaymentPlan record linked to session
+  - Return success with selected plan details
+  - Add audit logging for payment plan selection
+  - Add mutation specs
+
+- Task 7: Create PaymentMethodType Enum (AC: 7)
+  - Create app/graphql/types/payment_method_enum.rb
+  - Values: CARD, HSA_FSA, BANK_TRANSFER
+  - Add descriptions for each payment method
+  - Include accepted card types (Visa, Mastercard, etc.)
+  - Note: Actual payment processing is post-MVP
+
+- Task 8: Add Payment Plan Configuration (AC: 1, 4)
+  - Create config/payment_plans.yml
+  - Configure available plan durations (3, 6, 12 months)
+  - Configure upfront payment discount percentage (e.g., 5%)
+  - Configure interest rates by plan duration (default 0% for MVP)
+  - Configure service fees if any (default $0 for MVP)
+  - Add initializer to load payment plan config
+
+- Task 9: Integration with Cost Calculation (prerequisite: Story 6.3)
+  - Integrate with CostCalculationService to get total estimated cost
+  - Use insurance estimate or self-pay rate as input to payment plans
+  - Ensure payment plans reflect accurate cost estimates
+  - Add integration tests
+
+- Task 10: Add Payment Plan Fields to OnboardingSessionType (AC: display)
+  - Add payment_plan field to OnboardingSessionType
+  - Returns PaymentPlan record if selection made
+  - Expose selected payment method and plan duration
+  - Show parent's financial commitment upfront
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Given estimated costs are calculated, When payment options are displayed, Then upfront payment option with any discount is shown
+
+2. Given payment options display, When viewing plans, Then monthly payment plan options (3, 6, 12 months) are available
+
+3. Given payment plan options, When viewing details, Then monthly amount is calculated based on total estimate divided by plan duration
+
+4. Given payment options, When interest/fees apply, Then interest rate and fee disclosure is clearly shown
+
+5. Given payment options display, When viewing assistance, Then financial assistance program information is shown
+
+6. Given financial concerns, When viewing assistance, Then link to apply for hardship consideration is provided
+
+7. Given payment options, When selecting method, Then payment method options (card, HSA/FSA, bank transfer) are available
+
+8. Given payment plan selected, When parent chooses plan, Then selection is stored for billing integration (note: actual payment processing is post-MVP)
+
+9. Given payment options, When reviewing terms, Then no predatory terms are present (0% interest for MVP)
+
+10. Given payment options, When comparing plans, Then clear total cost comparison is shown across all plan durations
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>MVP Boundaries</section>
+        <snippet>Payment processing explicitly NOT in MVP. The system will collect payment plan preferences and store selections for future billing integration, but actual payment collection is deferred to post-MVP phase.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 6: Cost Estimation Tool - Story 6.5</section>
+        <snippet>Story 6.5 enables parents to view payment plan options to make therapy affordable. Provides upfront payment with discount, monthly plans (3, 6, 12 months), interest/fee disclosure, financial assistance information, hardship consideration, and payment method options. PaymentPlanService calculates options, FinancialAssistance eligibility rules in config, payment plan selection stored for billing integration. Note: Actual payment processing is post-MVP.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 6: Cost Estimation Tool - Story 6.1</section>
+        <snippet>Story 6.1 establishes CostCalculationService with flexible cost calculation engine. Configurable base rates per session type (intake, individual, family), modifiers for duration/tier/special services, discount application, tax calculations. Returns gross cost, adjustments, net cost. SessionRate model for configurable rates. Test data in docs/test-cases/contracts.csv for service pricing terms.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 6: Cost Estimation Tool - Story 6.3</section>
+        <snippet>Story 6.3 provides transparent self-pay pricing with comparison to insurance estimates. Clear self-pay rates per session type, comparison table for insurance vs self-pay, highlights when self-pay might be cheaper (high deductible plans), sliding scale information, package pricing options. SelfPayRate model with effective dates, CostComparisonService for comparison logic.</snippet>
+      </doc>
+      <doc>
+        <path>docs/test-cases/contracts.csv</path>
+        <title>Test Data - Service Pricing</title>
+        <section>Contracts</section>
+        <snippet>Contract terms define services (onsite_care, family_therapy, individual_therapy) with pricing rules including caps, collection requirements, and coverage options (insurance, self_pay, none). Use for seeding service pricing data in Story 6.1 CostCalculationService.</snippet>
+      </doc>
+      <doc>
+        <path>config/initializers/insurance_config.rb</path>
+        <title>Insurance Configuration</title>
+        <section>Self-Pay Options</section>
+        <snippet>Rails.application.config.self_pay_options defines preview rates shown to parents: initial_assessment: $150, follow_up_session: $100, group_session: $50. Used by Story 4.5 for self-pay fallback display.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-140</lines>
+        <reason>OnboardingSession model is the parent entity for payment plan selection. PaymentPlan will have belongs_to :onboarding_session association. Used to link payment selections to session for billing integration.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/insurance.rb</path>
+        <kind>model</kind>
+        <symbol>Insurance</symbol>
+        <lines>1-430</lines>
+        <reason>Insurance model provides coverage details (copay, deductible, coinsurance) used to calculate estimated costs that feed into payment plan calculations. Eligibility verification results inform total cost estimates.</reason>
+      </artifact>
+      <artifact>
+        <path>app/services/base_service.rb</path>
+        <kind>service</kind>
+        <symbol>BaseService</symbol>
+        <lines>1-19</lines>
+        <reason>BaseService provides service object pattern. PaymentPlanService will inherit from this class for consistent service architecture with self.call class method.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/insurance_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>Types::InsuranceType</symbol>
+        <lines>1-205</lines>
+        <reason>InsuranceType exposes copay_amount, deductible_amount, deductible_met, coinsurance_percentage fields that provide cost data for payment plan calculations. Shows pattern for creating cost-related GraphQL types.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/coverage_details_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>Types::CoverageDetailsType</symbol>
+        <lines>1-50</lines>
+        <reason>CoverageDetailsType shows pattern for financial detail types. PaymentPlanOptionType will follow similar structure for cost breakdowns and payment details.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/self_pay_option_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>Types::SelfPayOptionType</symbol>
+        <lines>1-35</lines>
+        <reason>SelfPayOptionType demonstrates cost option display pattern. PaymentPlanOptionType will present similar structured cost information with monthly breakdowns and total costs.</reason>
+      </artifact>
+      <artifact>
+        <path>config/initializers/insurance_config.rb</path>
+        <kind>config</kind>
+        <symbol>insurance_config</symbol>
+        <lines>1-64</lines>
+        <reason>Shows pattern for loading YAML configuration into Rails.application.config. Financial assistance config will follow same pattern for loading eligibility rules and payment plan settings.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <version>3.3.x</version>
+        <gem name="rails" version="~> 7.2.3">Rails 7 API framework with Active Record</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL server for API types and mutations</gem>
+        <gem name="rspec-rails" version="~> 6.1">Testing framework</gem>
+        <gem name="factory_bot_rails" version="~> 6.4">Test fixtures for PaymentPlan model</gem>
+        <gem name="shoulda-matchers" version="~> 6.0">Model validation testing</gem>
+      </ruby>
+      <environment>
+        <var name="PAYMENT_PLAN_UPFRONT_DISCOUNT">Percentage discount for upfront payment (default: 5)</var>
+        <var name="FINANCIAL_ASSISTANCE_APPLICATION_URL">URL for hardship consideration application</var>
+      </environment>
+      <test_data>
+        <file name="docs/test-cases/contracts.csv">Service pricing terms for individual_therapy, family_therapy</file>
+      </test_data>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>No Payment Processing: Actual payment collection is post-MVP. This story only displays options and stores selections.</constraint>
+    <constraint>No Predatory Terms: Interest rates must be 0% or disclosed transparently. No hidden fees allowed.</constraint>
+    <constraint>Transparent Pricing: All costs must be clearly broken down. Total cost must equal sum of monthly payments plus any fees.</constraint>
+    <constraint>Affordable Options: Payment plans must make therapy accessible. 3, 6, and 12-month options required minimum.</constraint>
+    <constraint>Financial Assistance: Must provide clear path to hardship consideration with eligibility criteria.</constraint>
+    <constraint>Payment Method Flexibility: Support multiple payment methods (card, HSA/FSA, bank transfer) for parent choice.</constraint>
+    <constraint>Session Linkage: Payment plan selection MUST be linked to OnboardingSession for billing integration.</constraint>
+    <constraint>Configuration-Driven: Plan durations, discount percentages, interest rates must be configurable via YAML config.</constraint>
+    <constraint>Cost Accuracy: Payment plans must use accurate cost estimates from Story 6.1 CostCalculationService and 6.2 InsuranceEstimateService.</constraint>
+    <constraint>Clear Comparison: Parents must be able to easily compare total costs across all plan options including upfront payment.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Billing::PaymentPlanService#calculate_plans</name>
+      <kind>service_method</kind>
+      <signature>calculate_plans(total_amount:, options: {}) -> Array&lt;Hash&gt;</signature>
+      <path>app/services/billing/payment_plan_service.rb</path>
+      <description>Calculates payment plan options for given total amount. Returns array of plan options with duration_months, monthly_amount, total_amount, interest_rate, fees. Options hash can include upfront_discount percentage, allowed durations.</description>
+    </interface>
+    <interface>
+      <name>PaymentPlan</name>
+      <kind>model</kind>
+      <signature>belongs_to :onboarding_session, has status enum, payment_method_preference enum</signature>
+      <path>app/models/payment_plan.rb</path>
+      <description>ActiveRecord model storing payment plan selection. Links to OnboardingSession for billing integration. Stores plan_duration_months, monthly_amount, total_amount, discount_applied, payment_method_preference, status.</description>
+    </interface>
+    <interface>
+      <name>Mutations::Billing::SavePaymentPlanSelection</name>
+      <kind>graphql_mutation</kind>
+      <signature>savePaymentPlanSelection(sessionId: ID!, planDurationMonths: Int!, paymentMethodPreference: PaymentMethodEnum!): PaymentPlanPayload!</signature>
+      <path>app/graphql/mutations/billing/save_payment_plan_selection.rb</path>
+      <description>GraphQL mutation to save parent's payment plan selection. Creates PaymentPlan record linked to session. Returns selected plan details. For billing integration only - no actual payment processing.</description>
+    </interface>
+    <interface>
+      <name>Types::PaymentPlanOptionType</name>
+      <kind>graphql_type</kind>
+      <signature>duration_months, monthly_amount, total_amount, interest_rate, has_fees, fee_amount, upfront_discount, description</signature>
+      <path>app/graphql/types/payment_plan_option_type.rb</path>
+      <description>GraphQL type for payment plan option display. Shows calculated monthly amounts, total costs, any fees/interest, and upfront discount for pay-in-full option.</description>
+    </interface>
+    <interface>
+      <name>Types::FinancialAssistanceType</name>
+      <kind>graphql_type</kind>
+      <signature>eligible, eligibility_criteria, application_url, description, sliding_scale_available, discount_range</signature>
+      <path>app/graphql/types/financial_assistance_type.rb</path>
+      <description>GraphQL type exposing financial assistance program information. Includes eligibility criteria, application process, and sliding scale details.</description>
+    </interface>
+    <interface>
+      <name>Query.paymentPlanOptions</name>
+      <kind>graphql_query</kind>
+      <signature>paymentPlanOptions(sessionId: ID!, estimatedCost: Float!): [PaymentPlanOptionType!]!</signature>
+      <path>app/graphql/types/query_type.rb</path>
+      <description>GraphQL query to retrieve payment plan options for estimated cost. Returns array of plans (3, 6, 12 months) plus upfront option with calculations.</description>
+    </interface>
+    <interface>
+      <name>Query.financialAssistanceInfo</name>
+      <kind>graphql_query</kind>
+      <signature>financialAssistanceInfo: FinancialAssistanceType!</signature>
+      <path>app/graphql/types/query_type.rb</path>
+      <description>GraphQL query to retrieve financial assistance program information including eligibility criteria and application details.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Rails project uses RSpec for testing with Factory Bot for fixtures and Shoulda Matchers for model testing. Test structure follows Rails conventions with spec/models/, spec/services/, spec/graphql/ directories. Service layer calculations must have comprehensive unit tests with edge cases. Integration tests required for GraphQL queries and mutations. Test coverage target: 90%+ for all new code. Model validations must be tested with valid and invalid cases. Financial calculations must be tested for precision and rounding edge cases.
+    </standards>
+    <locations>
+      <location>spec/models/payment_plan_spec.rb</location>
+      <location>spec/factories/payment_plans.rb</location>
+      <location>spec/services/billing/payment_plan_service_spec.rb</location>
+      <location>spec/graphql/types/payment_plan_option_type_spec.rb</location>
+      <location>spec/graphql/types/financial_assistance_type_spec.rb</location>
+      <location>spec/graphql/queries/payment_plan_options_spec.rb</location>
+      <location>spec/graphql/queries/financial_assistance_info_spec.rb</location>
+      <location>spec/graphql/mutations/billing/save_payment_plan_selection_spec.rb</location>
+      <location>spec/integration/payment_plan_selection_spec.rb</location>
+    </locations>
+    <ideas>
+      <idea acceptance_criteria="AC1">Test upfront payment option includes configured discount percentage</idea>
+      <idea acceptance_criteria="AC2">Test monthly payment plans return exactly 3, 6, and 12-month options</idea>
+      <idea acceptance_criteria="AC3">Test monthly amount calculation: $300 total / 3 months = $100/month</idea>
+      <idea acceptance_criteria="AC3">Test monthly amount rounding: $100 total / 3 months = $33.34/month (round up on last payment)</idea>
+      <idea acceptance_criteria="AC4">Test interest rate disclosure when non-zero interest configured</idea>
+      <idea acceptance_criteria="AC4">Test fee amount disclosure when service fees apply</idea>
+      <idea acceptance_criteria="AC5">Test financial assistance info returns eligibility criteria and application URL</idea>
+      <idea acceptance_criteria="AC6">Test hardship consideration application link is provided</idea>
+      <idea acceptance_criteria="AC7">Test payment method enum includes CARD, HSA_FSA, BANK_TRANSFER options</idea>
+      <idea acceptance_criteria="AC8">Test savePaymentPlanSelection creates PaymentPlan record linked to session</idea>
+      <idea acceptance_criteria="AC8">Test payment plan selection requires valid session authorization</idea>
+      <idea acceptance_criteria="AC9">Test 0% interest rate for MVP (no predatory terms)</idea>
+      <idea acceptance_criteria="AC10">Test total cost comparison shows identical total for 3-month vs 6-month vs 12-month plans</idea>
+      <idea acceptance_criteria="AC10">Test upfront discount reduces total cost compared to payment plans</idea>
+      <idea>Test PaymentPlanService handles edge cases: $0 total, very small amounts, very large amounts</idea>
+      <idea>Test configuration loading from payment_plans.yml and financial_assistance.yml</idea>
+      <idea>Test payment plan calculation integrates with CostCalculationService from Story 6.1</idea>
+      <idea>Integration test: Query payment options for session with insurance estimate, verify accurate calculations</idea>
+      <idea>Integration test: Query payment options for self-pay session, verify self-pay rates used</idea>
+      <idea>Test audit logging when payment plan selection is saved</idea>
+      <idea>Test PaymentPlan model validations: positive amounts, valid durations, valid payment methods</idea>
+      <idea>Test PaymentPlan status enum transitions: pending -> active, active -> completed, etc.</idea>
+    </ideas>
+  </tests>
+</story-context>

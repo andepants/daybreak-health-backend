@@ -1,0 +1,426 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="4-5-verification-status-communication" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>5</storyId>
+    <title>Verification Status Communication</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/4-5-verification-status-communication.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>parent</asA>
+    <iWant>to clearly understand my insurance verification status</iWant>
+    <soThat>I know what to do next</soThat>
+
+    <tasks>
+      <task id="0" status="pending">
+        <title>Create Migration for Retry Tracking</title>
+        <subtasks>
+          <subtask>Note: Insurance table already exists</subtask>
+          <subtask>Create migration to add retry_attempts integer field (default: 0)</subtask>
+          <subtask>Store retry history in verification_result JSONB (no new column needed)</subtask>
+          <subtask>Run migration and verify schema</subtask>
+        </subtasks>
+      </task>
+
+      <task id="1" status="pending">
+        <title>Create Status Display GraphQL Types</title>
+        <subtasks>
+          <subtask>Create app/graphql/types/coverage_details_type.rb</subtask>
+          <subtask>Create app/graphql/types/support_contact_type.rb</subtask>
+          <subtask>Create app/graphql/types/self_pay_option_type.rb</subtask>
+          <subtask>Extend InsuranceType with new display fields (verificationStatusDisplay, verificationMessage, coverageDetails, nextSteps, canRetry, supportContact, selfPayOption)</subtask>
+          <subtask>Add unit tests for type definitions</subtask>
+        </subtasks>
+      </task>
+
+      <task id="2" status="pending">
+        <title>Create Status Message Service</title>
+        <subtasks>
+          <subtask>Create app/services/insurance/status_message_service.rb</subtask>
+          <subtask>Implement status mapping (verified, failed, pending, in_progress, manual_review)</subtask>
+          <subtask>Map error codes to user-friendly messages</subtask>
+          <subtask>Include "Why?" expandable explanations</subtask>
+          <subtask>Generate contextual next steps based on specific error</subtask>
+          <subtask>Add RSpec tests for all error code mappings</subtask>
+        </subtasks>
+      </task>
+
+      <task id="3" status="pending">
+        <title>Implement Coverage Details Formatter</title>
+        <subtasks>
+          <subtask>Create app/services/insurance/coverage_formatter.rb</subtask>
+          <subtask>Format copay amounts as currency ("$25 per visit")</subtask>
+          <subtask>Format covered services list</subtask>
+          <subtask>Format coverage effective dates</subtask>
+          <subtask>Handle missing or partial coverage data gracefully</subtask>
+          <subtask>Add unit tests for various coverage scenarios</subtask>
+        </subtasks>
+      </task>
+
+      <task id="4" status="pending">
+        <title>Create Retry and Correction Flow</title>
+        <subtasks>
+          <subtask>Add can_retry? logic to Insurance model based on error type</subtask>
+          <subtask>Temporary network errors allow immediate retry</subtask>
+          <subtask>Invalid data requires correction before retry</subtask>
+          <subtask>Limit retries to 3 attempts</subtask>
+          <subtask>Track retry history in verification_result.retry_history</subtask>
+          <subtask>Add RSpec tests for retry logic</subtask>
+        </subtasks>
+      </task>
+
+      <task id="5" status="pending">
+        <title>Integrate Support Contact Information</title>
+        <subtasks>
+          <subtask>Add support contact config to config/initializers/insurance_config.rb</subtask>
+          <subtask>Include phone number, email, and available hours</subtask>
+          <subtask>Show different contacts based on error severity (simple vs complex)</subtask>
+          <subtask>Add support contact to GraphQL response when needed</subtask>
+          <subtask>Test support contact display logic</subtask>
+        </subtasks>
+      </task>
+
+      <task id="6" status="pending">
+        <title>Ensure Self-Pay Option Always Visible</title>
+        <subtasks>
+          <subtask>Add selfPayOption field resolver to InsuranceType</subtask>
+          <subtask>Include self-pay rates and info preview (full details in Story 4.6)</subtask>
+          <subtask>Never hide self-pay based on verification status</subtask>
+          <subtask>Add "Choose Self-Pay Instead" text to all status displays</subtask>
+          <subtask>Test self-pay option present in all response scenarios</subtask>
+        </subtasks>
+      </task>
+
+      <task id="7" status="pending">
+        <title>Create Plain Language Glossary</title>
+        <subtasks>
+          <subtask>Create config/insurance_glossary.yml</subtask>
+          <subtask>Terms to include: copay, deductible, coinsurance, in-network, out-of-network</subtask>
+          <subtask>Add glossary lookup helper method</subtask>
+          <subtask>Test all insurance terms have explanations</subtask>
+        </subtasks>
+      </task>
+
+      <task id="8" status="pending">
+        <title>Update Insurance Type Resolvers</title>
+        <subtasks>
+          <subtask>Add resolver for verificationStatusDisplay</subtask>
+          <subtask>Add resolver for verificationMessage</subtask>
+          <subtask>Add resolver for coverageDetails</subtask>
+          <subtask>Add resolver for nextSteps</subtask>
+          <subtask>Add resolver for canRetry</subtask>
+          <subtask>Add resolver for supportContact</subtask>
+          <subtask>Memoize StatusMessageService calls for efficiency</subtask>
+        </subtasks>
+      </task>
+
+      <task id="9" status="pending">
+        <title>Add Audit Logging</title>
+        <subtasks>
+          <subtask>Log VERIFICATION_STATUS_VIEWED when status displayed</subtask>
+          <subtask>Log VERIFICATION_RETRY_INITIATED when parent retries</subtask>
+          <subtask>Never log PHI in audit details</subtask>
+        </subtasks>
+      </task>
+
+      <task id="10" status="pending">
+        <title>Create Integration Tests</title>
+        <subtasks>
+          <subtask>Test "Verified" status with coverage details</subtask>
+          <subtask>Test "Needs Attention" status with retry option</subtask>
+          <subtask>Test "Unable to Verify" status with support contact</subtask>
+          <subtask>Test self-pay option always present</subtask>
+          <subtask>Test glossary term lookup</subtask>
+          <subtask>Test next steps generation for each status type</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">
+      <given>eligibility verification has completed</given>
+      <when>results are displayed</when>
+      <then>status shows as one of: "Verified", "Needs Attention", or "Unable to Verify"</then>
+    </criterion>
+
+    <criterion id="2">
+      <given>status is "Verified"</given>
+      <when>coverage details are shown</when>
+      <then>display includes copay amount, services covered, and effective date</then>
+    </criterion>
+
+    <criterion id="3">
+      <given>status is "Needs Attention" or "Unable to Verify"</given>
+      <when>issue is explained</when>
+      <then>specific problem is described in plain language without insurance jargon</then>
+    </criterion>
+
+    <criterion id="4">
+      <given>any verification status</given>
+      <when>parent views results</when>
+      <then>clear next steps are provided for that specific status</then>
+    </criterion>
+
+    <criterion id="5">
+      <given>verification failed or needs attention</given>
+      <when>parent needs to take action</when>
+      <then>option to correct information and retry is prominently displayed</then>
+    </criterion>
+
+    <criterion id="6">
+      <given>verification has issues</given>
+      <when>parent needs help</when>
+      <then>support contact information is provided for complex cases</then>
+    </criterion>
+
+    <criterion id="7">
+      <given>any verification status</given>
+      <when>parent is viewing results</when>
+      <then>self-pay option is always visible as an alternative path forward</then>
+    </criterion>
+
+    <criterion id="8">
+      <given>technical insurance jargon appears</given>
+      <when>displaying to parent</when>
+      <then>plain language explanation or tooltip is provided</then>
+    </criterion>
+
+    <criterion id="9">
+      <given>verification results</given>
+      <when>displayed to parent</when>
+      <then>parent is never left without a clear path forward</then>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/prd.md" section="Insurance Processing (FR19-FR25)">
+        Primary product requirements for insurance verification and user communication
+      </doc>
+      <doc path="docs/epics.md" section="Epic 4: Insurance Verification">
+        Epic-level context and story dependencies
+      </doc>
+      <doc path="docs/epics.md" section="Story 4.4: Real-Time Eligibility Verification">
+        Prerequisite story defining verification result JSONB structure
+      </doc>
+      <doc path="docs/architecture.md" section="Project Structure">
+        Service pattern conventions (app/services/insurance/)
+      </doc>
+      <doc path="docs/architecture.md" section="GraphQL Types">
+        GraphQL type definition patterns and conventions
+      </doc>
+    </docs>
+
+    <code>
+      <file path="app/models/insurance.rb">
+        Insurance model with verification_status enum and verification_result JSONB field
+      </file>
+      <file path="app/graphql/types/insurance_type.rb">
+        Existing Insurance GraphQL type to be extended with display fields
+      </file>
+      <file path="app/models/concerns/encryptable.rb">
+        PHI encryption concern pattern
+      </file>
+      <file path="app/models/concerns/auditable.rb">
+        Audit logging concern pattern
+      </file>
+      <file path="app/graphql/types/base_object.rb">
+        Base GraphQL object type for inheritance
+      </file>
+      <file path="spec/models/insurance_spec.rb">
+        Existing Insurance model tests showing validation patterns
+      </file>
+    </code>
+
+    <dependencies>
+      <gem name="rails" version="~> 7.2.3">Core framework</gem>
+      <gem name="graphql" version="~> 2.2">GraphQL API</gem>
+      <gem name="pg" version="~> 1.1">PostgreSQL database</gem>
+      <gem name="rspec-rails" version="~> 6.1">Testing framework</gem>
+      <gem name="factory_bot_rails" version="~> 6.4">Test fixtures</gem>
+      <gem name="shoulda-matchers" version="~> 6.0">Model testing matchers</gem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <technical>
+      <constraint>Insurance model and verification_result JSONB already exist from Story 4.4</constraint>
+      <constraint>Only add retry_attempts column - use existing verification_result for retry history</constraint>
+      <constraint>Follow Rails service pattern: app/services/insurance/</constraint>
+      <constraint>Use snake_case for Ruby files, PascalCase for class names</constraint>
+      <constraint>All PHI must be encrypted at rest using Encryptable concern</constraint>
+      <constraint>GraphQL types use Types::BaseObject as parent class</constraint>
+      <constraint>Configuration in config/initializers/ for environment-specific values</constraint>
+    </technical>
+
+    <security>
+      <constraint>Never log PHI in audit logs - only existence flags</constraint>
+      <constraint>Audit all status view events using Auditable concern</constraint>
+      <constraint>HIPAA compliance: all parent-facing data encrypted in transit (TLS)</constraint>
+    </security>
+
+    <business>
+      <constraint>No insurance jargon without plain language explanation</constraint>
+      <constraint>Self-pay option must ALWAYS be visible - never hidden by status</constraint>
+      <constraint>Every status must provide clear next steps</constraint>
+      <constraint>Support contact varies by error severity (general vs specialist)</constraint>
+      <constraint>Maximum 3 retry attempts to prevent abuse</constraint>
+    </business>
+  </constraints>
+
+  <interfaces>
+    <graphql>
+      <type name="InsuranceType" operation="extend">
+        <field name="verificationStatusDisplay" type="String" nullable="true">
+          User-friendly status: Verified, Needs Attention, Unable to Verify
+        </field>
+        <field name="verificationMessage" type="String" nullable="true">
+          Plain language explanation of status
+        </field>
+        <field name="whyExplanation" type="String" nullable="true">
+          Detailed explanation of why this status occurred
+        </field>
+        <field name="coverageDetails" type="CoverageDetailsType" nullable="true">
+          Coverage information for verified insurance
+        </field>
+        <field name="nextSteps" type="[String!]!" nullable="false">
+          Array of action items for parent
+        </field>
+        <field name="canRetry" type="Boolean" nullable="false">
+          Whether verification can be retried
+        </field>
+        <field name="retryAttempts" type="Integer" nullable="false">
+          Number of retry attempts made
+        </field>
+        <field name="supportContact" type="SupportContactType" nullable="true">
+          Support contact for complex issues
+        </field>
+        <field name="selfPayOption" type="SelfPayOptionType" nullable="false">
+          Always available self-pay alternative
+        </field>
+      </type>
+
+      <type name="CoverageDetailsType" operation="create">
+        <field name="copayAmount" type="String" nullable="true">e.g., '$25 per visit'</field>
+        <field name="servicesCovered" type="[String!]!" nullable="false">List of covered services</field>
+        <field name="effectiveDate" type="String" nullable="true">Coverage start date</field>
+        <field name="deductible" type="String" nullable="true">e.g., '$500 ($100 met)'</field>
+        <field name="coinsurance" type="Integer" nullable="true">Percentage, e.g., 20</field>
+      </type>
+
+      <type name="SupportContactType" operation="create">
+        <field name="type" type="String" nullable="false">general or specialist</field>
+        <field name="phone" type="String" nullable="false">Contact phone number</field>
+        <field name="email" type="String" nullable="false">Contact email</field>
+        <field name="hours" type="String" nullable="false">Availability hours</field>
+      </type>
+
+      <type name="SelfPayOptionType" operation="create">
+        <field name="available" type="Boolean" nullable="false">Always true</field>
+        <field name="description" type="String" nullable="false">Self-pay description</field>
+        <field name="previewRate" type="String" nullable="true">Preview of rates</field>
+      </type>
+    </graphql>
+
+    <services>
+      <service name="Insurance::StatusMessageService">
+        <method name="initialize">Accepts Insurance model instance</method>
+        <method name="generate_display">Returns hash with all display components</method>
+        <method name="status_display_text">Maps status to user-friendly text</method>
+        <method name="plain_language_message">Converts error codes to messages</method>
+        <method name="why_explanation">Provides detailed "why" explanation</method>
+        <method name="generate_next_steps">Contextual action items for status</method>
+        <method name="can_retry?">Boolean logic for retry eligibility</method>
+        <method name="support_contact">Returns appropriate contact based on severity</method>
+        <method name="self_pay_option">Always returns self-pay option</method>
+      </service>
+
+      <service name="Insurance::CoverageFormatter">
+        <method name="format_copay">Formats copay as "$25 per visit"</method>
+        <method name="format_deductible">Formats deductible with met amount</method>
+        <method name="format_services">Lists covered services</method>
+        <method name="format_dates">Formats effective dates</method>
+      </service>
+    </services>
+
+    <models>
+      <model name="Insurance">
+        <method name="can_retry?">Instance method checking retry eligibility</method>
+        <field name="retry_attempts" type="integer">Count of retry attempts (default: 0)</field>
+        <field name="verification_result" type="jsonb">Contains retry_history array</field>
+      </model>
+    </models>
+
+    <configuration>
+      <file path="config/initializers/insurance_config.rb">
+        <config name="SUPPORT_CONTACTS">Hash of support contact info by severity</config>
+        <config name="SELF_PAY_RATES">Preview rates for self-pay option</config>
+        <config name="MAX_RETRY_ATTEMPTS">Maximum retry attempts (default: 3)</config>
+      </file>
+
+      <file path="config/insurance_glossary.yml">
+        <config name="terms">Hash of insurance terms with definitions and examples</config>
+      </file>
+    </configuration>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Use RSpec with rails_helper for all specs</standard>
+      <standard>Use FactoryBot for test data creation</standard>
+      <standard>Use shoulda-matchers for concise model validations</standard>
+      <standard>Organize specs by type: models/, services/, graphql/</standard>
+      <standard>Test PHI encryption by checking raw DB values vs model values</standard>
+      <standard>Mock external dependencies (don't make real API calls)</standard>
+      <standard>Test all acceptance criteria explicitly</standard>
+      <standard>Use descriptive context blocks with Given/When/Then</standard>
+      <standard>Test edge cases: nil values, missing data, boundary conditions</standard>
+      <standard>Verify audit log entries are created for tracked actions</standard>
+    </standards>
+
+    <locations>
+      <location>spec/models/insurance_spec.rb - extend with retry logic tests</location>
+      <location>spec/services/insurance/status_message_service_spec.rb - new file</location>
+      <location>spec/services/insurance/coverage_formatter_spec.rb - new file</location>
+      <location>spec/graphql/types/coverage_details_type_spec.rb - new file</location>
+      <location>spec/graphql/types/support_contact_type_spec.rb - new file</location>
+      <location>spec/graphql/types/self_pay_option_type_spec.rb - new file</location>
+      <location>spec/graphql/types/insurance_type_spec.rb - extend with new fields</location>
+      <location>spec/integration/verification_status_display_spec.rb - integration tests</location>
+    </locations>
+
+    <ideas>
+      <idea ac="1">Test status mapping: verified → "Verified", failed+retriable → "Needs Attention", failed+non-retriable → "Unable to Verify"</idea>
+      <idea ac="2">Test coverage details formatting with full data, partial data, and nil values</idea>
+      <idea ac="3">Test all error code mappings to plain language messages (INVALID_MEMBER_ID, COVERAGE_INACTIVE, etc.)</idea>
+      <idea ac="4">Test next steps generation varies by status (verified vs failed vs needs attention)</idea>
+      <idea ac="5">Test retry logic: can_retry? true for network errors, false after 3 attempts, false for high severity errors</idea>
+      <idea ac="6">Test support contact selection by error severity (general vs specialist)</idea>
+      <idea ac="7">Test self-pay option present in all scenarios (verified, failed, pending, etc.)</idea>
+      <idea ac="8">Test glossary lookup for all insurance terms (copay, deductible, coinsurance, etc.)</idea>
+      <idea ac="9">Test every status has next_steps array with at least one action</idea>
+      <idea ac="integration">End-to-end test: create insurance with each status, query GraphQL, verify all display fields populated correctly</idea>
+    </ideas>
+  </tests>
+
+  <prerequisites>
+    <story id="4.4" title="Real-Time Eligibility Verification">
+      Defines verification_result JSONB structure and verification_status enum
+    </story>
+    <infrastructure>
+      GraphQL subscription infrastructure from Epic 3
+    </infrastructure>
+    <infrastructure>
+      Insurance model and migrations from Story 4.1-4.4
+    </infrastructure>
+  </prerequisites>
+
+  <functionalRequirementsCovered>
+    <fr id="FR24">System communicates verification status and any issues clearly</fr>
+  </functionalRequirementsCovered>
+</story-context>

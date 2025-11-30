@@ -1,0 +1,338 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>2</storyId>
+    <title>Availability Management</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/epics.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>therapist (via admin)</asA>
+    <iWant>my availability to be tracked in the system</iWant>
+    <soThat>parents can only book during times I'm available</soThat>
+    <tasks>
+- Task 1: Create TherapistAvailability Model for Recurring Slots (AC: 1, 6)
+  - Create migration for therapist_availabilities table
+  - Fields: therapist_id (references therapists), day_of_week (0-6), start_time, end_time, timezone, is_repeating (boolean), created_at, updated_at
+  - Add validations: day_of_week 0-6, start_time before end_time, timezone valid
+  - Add belongs_to :therapist association
+  - Add scopes: active, for_day_of_week(day), overlapping(start_time, end_time)
+  - Add RSpec tests for model validations and associations
+
+- Task 2: Create TherapistTimeOff Model for Date Overrides (AC: 2, 6)
+  - Create migration for therapist_time_offs table
+  - Fields: therapist_id (references therapists), start_date, end_date, reason (optional), created_at, updated_at
+  - Add validations: start_date before or equal to end_date, dates cannot be in past
+  - Add belongs_to :therapist association
+  - Add scopes: active, overlapping(date_range)
+  - Add RSpec tests for model validations and date range logic
+
+- Task 3: Create Therapist Configuration Fields (AC: 3, 4, 5)
+  - Add migration to therapists table for appointment_duration_minutes (default 50), buffer_time_minutes (default 10)
+  - Update Therapist model with validations: appointment_duration > 0, buffer_time >= 0
+  - Add instance method #total_slot_duration (appointment_duration + buffer_time)
+  - Timezone already stored in therapist_availabilities (per-availability timezone support)
+  - Add RSpec tests for configuration validations
+
+- Task 4: Create AvailabilityService to Calculate Open Slots (AC: 6)
+  - Create app/services/scheduling/availability_service.rb
+  - Implement #available_slots(therapist_id:, start_date:, end_date:) method
+  - Logic: For each day in range, get recurring availability, subtract time-offs, generate slots based on appointment_duration + buffer_time
+  - Handle timezone conversion for therapist and client timezones
+  - Return array of slot objects: { start_time:, end_time:, therapist_id: }
+  - Add unit tests for various scenarios (recurring, time-offs, timezones, edge cases)
+
+- Task 5: Create GraphQL TherapistAvailabilityType (AC: 1, 6)
+  - Create app/graphql/types/therapist_availability_type.rb
+  - Fields: id, dayOfWeek, startTime, endTime, timezone, isRepeating, createdAt
+  - Add to TherapistType as availabilities connection
+
+- Task 6: Create GraphQL TherapistTimeOffType (AC: 2)
+  - Create app/graphql/types/therapist_time_off_type.rb
+  - Fields: id, startDate, endDate, reason, createdAt
+  - Add to TherapistType as timeOffs connection
+
+- Task 7: Create GraphQL Mutations for Availability Management (AC: 1, 2)
+  - Create app/graphql/mutations/scheduling/create_availability.rb
+  - Create app/graphql/mutations/scheduling/update_availability.rb
+  - Create app/graphql/mutations/scheduling/delete_availability.rb
+  - Create app/graphql/mutations/scheduling/create_time_off.rb
+  - Create app/graphql/mutations/scheduling/delete_time_off.rb
+  - Add authorization checks (admin only)
+  - Add mutation integration tests
+
+- Task 8: Create GraphQL Query for Available Slots (AC: 6)
+  - Create query: availableSlots(therapistId: ID!, startDate: ISO8601DateTime!, endDate: ISO8601DateTime!): [TimeSlot!]!
+  - TimeSlotType fields: startTime, endTime, therapistId
+  - Call AvailabilityService to calculate slots
+  - Add query integration tests
+
+- Task 9: Seed Availability Data from CSV (AC: all)
+  - Create db/seeds/therapist_availabilities.rb
+  - Parse docs/test-cases/clinician_availabilities.csv
+  - Map CSV fields: user_id -> therapist_id, day_of_week, range_start -> start_time, range_end -> end_time, timezone, is_repeating
+  - Handle deleted_at field (skip deleted availabilities)
+  - Create TherapistAvailability records
+  - Add seed script documentation in README
+
+- Task 10: Add Double-Booking Prevention (AC: 7)
+  - Add database unique constraint on overlapping slots for same therapist
+  - Implement validation in TherapistAvailability model to prevent overlaps
+  - Add transaction + row locking in booking mutation (future story 5.5)
+  - Add tests for concurrent booking attempts
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Given therapist profiles exist, When availability is configured, Then weekly recurring availability slots can be created with day_of_week (0-6), start_time, end_time, and timezone
+
+2. Given therapist has recurring availability, When specific date overrides are needed, Then TherapistTimeOff records can be created with start_date, end_date, and optional reason for vacations or blocked times
+
+3. Given therapist configuration, When appointment is scheduled, Then appointment_duration_minutes is configurable per therapist (default 50 minutes)
+
+4. Given appointment configuration, When calculating slots, Then buffer_time_minutes between appointments is configurable per therapist (default 10 minutes)
+
+5. Given therapist location, When availability is created, Then timezone support allows storing timezone per availability slot (e.g., America/Los_Angeles, America/New_York)
+
+6. Given therapist availability and date range, When querying available slots, Then AvailabilityService calculates open slots by combining recurring availability, subtracting time-offs, and generating slots based on duration + buffer
+
+7. Given concurrent booking attempts, When two clients try to book same slot, Then no double-booking is possible due to database constraints and transaction locking
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Epic 5: Enhanced Scheduling Module</section>
+        <snippet>Epic 5 enables AI-assisted therapist matching based on child's needs and assessment data, allowing parents to see recommended therapists and book appointments. Includes therapist profiles, availability management, AI matching algorithm, recommendations API, and booking with confirmation. This is a P0 (Must-have) epic.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 5, Story 5.2: Availability Management</section>
+        <snippet>Therapist availability tracked with weekly recurring slots (day, start_time, end_time), specific date overrides for vacations/blocked times, appointment duration configurable (default 50 min), buffer time between appointments configurable, timezone support for therapist location, query available slots for date range. Technical notes: TherapistAvailability model for recurring slots, TherapistTimeOff model for exceptions, AvailabilityService to calculate open slots. Test data: Use docs/test-cases/clinician_availabilities.csv for seeding availability slots.</snippet>
+      </doc>
+      <doc>
+        <path>docs/test-cases/clinician_availabilities.csv</path>
+        <title>Test Data - Clinician Availabilities</title>
+        <section>CSV Schema</section>
+        <snippet>CSV contains real anonymized availability data with columns: user_id (therapist ID), day_of_week (0-6 where 0=Sunday, 1=Monday, etc.), range_start (start time UTC), range_end (end time UTC), timezone (e.g., America/Los_Angeles), is_repeating (true/false), deleted_at (null if active), end_on (optional end date for repeating availability). Use this data to seed TherapistAvailability records for realistic testing.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Data Architecture - Models</section>
+        <snippet>Rails Active Record models follow conventions: snake_case filenames, PascalCase class names, belongs_to/has_many associations, validations in model, scopes for common queries, timestamps (created_at, updated_at), UUIDs for primary keys where appropriate. All PHI fields use Encryptable concern for AES-256-GCM encryption.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Service Pattern</section>
+        <snippet>Business logic lives in app/services/ organized by domain (e.g., app/services/scheduling/). Services are Plain Old Ruby Objects (POROs) with single responsibility. Service methods return Result objects or raise service-specific exceptions. Services are injected with dependencies for testability. Tests in spec/services/ with unit tests for all edge cases.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>GraphQL API - Types and Mutations</section>
+        <snippet>GraphQL types in app/graphql/types/, mutations in app/graphql/mutations/ organized by domain. All mutations require authorization via Pundit policies. Mutations return payload types with success/error fields. Use Input types for complex arguments. Add field descriptions for API documentation. Integration tests required for all mutations.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-160</lines>
+        <reason>Reference for Rails model patterns: enum definitions, associations, scopes, instance methods, validations, concerns (Auditable, Encryptable). TherapistAvailability will follow similar patterns.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/parent.rb</path>
+        <kind>model</kind>
+        <symbol>Parent</symbol>
+        <lines>1-30</lines>
+        <reason>Example of model with belongs_to association, validations, and PHI encryption via Encryptable concern. Similar pattern for TherapistAvailability belongs_to :therapist.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/onboarding_session_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>OnboardingSessionType</symbol>
+        <lines>1-60</lines>
+        <reason>Reference for GraphQL type definition: field declarations, field descriptions, method resolvers, associations (has_many). Pattern for TherapistAvailabilityType and TimeSlotType.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/insurance_type.rb</path>
+        <kind>graphql_type</kind>
+        <symbol>InsuranceType</symbol>
+        <lines>1-80</lines>
+        <reason>Example of GraphQL type with enum fields, complex field resolvers, and documentation. Shows pattern for exposing model enums to GraphQL schema.</reason>
+      </artifact>
+      <artifact>
+        <path>db/schema.rb</path>
+        <kind>schema</kind>
+        <symbol>ActiveRecord::Schema</symbol>
+        <lines>1-100</lines>
+        <reason>Current database schema showing table structure, column types, indexes, foreign keys, timestamps. Pattern for creating therapist_availabilities and therapist_time_offs migrations.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <version>3.3.x</version>
+        <gem name="rails" version="~> 7.2.3">Rails 7 API framework with Active Record ORM</gem>
+        <gem name="pg" version="~> 1.5">PostgreSQL adapter for database</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL server implementation</gem>
+        <gem name="pundit" version="~> 2.3">Authorization policies for mutations</gem>
+        <gem name="rspec-rails" version="~> 6.1">Testing framework</gem>
+        <gem name="factory_bot_rails" version="~> 6.4">Test fixtures</gem>
+        <gem name="shoulda-matchers" version="~> 6.0">Model testing matchers</gem>
+      </ruby>
+      <external>
+        <service name="PostgreSQL" version="16.x">Primary database for storing availability slots and time-offs</service>
+      </external>
+      <environment>
+        <var name="DATABASE_URL">PostgreSQL connection string</var>
+        <var name="RAILS_ENV">Environment: development, test, production</var>
+      </environment>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>No Double-Booking: Database constraints and transaction locking MUST prevent concurrent bookings of same slot</constraint>
+    <constraint>Timezone Support: All times stored with timezone information, calculations must handle timezone conversions correctly</constraint>
+    <constraint>Performance: Available slots query MUST complete within 500ms for 30-day date range</constraint>
+    <constraint>Data Validation: Start times MUST be before end times for both recurring availability and time-off periods</constraint>
+    <constraint>Admin Only: Availability management mutations MUST require admin role authorization via Pundit</constraint>
+    <constraint>Test Data: MUST use docs/test-cases/clinician_availabilities.csv for seeding realistic availability data</constraint>
+    <constraint>Slot Calculation: AvailabilityService MUST account for appointment_duration + buffer_time when generating slots</constraint>
+    <constraint>Future Dates: Time-off records MUST not allow past dates (validation error if start_date in past)</constraint>
+    <constraint>Overlap Detection: TherapistAvailability model MUST validate no overlapping slots for same therapist on same day</constraint>
+    <constraint>Testing: MUST achieve 90%+ test coverage for availability models and service</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>TherapistAvailability</name>
+      <kind>model</kind>
+      <signature>belongs_to :therapist; validates :day_of_week, :start_time, :end_time, :timezone, presence: true</signature>
+      <path>app/models/therapist_availability.rb</path>
+      <description>Active Record model for recurring weekly availability slots. Stores day of week (0-6), start/end times, timezone, and whether it's a repeating slot. Prevents overlapping slots via validation.</description>
+    </interface>
+    <interface>
+      <name>TherapistTimeOff</name>
+      <kind>model</kind>
+      <signature>belongs_to :therapist; validates :start_date, :end_date, presence: true; validate :dates_not_in_past</signature>
+      <path>app/models/therapist_time_off.rb</path>
+      <description>Active Record model for date-specific availability exceptions (vacations, blocked times). Validates start_date before or equal to end_date and no past dates.</description>
+    </interface>
+    <interface>
+      <name>Scheduling::AvailabilityService#available_slots</name>
+      <kind>service_method</kind>
+      <signature>available_slots(therapist_id:, start_date:, end_date:, timezone: 'UTC') -> Array&lt;Hash&gt;</signature>
+      <path>app/services/scheduling/availability_service.rb</path>
+      <description>Calculates available appointment slots for therapist within date range. Returns array of slot hashes with start_time, end_time, therapist_id. Accounts for recurring availability, time-offs, appointment duration, and buffer time.</description>
+    </interface>
+    <interface>
+      <name>Mutations::Scheduling::CreateAvailability</name>
+      <kind>graphql_mutation</kind>
+      <signature>createAvailability(input: CreateAvailabilityInput!): CreateAvailabilityPayload!</signature>
+      <path>app/graphql/mutations/scheduling/create_availability.rb</path>
+      <description>GraphQL mutation for creating recurring availability slot. Requires admin authorization. Input: therapistId, dayOfWeek, startTime, endTime, timezone, isRepeating. Returns created availability or errors.</description>
+    </interface>
+    <interface>
+      <name>Mutations::Scheduling::CreateTimeOff</name>
+      <kind>graphql_mutation</kind>
+      <signature>createTimeOff(input: CreateTimeOffInput!): CreateTimeOffPayload!</signature>
+      <path>app/graphql/mutations/scheduling/create_time_off.rb</path>
+      <description>GraphQL mutation for blocking off specific dates. Requires admin authorization. Input: therapistId, startDate, endDate, reason (optional). Returns created time-off or errors.</description>
+    </interface>
+    <interface>
+      <name>Query.availableSlots</name>
+      <kind>graphql_query</kind>
+      <signature>availableSlots(therapistId: ID!, startDate: ISO8601DateTime!, endDate: ISO8601DateTime!, timezone: String): [TimeSlot!]!</signature>
+      <path>app/graphql/types/query_type.rb</path>
+      <description>GraphQL query for fetching available appointment slots. Calls AvailabilityService to calculate open slots based on recurring availability minus time-offs. Returns array of TimeSlot objects.</description>
+    </interface>
+    <interface>
+      <name>Types::TherapistAvailabilityType</name>
+      <kind>graphql_type</kind>
+      <signature>id, dayOfWeek, startTime, endTime, timezone, isRepeating, createdAt</signature>
+      <path>app/graphql/types/therapist_availability_type.rb</path>
+      <description>GraphQL type for TherapistAvailability model. Exposes availability slot fields for queries and mutations.</description>
+    </interface>
+    <interface>
+      <name>Types::TimeSlotType</name>
+      <kind>graphql_type</kind>
+      <signature>startTime, endTime, therapistId, durationMinutes</signature>
+      <path>app/graphql/types/time_slot_type.rb</path>
+      <description>GraphQL type for calculated available time slot. Not backed by model, represents computed availability. Used by availableSlots query.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Rails project uses RSpec for testing with Factory Bot for fixtures and Shoulda Matchers for model testing. Test structure follows Rails conventions with spec/models/, spec/services/, spec/graphql/ directories. Model tests verify validations, associations, scopes, and instance methods. Service tests verify business logic with edge cases (empty results, overlapping times, timezone conversions). GraphQL tests verify mutations return correct data and enforce authorization. Integration tests verify end-to-end availability slot calculation flow. Test coverage target: 90%+ for all new code.
+    </standards>
+    <locations>
+      <location>spec/models/therapist_availability_spec.rb</location>
+      <location>spec/models/therapist_time_off_spec.rb</location>
+      <location>spec/factories/therapist_availabilities.rb</location>
+      <location>spec/factories/therapist_time_offs.rb</location>
+      <location>spec/services/scheduling/availability_service_spec.rb</location>
+      <location>spec/graphql/mutations/scheduling/create_availability_spec.rb</location>
+      <location>spec/graphql/mutations/scheduling/update_availability_spec.rb</location>
+      <location>spec/graphql/mutations/scheduling/delete_availability_spec.rb</location>
+      <location>spec/graphql/mutations/scheduling/create_time_off_spec.rb</location>
+      <location>spec/graphql/mutations/scheduling/delete_time_off_spec.rb</location>
+      <location>spec/graphql/types/therapist_availability_type_spec.rb</location>
+      <location>spec/graphql/types/time_slot_type_spec.rb</location>
+      <location>spec/integration/availability_slot_calculation_spec.rb</location>
+      <location>db/seeds/therapist_availabilities.rb</location>
+    </locations>
+    <ideas>
+      <idea acceptance_criteria="AC1">Test TherapistAvailability model creates recurring weekly slots with day_of_week (0-6), start_time, end_time, timezone</idea>
+      <idea acceptance_criteria="AC1">Test validation: day_of_week must be 0-6, start_time before end_time, timezone valid</idea>
+      <idea acceptance_criteria="AC1">Test validation: overlapping slots for same therapist on same day_of_week are rejected</idea>
+      <idea acceptance_criteria="AC2">Test TherapistTimeOff model creates date-specific overrides with start_date, end_date, optional reason</idea>
+      <idea acceptance_criteria="AC2">Test validation: start_date before or equal to end_date</idea>
+      <idea acceptance_criteria="AC2">Test validation: dates cannot be in past (raise validation error)</idea>
+      <idea acceptance_criteria="AC3">Test Therapist model has appointment_duration_minutes field with default 50</idea>
+      <idea acceptance_criteria="AC4">Test Therapist model has buffer_time_minutes field with default 10</idea>
+      <idea acceptance_criteria="AC4">Test Therapist#total_slot_duration returns appointment_duration + buffer_time</idea>
+      <idea acceptance_criteria="AC5">Test TherapistAvailability stores timezone per slot (e.g., 'America/Los_Angeles')</idea>
+      <idea acceptance_criteria="AC5">Test AvailabilityService handles timezone conversions correctly</idea>
+      <idea acceptance_criteria="AC6">Test AvailabilityService#available_slots combines recurring availability for date range</idea>
+      <idea acceptance_criteria="AC6">Test AvailabilityService subtracts time-offs from recurring availability</idea>
+      <idea acceptance_criteria="AC6">Test AvailabilityService generates slots using appointment_duration + buffer_time</idea>
+      <idea acceptance_criteria="AC6">Test AvailabilityService handles edge case: no availability for therapist</idea>
+      <idea acceptance_criteria="AC6">Test AvailabilityService handles edge case: all time blocked by time-offs</idea>
+      <idea acceptance_criteria="AC6">Test AvailabilityService handles multi-day date ranges</idea>
+      <idea acceptance_criteria="AC6">Test availableSlots GraphQL query returns calculated slots for date range</idea>
+      <idea acceptance_criteria="AC7">Test database unique constraint prevents double-booking</idea>
+      <idea acceptance_criteria="AC7">Test concurrent booking attempts (transaction + row locking) prevent double-booking</idea>
+      <idea>Test createAvailability mutation requires admin authorization</idea>
+      <idea>Test createTimeOff mutation requires admin authorization</idea>
+      <idea>Test seed script successfully imports clinician_availabilities.csv data</idea>
+      <idea>Integration test: full flow from recurring availability + time-off to calculated open slots</idea>
+      <idea>Performance test: availableSlots query completes within 500ms for 30-day range</idea>
+    </ideas>
+  </tests>
+
+  <prerequisites>
+    <prerequisite story="5.1">Therapist model must exist with id, name, credentials, specializations fields. If not yet created, create basic Therapist model scaffold first with migration and model file.</prerequisite>
+    <prerequisite>PostgreSQL database configured and running (from Epic 1)</prerequisite>
+    <prerequisite>GraphQL schema initialized with query_type.rb and mutation_type.rb (from Epic 1)</prerequisite>
+    <prerequisite>Pundit authorization configured for admin role checks (from Epic 2)</prerequisite>
+    <prerequisite>Test data file docs/test-cases/clinician_availabilities.csv available for seeding</prerequisite>
+  </prerequisites>
+
+  <notes>
+    <note>This story focuses on availability tracking infrastructure. Actual appointment booking logic (transaction locking, confirmation flow) will be implemented in Story 5.5.</note>
+    <note>Timezone handling is critical: store all times with timezone, convert to client timezone for display. Use Rails TimeZone and ActiveSupport::TimeWithZone throughout.</note>
+    <note>CSV seed data has real-world complexity: deleted records, end_on dates for expiring availability, multiple timezones. Handle edge cases in seed script.</note>
+    <note>AvailabilityService should be stateless and pure - same inputs always return same outputs. This makes testing easier and enables caching.</note>
+    <note>Consider future optimization: cache calculated slots in Redis with TTL, invalidate on availability/time-off changes. Not required for MVP but good to architect for.</note>
+  </notes>
+</story-context>

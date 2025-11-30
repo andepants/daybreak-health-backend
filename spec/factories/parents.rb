@@ -4,10 +4,10 @@ FactoryBot.define do
   factory :parent do
     association :onboarding_session
     email { 'parent@example.com' }
-    phone { '+1 (555) 123-4567' }
+    phone { '+12025551234' }
     first_name { 'John' }
     last_name { 'Doe' }
-    relationship { 'mother' }
+    relationship { :parent }
     is_guardian { true }
   end
 end

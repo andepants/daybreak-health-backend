@@ -1,0 +1,14 @@
+# Known payer names for insurance validation
+# Used by Insurance.known_payer_names
+payers:
+  - name: "Blue Cross Blue Shield"
+  - name: "Aetna"
+  - name: "UnitedHealthcare"
+  - name: "Cigna"
+  - name: "Humana"
+  - name: "Kaiser Permanente"
+  - name: "Anthem"
+  - name: "CVS Health / Aetna"
+  - name: "Centene"
+  - name: "Molina Healthcare"
+  - name: "Other"

@@ -1,0 +1,784 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <story-id>7-3-support-request-tracking</story-id>
+  <title>Support Request Tracking</title>
+  <epic>Epic 7: Support Interface (P1)</epic>
+
+  <story-definition>
+    <user-story>
+      As a **system**,
+      I want **to track support requests and link them to onboarding sessions**,
+      So that **we can analyze support needs and improve the flow**.
+    </user-story>
+
+    <acceptance-criteria>
+      <criterion id="AC-7.3.1">
+        **Given** parent interacts with support
+        **When** chat is initiated or completed
+        **Then**
+        - Support request logged in our database
+        - Fields: session_id, timestamp, source (widget location), resolved
+        - Intercom conversation ID stored for reference
+        - Session flagged as "contacted support"
+        - Analytics: support requests by onboarding step
+        - Webhook receives Intercom events (optional)
+      </criterion>
+
+      <criterion id="AC-7.3.2">
+        **And** support patterns inform UX improvements
+      </criterion>
+
+      <criterion id="AC-7.3.3">
+        **And** follow-up possible via session link
+      </criterion>
+    </acceptance-criteria>
+
+    <prerequisites>
+      - Story 7.2: Session Context Passing
+    </prerequisites>
+
+    <technical-notes>
+      - `SupportRequest` model
+      - Intercom webhook integration (conversations.created, etc.)
+      - Analytics query for support hotspots
+      - GraphQL: `supportRequests(sessionId: ID!): [SupportRequest!]!`
+    </technical-notes>
+  </story-definition>
+
+  <functional-requirements>
+    <requirement id="FR38">
+      Admins can view individual session details and progress
+    </requirement>
+    <requirement id="FR42">
+      System logs all admin actions for audit purposes
+    </requirement>
+  </functional-requirements>
+
+  <existing-codebase>
+    <models>
+      <model name="OnboardingSession" path="app/models/onboarding_session.rb">
+        <description>Core session model with status tracking, escalation fields, and associations</description>
+        <relevant-features>
+          - Has `needs_human_contact` boolean flag (already implemented for Story 3.5)
+          - Has `escalation_requested_at` timestamp
+          - Has `escalation_reason` encrypted PHI field
+          - Includes Auditable, Encryptable, SessionStateMachine concerns
+          - Has associations: parent, child, insurance, assessment, messages, audit_logs
+          - Scopes: active, expiring_soon, expired_pending, needs_human_contact
+        </relevant-features>
+        <schema>
+          - id: uuid (primary key)
+          - status: integer enum (started, in_progress, insurance_pending, assessment_complete, submitted, abandoned, expired)
+          - progress: jsonb
+          - expires_at: timestamp
+          - needs_human_contact: boolean (default: false)
+          - escalation_requested_at: timestamp
+          - escalation_reason: text (encrypted PHI)
+          - created_at, updated_at: timestamps
+        </schema>
+      </model>
+
+      <model name="Message" path="app/models/message.rb">
+        <description>Conversational messages with intent classification</description>
+        <relevant-features>
+          - Belongs to onboarding_session
+          - Has role enum (user, assistant, system)
+          - Has encrypted content (PHI)
+          - Has metadata jsonb for intent classification
+          - Intent tracking methods: store_intent, intent, intent_confidence, help_request?, off_topic?, question?
+        </relevant-features>
+      </model>
+
+      <model name="AuditLog" path="app/models/audit_log.rb">
+        <description>Comprehensive audit logging for compliance</description>
+        <relevant-features>
+          - Tracks all system actions with action, resource, resource_id
+          - Stores details as jsonb
+          - Captures ip_address and user_agent
+          - Belongs to onboarding_session (optional)
+          - Indexes on: action, created_at, onboarding_session_id, resource/resource_id
+        </relevant-features>
+      </model>
+
+      <model-to-create name="SupportRequest">
+        <description>New model to track support interactions linked to onboarding sessions</description>
+        <fields>
+          - id: uuid (primary key)
+          - onboarding_session_id: uuid (foreign key, required)
+          - intercom_conversation_id: string (nullable, for Intercom integration)
+          - source: string (widget location/context, e.g., "insurance_upload", "assessment_questions")
+          - resolved: boolean (default: false)
+          - resolution_notes: text (nullable)
+          - metadata: jsonb (for additional context)
+          - created_at, updated_at: timestamps
+        </fields>
+        <associations>
+          - belongs_to :onboarding_session
+        </associations>
+        <indexes>
+          - onboarding_session_id
+          - intercom_conversation_id (unique if present)
+          - resolved
+          - created_at (for analytics)
+          - source (for hotspot analysis)
+        </indexes>
+      </model-to-create>
+    </models>
+
+    <graphql>
+      <existing-types>
+        <type name="OnboardingSessionType" path="app/graphql/types/onboarding_session_type.rb">
+          <description>GraphQL type for onboarding sessions</description>
+          <fields>
+            - id, status, progress, expiresAt
+            - parent, child, insurance, assessment
+            - messages
+            - needsHumanContact, escalationRequestedAt
+          </fields>
+        </type>
+
+        <type name="SupportContactType" path="app/graphql/types/support_contact_type.rb">
+          <description>Type for support contact information (from Story 3.5)</description>
+          <fields>
+            - type: String (general/specialist)
+            - phone: String
+            - email: String
+            - hours: String
+          </fields>
+        </type>
+      </existing-types>
+
+      <types-to-create>
+        <type name="SupportRequestType">
+          <description>GraphQL type for support request tracking</description>
+          <fields>
+            - id: ID!
+            - session: OnboardingSessionType!
+            - intercomConversationId: String
+            - source: String!
+            - resolved: Boolean!
+            - resolutionNotes: String
+            - createdAt: ISO8601DateTime!
+            - updatedAt: ISO8601DateTime!
+          </fields>
+        </type>
+
+        <type name="SupportAnalyticsType">
+          <description>GraphQL type for support analytics data</description>
+          <fields>
+            - source: String! (e.g., "insurance_upload", "assessment_questions")
+            - count: Int!
+            - resolvedCount: Int!
+            - averageResolutionTime: Float (in hours)
+          </fields>
+        </type>
+      </types-to-create>
+
+      <queries>
+        <query name="supportRequests">
+          <description>Fetch support requests for a given session</description>
+          <signature>supportRequests(sessionId: ID!): [SupportRequest!]!</signature>
+          <authorization>Requires valid session token or admin role</authorization>
+        </query>
+
+        <query name="supportAnalytics">
+          <description>Get analytics on support requests by source (admin only)</description>
+          <signature>supportAnalytics(dateFrom: ISO8601DateTime, dateTo: ISO8601DateTime): [SupportAnalyticsType!]!</signature>
+          <authorization>Requires admin role</authorization>
+        </query>
+      </queries>
+    </graphql>
+
+    <services>
+      <existing-service name="ContactOptions" path="config/initializers/contact_options.rb">
+        <description>Configuration for support contact information</description>
+        <features>
+          - Validates and provides support phone, email, chat hours
+          - Timezone-aware chat hours
+          - Used by Story 3.5 escalation flow
+        </features>
+      </existing-service>
+
+      <service-to-create name="SupportTracking::WebhookHandler">
+        <description>Handles Intercom webhook events for support tracking</description>
+        <location>app/services/support_tracking/webhook_handler.rb</location>
+        <responsibilities>
+          - Validate Intercom webhook signatures
+          - Parse webhook payloads (conversation.created, conversation.closed, etc.)
+          - Create/update SupportRequest records
+          - Flag sessions as "contacted support"
+          - Trigger analytics updates
+        </responsibilities>
+      </service-to-create>
+
+      <service-to-create name="SupportTracking::AnalyticsService">
+        <description>Analyzes support request patterns for UX improvements</description>
+        <location>app/services/support_tracking/analytics_service.rb</location>
+        <responsibilities>
+          - Aggregate support requests by source/step
+          - Calculate resolution times
+          - Identify support hotspots
+          - Generate reports for admins
+        </responsibilities>
+      </service-to-create>
+    </services>
+
+    <controllers>
+      <controller-to-create name="WebhooksController">
+        <description>Handles Intercom webhook callbacks</description>
+        <location>app/controllers/webhooks_controller.rb</location>
+        <actions>
+          - intercom: POST /webhooks/intercom - Receive Intercom events
+        </actions>
+        <security>
+          - Verify Intercom webhook signature (HMAC)
+          - Rate limiting
+          - CSRF exemption for webhook endpoint
+        </security>
+      </controller-to-create>
+    </controllers>
+
+    <jobs>
+      <existing-jobs>
+        <job name="EscalationNotificationJob" path="app/jobs/escalation_notification_job.rb">
+          <description>Notifies care team of escalation requests (Story 3.5)</description>
+          <note>May need integration with SupportRequest creation</note>
+        </job>
+      </existing-jobs>
+    </jobs>
+  </existing-codebase>
+
+  <architecture-patterns>
+    <pattern name="Service Pattern">
+      <description>Business logic in service objects under app/services/</description>
+      <example>
+        ```ruby
+        # app/services/support_tracking/webhook_handler.rb
+        module SupportTracking
+          class WebhookHandler
+            def initialize(payload:, signature:)
+              @payload = payload
+              @signature = signature
+            end
+
+            def handle
+              validate_signature!
+              case @payload['topic']
+              when 'conversation.created'
+                handle_conversation_created
+              when 'conversation.closed'
+                handle_conversation_closed
+              end
+            end
+
+            private
+
+            def validate_signature!
+              # Verify HMAC signature from Intercom
+            end
+
+            def handle_conversation_created
+              # Create SupportRequest, flag session
+            end
+          end
+        end
+        ```
+      </example>
+    </pattern>
+
+    <pattern name="GraphQL Query Pattern">
+      <description>Queries as resolver methods in QueryType</description>
+      <example>
+        ```ruby
+        # app/graphql/types/query_type.rb
+        field :support_requests, [Types::SupportRequestType], null: false do
+          argument :session_id, ID, required: true
+        end
+
+        def support_requests(session_id:)
+          session = OnboardingSession.find(session_id)
+          authorize_session_access!(session)
+          session.support_requests.order(created_at: :desc)
+        end
+        ```
+      </example>
+    </pattern>
+
+    <pattern name="Webhook Security">
+      <description>Verify webhook signatures to prevent spoofing</description>
+      <implementation>
+        - Use HMAC SHA256 with Intercom secret
+        - Compare signatures in constant-time
+        - Return 401 for invalid signatures
+        - Log all webhook attempts for audit
+      </implementation>
+    </pattern>
+
+    <pattern name="Analytics Aggregation">
+      <description>Use PostgreSQL aggregation for performance</description>
+      <example>
+        ```ruby
+        # app/services/support_tracking/analytics_service.rb
+        def by_source(date_from: nil, date_to: nil)
+          scope = SupportRequest.all
+          scope = scope.where('created_at >= ?', date_from) if date_from
+          scope = scope.where('created_at <= ?', date_to) if date_to
+
+          scope.group(:source)
+               .select('source, COUNT(*) as count, COUNT(*) FILTER (WHERE resolved) as resolved_count')
+               .order('count DESC')
+        end
+        ```
+      </example>
+    </pattern>
+  </architecture-patterns>
+
+  <database-schema>
+    <migration name="CreateSupportRequests">
+      <filename>db/migrate/YYYYMMDDHHMMSS_create_support_requests.rb</filename>
+      <content>
+        ```ruby
+        class CreateSupportRequests < ActiveRecord::Migration[7.2]
+          def change
+            create_table :support_requests, id: :uuid do |t|
+              t.references :onboarding_session, type: :uuid, null: false, foreign_key: true, index: true
+              t.string :intercom_conversation_id, index: { unique: true, where: "intercom_conversation_id IS NOT NULL" }
+              t.string :source, null: false, index: true
+              t.boolean :resolved, default: false, null: false, index: true
+              t.text :resolution_notes
+              t.jsonb :metadata, default: {}
+
+              t.timestamps
+            end
+
+            add_index :support_requests, :created_at
+          end
+        end
+        ```
+      </content>
+    </migration>
+
+    <migration name="AddContactedSupportToOnboardingSessions">
+      <filename>db/migrate/YYYYMMDDHHMMSS_add_contacted_support_to_onboarding_sessions.rb</filename>
+      <content>
+        ```ruby
+        class AddContactedSupportToOnboardingSessions < ActiveRecord::Migration[7.2]
+          def change
+            add_column :onboarding_sessions, :contacted_support, :boolean, default: false, null: false
+            add_index :onboarding_sessions, :contacted_support
+          end
+        end
+        ```
+      </content>
+      <note>Alternative: Use virtual attribute based on support_requests.exists? - decide based on query performance needs</note>
+    </migration>
+  </database-schema>
+
+  <intercom-integration>
+    <webhook-events>
+      <event name="conversation.created">
+        <description>Fired when a new conversation is started</description>
+        <payload>
+          {
+            "topic": "conversation.created",
+            "data": {
+              "item": {
+                "id": "conversation_id",
+                "created_at": 1234567890,
+                "user": {
+                  "id": "user_id",
+                  "user_id": "session_id" // Our custom user_id passed from frontend
+                }
+              }
+            }
+          }
+        </payload>
+        <action>Create SupportRequest, flag session.contacted_support = true</action>
+      </event>
+
+      <event name="conversation.closed">
+        <description>Fired when conversation is marked as closed</description>
+        <payload>
+          {
+            "topic": "conversation.closed",
+            "data": {
+              "item": {
+                "id": "conversation_id",
+                "updated_at": 1234567890
+              }
+            }
+          }
+        </payload>
+        <action>Mark SupportRequest as resolved</action>
+      </event>
+
+      <event name="conversation.admin.replied">
+        <description>Fired when admin replies to conversation (optional)</description>
+        <action>Update SupportRequest metadata with reply timestamp</action>
+      </event>
+    </webhook-events>
+
+    <webhook-configuration>
+      <url>https://api.daybreak.health/webhooks/intercom</url>
+      <secret-env>INTERCOM_WEBHOOK_SECRET</secret-env>
+      <signature-header>X-Hub-Signature</signature-header>
+      <verification>
+        - Calculate HMAC SHA256 of request body with secret
+        - Compare with X-Hub-Signature header
+        - Use ActiveSupport::SecurityUtils.secure_compare for timing-safe comparison
+      </verification>
+    </webhook-configuration>
+
+    <session-linking>
+      <description>Link Intercom conversations to onboarding sessions</description>
+      <strategy>
+        When Intercom widget is initialized on frontend (Story 7.1), pass session ID as Intercom user_id:
+
+        ```javascript
+        Intercom('boot', {
+          user_id: session.id,
+          custom_attributes: {
+            session_status: session.status,
+            current_step: session.progress.currentStep
+          }
+        });
+        ```
+
+        Backend extracts session_id from webhook payload's user.user_id field.
+      </strategy>
+    </session-linking>
+  </intercom-integration>
+
+  <security-considerations>
+    <consideration id="SEC-7.3.1">
+      <title>Webhook Signature Verification</title>
+      <description>All Intercom webhooks must be verified using HMAC signature to prevent spoofing</description>
+      <implementation>
+        - Extract X-Hub-Signature header
+        - Calculate HMAC SHA256 of raw request body
+        - Compare using constant-time comparison
+        - Return 401 Unauthorized for invalid signatures
+        - Log all verification failures for security monitoring
+      </implementation>
+    </consideration>
+
+    <consideration id="SEC-7.3.2">
+      <title>No PHI in Intercom</title>
+      <description>Support requests may reference sessions, but no PHI should be sent to Intercom</description>
+      <implementation>
+        - Only send session IDs, status, current step to Intercom
+        - Never send: parent names, child info, insurance details, assessment responses
+        - SupportRequest model can store PHI context in resolution_notes (encrypted)
+        - Ensure webhook payloads are logged without PHI
+      </implementation>
+    </consideration>
+
+    <consideration id="SEC-7.3.3">
+      <title>Access Control</title>
+      <description>Support request data is session-scoped and admin-accessible</description>
+      <authorization>
+        - Parents can view support requests for their own session
+        - Admins can view all support requests
+        - Support analytics queries require admin role
+        - Use Pundit policies for authorization
+      </authorization>
+    </consideration>
+
+    <consideration id="SEC-7.3.4">
+      <title>Rate Limiting</title>
+      <description>Webhook endpoint should be rate-limited to prevent abuse</description>
+      <implementation>
+        - Use Rack::Attack for rate limiting
+        - Allow 100 requests per minute from Intercom IPs
+        - Implement exponential backoff for retries
+        - Monitor for suspicious patterns
+      </implementation>
+    </consideration>
+  </security-considerations>
+
+  <testing-strategy>
+    <model-tests>
+      <test file="spec/models/support_request_spec.rb">
+        - Validations: requires onboarding_session, source
+        - Associations: belongs_to session
+        - Scopes: by_source, unresolved, within_date_range
+        - Methods: resolve!, mark_as_resolved
+        - Uniqueness: intercom_conversation_id when present
+      </test>
+    </model-tests>
+
+    <service-tests>
+      <test file="spec/services/support_tracking/webhook_handler_spec.rb">
+        - Signature verification (valid/invalid)
+        - Conversation created: creates SupportRequest, flags session
+        - Conversation closed: marks request as resolved
+        - Invalid payload: raises appropriate error
+        - Missing session: handles gracefully
+      </test>
+
+      <test file="spec/services/support_tracking/analytics_service_spec.rb">
+        - Aggregation by source
+        - Date range filtering
+        - Resolution time calculations
+        - Hotspot identification
+      </test>
+    </service-tests>
+
+    <controller-tests>
+      <test file="spec/controllers/webhooks_controller_spec.rb">
+        - Valid webhook: processes successfully
+        - Invalid signature: returns 401
+        - Malformed payload: returns 400
+        - CSRF exemption works
+      </test>
+    </controller-tests>
+
+    <graphql-tests>
+      <test file="spec/graphql/queries/support_requests_spec.rb">
+        - Returns support requests for session
+        - Requires authentication
+        - Enforces authorization (own session only)
+        - Admin can access any session
+        - Orders by created_at desc
+      </test>
+
+      <test file="spec/graphql/queries/support_analytics_spec.rb">
+        - Requires admin role
+        - Aggregates by source
+        - Filters by date range
+        - Returns expected structure
+      </test>
+    </graphql-tests>
+
+    <integration-tests>
+      <test file="spec/integration/support_tracking_flow_spec.rb">
+        - Full flow: parent initiates chat → webhook received → request tracked → session flagged
+        - Analytics query returns accurate data
+        - Admin can view and resolve requests
+        - Multiple conversations for same session tracked separately
+      </test>
+    </integration-tests>
+  </testing-strategy>
+
+  <implementation-checklist>
+    <phase name="Phase 1: Database and Models">
+      <task>Create migration for support_requests table</task>
+      <task>Create migration for contacted_support flag on sessions (if needed)</task>
+      <task>Create SupportRequest model with validations and associations</task>
+      <task>Add has_many :support_requests to OnboardingSession model</task>
+      <task>Write model tests</task>
+    </phase>
+
+    <phase name="Phase 2: Webhook Infrastructure">
+      <task>Create WebhooksController with intercom action</task>
+      <task>Add webhook route: POST /webhooks/intercom</task>
+      <task>Exempt webhook endpoint from CSRF protection</task>
+      <task>Create SupportTracking::WebhookHandler service</task>
+      <task>Implement signature verification</task>
+      <task>Handle conversation.created event</task>
+      <task>Handle conversation.closed event</task>
+      <task>Write webhook handler tests</task>
+      <task>Write controller tests</task>
+    </phase>
+
+    <phase name="Phase 3: GraphQL API">
+      <task>Create SupportRequestType GraphQL type</task>
+      <task>Create SupportAnalyticsType GraphQL type</task>
+      <task>Add supportRequests query to QueryType</task>
+      <task>Add supportAnalytics query to QueryType (admin only)</task>
+      <task>Implement authorization checks</task>
+      <task>Write GraphQL query tests</task>
+    </phase>
+
+    <phase name="Phase 4: Analytics Service">
+      <task>Create SupportTracking::AnalyticsService</task>
+      <task>Implement by_source aggregation</task>
+      <task>Implement date range filtering</task>
+      <task>Calculate resolution times</task>
+      <task>Write analytics service tests</task>
+    </phase>
+
+    <phase name="Phase 5: Integration and Documentation">
+      <task>Write integration tests for full flow</task>
+      <task>Update API documentation with new queries</task>
+      <task>Create Intercom webhook configuration guide</task>
+      <task>Add environment variable documentation (INTERCOM_WEBHOOK_SECRET)</task>
+      <task>Test with Intercom webhook test events</task>
+    </phase>
+  </implementation-checklist>
+
+  <acceptance-validation>
+    <validation id="VAL-7.3.1">
+      <criterion>AC-7.3.1</criterion>
+      <test>
+        - Create onboarding session
+        - Trigger Intercom webhook (conversation.created) with session_id
+        - Verify SupportRequest created with correct session_id, source, timestamp
+        - Verify session.contacted_support = true (or support_requests.exists?)
+        - Trigger conversation.closed webhook
+        - Verify SupportRequest marked as resolved
+      </test>
+    </validation>
+
+    <validation id="VAL-7.3.2">
+      <criterion>AC-7.3.2</criterion>
+      <test>
+        - Create multiple support requests across different sources
+        - Query supportAnalytics
+        - Verify aggregation by source shows hotspots
+        - Verify resolution rates calculated correctly
+      </test>
+    </validation>
+
+    <validation id="VAL-7.3.3">
+      <criterion>AC-7.3.3</criterion>
+      <test>
+        - Query supportRequests for a session
+        - Verify includes intercom_conversation_id
+        - Admin can use this to deep-link to Intercom conversation
+        - Follow-up actions possible via GraphQL mutations (future)
+      </test>
+    </validation>
+  </acceptance-validation>
+
+  <environment-variables>
+    <variable name="INTERCOM_WEBHOOK_SECRET">
+      <description>Secret key for verifying Intercom webhook signatures</description>
+      <required>true</required>
+      <format>String (provided by Intercom dashboard)</format>
+      <example>sk_test_abc123...</example>
+    </variable>
+
+    <variable name="INTERCOM_APP_ID">
+      <description>Intercom application ID (for frontend integration, Story 7.1)</description>
+      <required>true</required>
+      <format>String</format>
+      <example>app_id_12345</example>
+    </variable>
+  </environment-variables>
+
+  <edge-cases>
+    <case id="EDGE-7.3.1">
+      <scenario>Webhook received for unknown session_id</scenario>
+      <handling>
+        - Log warning with conversation_id and user_id
+        - Do not create SupportRequest
+        - Return 200 OK to Intercom (prevent retries)
+        - Alert admins if frequency is high (possible integration issue)
+      </handling>
+    </case>
+
+    <case id="EDGE-7.3.2">
+      <scenario>Multiple conversation.created events for same conversation_id</scenario>
+      <handling>
+        - Use intercom_conversation_id uniqueness constraint
+        - Skip creation if already exists
+        - Update metadata with retry count
+        - Return 200 OK
+      </handling>
+    </case>
+
+    <case id="EDGE-7.3.3">
+      <scenario>Conversation closed before conversation.created webhook received</scenario>
+      <handling>
+        - Create SupportRequest with resolved=true from start
+        - Infer source from conversation metadata if available
+        - Set resolution_notes: "Auto-resolved, closed before creation webhook"
+      </handling>
+    </case>
+
+    <case id="EDGE-7.3.4">
+      <scenario>Parent contacts support multiple times for same session</scenario>
+      <handling>
+        - Create separate SupportRequest for each conversation
+        - All linked to same onboarding_session
+        - Analytics shows repeat contact patterns
+        - Flag sessions with multiple unresolved requests for review
+      </handling>
+    </case>
+
+    <case id="EDGE-7.3.5">
+      <scenario>Invalid webhook signature</scenario>
+      <handling>
+        - Return 401 Unauthorized
+        - Log security event with IP, timestamp, payload hash
+        - Do not process event
+        - Alert security team if repeated from same IP
+      </handling>
+    </case>
+  </edge-cases>
+
+  <performance-considerations>
+    <consideration id="PERF-7.3.1">
+      <title>Webhook Processing Time</title>
+      <target>Process webhook in &lt; 200ms</target>
+      <optimization>
+        - Lightweight validation and database writes only
+        - Defer complex analytics updates to background jobs
+        - Use database indexes on session_id, created_at, source
+      </optimization>
+    </consideration>
+
+    <consideration id="PERF-7.3.2">
+      <title>Analytics Query Performance</title>
+      <target>Analytics queries return in &lt; 500ms for 90-day range</target>
+      <optimization>
+        - Use PostgreSQL aggregation (GROUP BY)
+        - Add composite index on (created_at, source, resolved)
+        - Consider materialized view for daily aggregates (future)
+        - Cache analytics results for 5 minutes
+      </optimization>
+    </consideration>
+
+    <consideration id="PERF-7.3.3">
+      <title>N+1 Query Prevention</title>
+      <optimization>
+        - Eager load session when querying support_requests
+        - Use includes(:onboarding_session) in GraphQL resolvers
+        - Batch load conversations if querying multiple sessions
+      </optimization>
+    </consideration>
+  </performance-considerations>
+
+  <future-enhancements>
+    <enhancement id="ENH-7.3.1">
+      <title>Admin Support Request Resolution UI</title>
+      <description>Allow admins to mark requests as resolved from dashboard, add resolution notes</description>
+      <dependencies>Admin dashboard (Epic 7)</dependencies>
+    </enhancement>
+
+    <enhancement id="ENH-7.3.2">
+      <title>Automated Support Response Suggestions</title>
+      <description>Use AI to analyze common support requests and suggest self-service content</description>
+      <dependencies>AI service, content management</dependencies>
+    </enhancement>
+
+    <enhancement id="ENH-7.3.3">
+      <title>Real-time Support Alerts</title>
+      <description>GraphQL subscription for new support requests (admin dashboard live updates)</description>
+      <dependencies>GraphQL subscriptions infrastructure</dependencies>
+    </enhancement>
+
+    <enhancement id="ENH-7.3.4">
+      <title>Support Request Sentiment Analysis</title>
+      <description>Analyze conversation sentiment to prioritize frustrated users</description>
+      <dependencies>AI service, Intercom conversation data</dependencies>
+    </enhancement>
+
+    <enhancement id="ENH-7.3.5">
+      <title>Integration with Other Support Channels</title>
+      <description>Track support requests from email, phone, SMS in addition to Intercom</description>
+      <dependencies>Multi-channel support infrastructure</dependencies>
+    </enhancement>
+  </future-enhancements>
+
+  <references>
+    <reference type="epic">docs/epics.md - Epic 7: Support Interface</reference>
+    <reference type="prd">docs/prd.md - Admin &amp; Operations section</reference>
+    <reference type="architecture">docs/architecture.md - Service Pattern, GraphQL API</reference>
+    <reference type="story">docs/sprint-artifacts/3-5-human-escalation-request.md - Related escalation tracking</reference>
+    <reference type="config">config/initializers/contact_options.rb - Support contact configuration</reference>
+    <reference type="model">app/models/onboarding_session.rb - Session model with needs_human_contact</reference>
+    <reference type="external">https://developers.intercom.com/building-apps/docs/webhook-model - Intercom webhooks</reference>
+  </references>
+</story-context>

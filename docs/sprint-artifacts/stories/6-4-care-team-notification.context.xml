@@ -1,0 +1,285 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>4</storyId>
+    <title>Care Team Notification</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/6-4-care-team-notification.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>care coordinator</asA>
+    <iWant>to be notified when an onboarding is complete</iWant>
+    <soThat>I can begin the therapist matching process</soThat>
+    <tasks>
+- Task 1: Create care team notification service (AC: #1, #3)
+  - Create app/services/notification/care_team_service.rb
+  - Implement notify_session_complete(session) method
+  - Build notification payload with all required fields
+  - Calculate priority based on risk flags
+  - Write service specs
+
+- Task 2: Implement email notification to care team (AC: #1, #2)
+  - Add care_team_notification method to NotificationMailer
+  - Create email template: app/views/notification_mailer/care_team_notification.html.erb
+  - Create plain text version: app/views/notification_mailer/care_team_notification.text.erb
+  - Add care team distribution list to config/initializers/contact_options.rb
+  - Include all required context in email body
+  - Add secure link to admin session detail view
+  - Write mailer specs
+
+- Task 3: Create GraphQL subscription for dashboard alerts (AC: #1)
+  - Create app/graphql/subscriptions/care_team_notified.rb subscription
+  - Create CareTeamNotificationType for subscription payload
+  - Register subscription in SubscriptionType
+  - Implement real-time notification via Action Cable
+  - Add authorization filter (coordinator/admin roles only)
+  - Write subscription specs
+
+- Task 4: Implement priority elevation for risk flags (AC: #1)
+  - Add priority field to notification payload (normal/high)
+  - Implement risk flag detection from Assessment model
+  - Add escalation request detection from OnboardingSession
+  - Add visual priority indicators in email template
+  - Write priority logic specs
+
+- Task 5: Create background job for notification delivery (AC: #2)
+  - Create app/jobs/care_team_notification_job.rb
+  - Queue job on session submission (status → submitted)
+  - Add callback in OnboardingSession model for status change
+  - Use default queue for standard priority, high queue for risk flags
+  - Ensure delivery within 5-minute SLA
+  - Add audit logging for notification sent
+  - Write job specs
+
+- Task 6: Configure care team contacts (AC: #1)
+  - Add care team email list to config/initializers/contact_options.rb
+  - Support environment variable override for production
+  - Add validation for contact configuration on boot
+  - Document configuration in .env.example
+
+- Task 7: Integration testing (All ACs)
+  - Integration test: session submitted → notification sent → email delivered
+  - Integration test: high priority notification for sessions with risk flags
+  - Integration test: GraphQL subscription receives notification
+  - Test notification content includes all required fields
+  - Verify 5-minute delivery SLA with timing tests
+  - Test audit trail creation
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Given a session is submitted
+   When care team notification is triggered
+   Then:
+   - Internal notification sent to care team channel/queue
+   - Notification includes:
+     - Session ID and completion timestamp
+     - Child's age and primary concerns (summary)
+     - Insurance status (verified/self-pay)
+     - Any flags (risk indicators, escalation requests)
+     - Link to admin session detail view
+   - Notification methods: email to care team + internal dashboard alert
+   - Priority elevated if risk flags present
+
+2. Given notification is triggered
+   Then care team receives within 5 minutes of completion
+
+3. Given notification is sent
+   Then all necessary context provided without clicking through
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR34: Care Team Notification</section>
+        <snippet>System notifies care team of completed onboarding (internal dashboard only, no email initially). Critical for ensuring care coordination begins immediately after assessment completion.</snippet>
+      </doc>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR35: Risk Alert Notification</section>
+        <snippet>System alerts on detected risk indicators immediately (email + dashboard, no SMS). Priority notification pattern that this story will implement for completion notifications.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Background Jobs (Sidekiq)</section>
+        <snippet>Sidekiq for async job processing with queue priorities. Default queue for normal operations, critical queue for urgent alerts. Retry mechanism with exponential backoff.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Real-Time: GraphQL Subscriptions</section>
+        <snippet>Action Cable for WebSocket subscriptions. GraphQL subscription triggers on notification creation. Authorization filters required based on role (coordinator/admin only).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Email Service</section>
+        <snippet>AWS SES for transactional email. HIPAA BAA available. Email delivery tracked and logged for compliance.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 6.4: Care Team Notification</section>
+        <snippet>Notification includes: session ID, completion timestamp, child age and primary concerns (summary), insurance status, risk flags, escalation requests, and link to admin session detail view. Multiple channels: email to care team + internal dashboard alert. Priority elevated if risk flags present.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>app/models/onboarding_session.rb</path>
+        <kind>model</kind>
+        <symbol>OnboardingSession</symbol>
+        <lines>1-160</lines>
+        <reason>Core session model with status enum including 'submitted' status. Needs callback for status change to trigger notification. Has escalation fields (needs_human_contact, escalation_requested_at, escalation_reason).</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/parent.rb</path>
+        <kind>model</kind>
+        <symbol>Parent</symbol>
+        <lines>1-42</lines>
+        <reason>Parent model with encrypted PHI (email). Provides parent contact information for notification payload.</reason>
+      </artifact>
+      <artifact>
+        <path>app/models/child.rb</path>
+        <kind>model</kind>
+        <symbol>Child</symbol>
+        <lines>1-93</lines>
+        <reason>Child model with age calculation method and encrypted primary_concerns field. Provides child age and concerns for notification summary.</reason>
+      </artifact>
+      <artifact>
+        <path>app/mailers/application_mailer.rb</path>
+        <kind>mailer</kind>
+        <symbol>ApplicationMailer</symbol>
+        <lines>1-4</lines>
+        <reason>Base mailer class. NotificationMailer will inherit from this for care team notifications.</reason>
+      </artifact>
+      <artifact>
+        <path>app/mailers/parent_mailer.rb</path>
+        <kind>mailer</kind>
+        <symbol>ParentMailer</symbol>
+        <lines>1-29</lines>
+        <reason>Example mailer implementation showing pattern for session_recovery email. Pattern to follow for care_team_notification method.</reason>
+      </artifact>
+      <artifact>
+        <path>app/jobs/escalation_notification_job.rb</path>
+        <kind>job</kind>
+        <symbol>EscalationNotificationJob</symbol>
+        <lines>1-62</lines>
+        <reason>Example background job for notifications. Shows pattern for care team notification integration. Currently has TODO comment referencing this story (Story 6.4).</reason>
+      </artifact>
+      <artifact>
+        <path>config/initializers/contact_options.rb</path>
+        <kind>config</kind>
+        <symbol>ContactOptions</symbol>
+        <lines>1-125</lines>
+        <reason>Configuration module for contact information. Pattern to follow for care team distribution list configuration.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/types/subscription_type.rb</path>
+        <kind>graphql</kind>
+        <symbol>SubscriptionType</symbol>
+        <lines>1-9</lines>
+        <reason>GraphQL subscription registry. CareTeamNotified subscription will be registered here.</reason>
+      </artifact>
+      <artifact>
+        <path>app/graphql/subscriptions/progress_updated.rb</path>
+        <kind>subscription</kind>
+        <symbol>ProgressUpdated</symbol>
+        <lines>1-54</lines>
+        <reason>Example subscription implementation showing authorization pattern and subscribe/update methods. Pattern to follow for CareTeamNotified subscription.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ruby>
+        <gem name="rails" version="~> 7.2.3">Core framework with Action Mailer support</gem>
+        <gem name="sidekiq" version="~> 7.2">Background job processing for async notification delivery</gem>
+        <gem name="graphql" version="~> 2.2">GraphQL subscriptions for real-time dashboard alerts</gem>
+        <gem name="redis" version="~> 5.0">Action Cable backend for GraphQL subscriptions</gem>
+        <gem name="pundit" version="~> 2.3">Authorization for role-based access to subscription</gem>
+      </ruby>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Service Layer Pattern: Use app/services/notification/ for business logic, keeping mailers thin and focused on rendering</constraint>
+    <constraint>Background Job Pattern: Queue notification via Sidekiq for async delivery, use 'default' queue for normal priority, 'high' queue for risk flags</constraint>
+    <constraint>PHI Protection: Session detail link requires admin authentication, only coordinator/admin roles receive notifications</constraint>
+    <constraint>Audit Logging: Record all notification deliveries to audit_logs table with action 'CARE_TEAM_NOTIFIED'</constraint>
+    <constraint>Email Security: Use AWS SES with TLS encryption, configure via Action Mailer SMTP settings</constraint>
+    <constraint>Performance: Notification delivery SLA < 5 minutes (target: immediate), email send time < 2 minutes, subscription < 1 second</constraint>
+    <constraint>Testing: Unit tests for service methods, integration tests for end-to-end flow, mailer specs for email rendering</constraint>
+    <constraint>Configuration: Care team distribution list in config/initializers/contact_options.rb, support environment variable override</constraint>
+    <constraint>Callback Pattern: Use after_commit callback on OnboardingSession for status change to 'submitted' to trigger notification</constraint>
+    <constraint>Action Cable: Real-time notification via WebSocket, GraphQL subscription with authorization filter</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>Notification::CareTeamService#notify_session_complete</name>
+      <kind>Ruby service method</kind>
+      <signature>def notify_session_complete(session) -> Hash</signature>
+      <path>app/services/notification/care_team_service.rb</path>
+      <description>Main service method that coordinates email delivery and subscription trigger. Returns notification payload.</description>
+    </interface>
+    <interface>
+      <name>NotificationMailer#care_team_notification</name>
+      <kind>Action Mailer method</kind>
+      <signature>def care_team_notification(session:) -> Mail::Message</signature>
+      <path>app/mailers/notification_mailer.rb</path>
+      <description>Renders and delivers care team notification email with session context.</description>
+    </interface>
+    <interface>
+      <name>CareTeamNotificationJob#perform</name>
+      <kind>Sidekiq job</kind>
+      <signature>def perform(session_id) -> void</signature>
+      <path>app/jobs/care_team_notification_job.rb</path>
+      <description>Background job queued on session submission. Calls CareTeamService to send notifications.</description>
+    </interface>
+    <interface>
+      <name>Subscriptions::CareTeamNotified</name>
+      <kind>GraphQL subscription</kind>
+      <signature>field :care_team_notified, subscription: Subscriptions::CareTeamNotified</signature>
+      <path>app/graphql/subscriptions/care_team_notified.rb</path>
+      <description>Real-time subscription for dashboard alerts. Authorization: coordinator/admin roles only.</description>
+    </interface>
+    <interface>
+      <name>OnboardingSession#after_commit :notify_care_team_on_submission</name>
+      <kind>ActiveRecord callback</kind>
+      <signature>after_commit :notify_care_team_on_submission, on: :update, if: :saved_change_to_status?</signature>
+      <path>app/models/onboarding_session.rb</path>
+      <description>Callback that queues CareTeamNotificationJob when status changes to 'submitted'.</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>RSpec 3.x with FactoryBot fixtures. Unit tests for service methods and payload building. Mailer specs using ActionMailer::TestHelper. GraphQL subscription specs using graphql-ruby test helpers. Integration tests using DatabaseCleaner for transaction rollback. Test coverage for PHI protection and authorization.</standards>
+    <locations>
+      - spec/services/notification/care_team_service_spec.rb
+      - spec/mailers/notification_mailer_spec.rb
+      - spec/jobs/care_team_notification_job_spec.rb
+      - spec/graphql/subscriptions/care_team_notified_spec.rb
+      - spec/models/onboarding_session_spec.rb (callback tests)
+      - spec/integration/care_team_notification_spec.rb
+    </locations>
+    <ideas>
+      <test ac="1">Service builds complete notification payload with session_id, completed_at, child age, primary concerns summary, insurance status, risk flags, escalation requests, admin link</test>
+      <test ac="1">Service calculates priority based on risk flags (high if risk_flags present, normal otherwise)</test>
+      <test ac="1">Email includes all required context: session details, child summary, insurance status, flags, admin session link</test>
+      <test ac="1">Email sent to care team distribution list from config</test>
+      <test ac="1">GraphQL subscription triggers with notification payload</test>
+      <test ac="1">Subscription authorization rejects non-coordinator/admin roles</test>
+      <test ac="2">Notification job queued immediately on session status → submitted</test>
+      <test ac="2">Notification delivered within 5-minute SLA (timing test with fixed time)</test>
+      <test ac="2">High priority uses 'high' queue, normal uses 'default' queue</test>
+      <test ac="3">Email body contains all necessary context without requiring clicks</test>
+      <test ac="3">Admin session link includes secure authentication requirement</test>
+      <test ac="all">Integration test: session submitted → notification sent → email delivered → subscription triggered</test>
+      <test ac="all">Integration test: high priority notification for session with risk flags</test>
+      <test ac="all">Audit trail created for notification sent (action: CARE_TEAM_NOTIFIED)</test>
+    </ideas>
+  </tests>
+</story-context>
