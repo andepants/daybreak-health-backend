@@ -22,7 +22,7 @@ gem "graphql", "~> 2.2"
 gem "apollo_upload_server", "~> 2.1"
 
 # JWT for authentication
-gem "jwt", "~> 2.7"
+gem "jwt", "~> 3.1"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 gem "bcrypt", "~> 3.1.7"
