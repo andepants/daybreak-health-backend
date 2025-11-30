@@ -1,0 +1,77 @@
+# Payment Plan Configuration
+#
+# This file defines payment plan options for therapy costs.
+# Used by Billing::PaymentPlanService to calculate payment plan options.
+#
+# Configuration:
+# - plan_durations: Available plan durations in months (default: [3, 6, 12])
+# - upfront_discount_percentage: Discount for paying in full upfront (default: 5%)
+# - interest_rates: Interest rates by plan duration (default: 0% for MVP - no predatory terms)
+# - service_fees: Service fees by plan duration (default: $0 for MVP)
+#
+# Environment Variables:
+# - PAYMENT_PLAN_UPFRONT_DISCOUNT: Override upfront discount percentage (optional)
+
+# Development environment
+development:
+  # Available payment plan durations (in months)
+  plan_durations:
+    - 3
+    - 6
+    - 12
+
+  # Upfront payment discount percentage
+  # Can be overridden with PAYMENT_PLAN_UPFRONT_DISCOUNT env var
+  upfront_discount_percentage: 5.0
+
+  # Interest rates by plan duration (annual percentage rate)
+  # MVP uses 0% interest to avoid predatory terms
+  interest_rates:
+    3: 0.0
+    6: 0.0
+    12: 0.0
+
+  # Service fees by plan duration (flat fee in USD)
+  # MVP uses $0 fees
+  service_fees:
+    3: 0.0
+    6: 0.0
+    12: 0.0
+
+# Test environment
+test:
+  plan_durations:
+    - 3
+    - 6
+    - 12
+
+  upfront_discount_percentage: 5.0
+
+  interest_rates:
+    3: 0.0
+    6: 0.0
+    12: 0.0
+
+  service_fees:
+    3: 0.0
+    6: 0.0
+    12: 0.0
+
+# Production environment
+production:
+  plan_durations:
+    - 3
+    - 6
+    - 12
+
+  upfront_discount_percentage: <%= ENV.fetch('PAYMENT_PLAN_UPFRONT_DISCOUNT', 5.0) %>
+
+  interest_rates:
+    3: 0.0
+    6: 0.0
+    12: 0.0
+
+  service_fees:
+    3: 0.0
+    6: 0.0
+    12: 0.0

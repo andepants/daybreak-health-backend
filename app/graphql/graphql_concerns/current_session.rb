@@ -140,4 +140,17 @@ module GraphqlConcerns::CurrentSession
   def system?
     has_role?('system')
   end
+
+  # Normalize session ID (handle sess_ prefix)
+  #
+  # @param session_id [String] Session ID (with or without sess_ prefix)
+  # @return [String] Normalized UUID
+  def normalize_session_id(session_id)
+    if session_id.start_with?('sess_')
+      hex = session_id.sub('sess_', '')
+      "#{hex[0..7]}-#{hex[8..11]}-#{hex[12..15]}-#{hex[16..19]}-#{hex[20..31]}"
+    else
+      session_id
+    end
+  end
 end

@@ -1,0 +1,30 @@
+# Session rates configuration for deductible projections
+#
+# Story 6.4: Deductible & Out-of-Pocket Tracking
+# Used to calculate "sessions until deductible met" projections
+#
+# Rates are in USD and represent typical therapy session costs.
+# These are defaults - actual rates may vary by contract, organization, or payer.
+#
+rates:
+  # Intake session (initial assessment)
+  intake: 150.00
+  
+  # Individual therapy session (45-60 minutes)
+  individual_therapy: 100.00
+  
+  # Family therapy session (45-60 minutes)
+  family_therapy: 125.00
+  
+  # Group therapy session (per person)
+  group_therapy: 50.00
+
+# Default service type for deductible projections
+default: individual_therapy
+
+# Future: Per-contract or per-organization rate overrides
+# overrides:
+#   contract_123:
+#     individual_therapy: 110.00
+#   organization_456:
+#     intake: 175.00

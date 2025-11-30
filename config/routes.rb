@@ -9,6 +9,11 @@ Rails.application.routes.draw do
   # Mount ActionCable for GraphQL subscriptions
   mount ActionCable.server => '/cable'
 
+  # Webhooks
+  namespace :webhooks do
+    post '/intercom', to: 'intercom#create'
+  end
+
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
@@ -20,4 +25,7 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "posts#index"
+
+  # Hacked screen (for fun)
+  get "/hacked", to: "hacked#show"
 end

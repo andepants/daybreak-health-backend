@@ -17,7 +17,8 @@ class OnboardingSession < ApplicationRecord
     assessment_complete: 3,
     submitted: 4,
     abandoned: 5,
-    expired: 6
+    expired: 6,
+    appointment_booked: 7
   }
 
   # AC 2.6.3: Role-based access control
@@ -38,6 +39,11 @@ class OnboardingSession < ApplicationRecord
   has_many :messages, dependent: :destroy
   has_many :audit_logs, dependent: :nullify
   has_many :refresh_tokens, dependent: :destroy
+  has_many :support_requests, dependent: :destroy
+  has_many :appointments, dependent: :destroy
+  has_one :booked_appointment, -> { where.not(status: [:cancelled]).order(scheduled_at: :asc) },
+          class_name: 'Appointment', inverse_of: :onboarding_session
+  has_one :payment_plan, dependent: :destroy
 
   # Validations
   validates :status, presence: true
@@ -61,6 +67,43 @@ class OnboardingSession < ApplicationRecord
   # @return [Boolean] true if session has passed expiration time
   def past_expiration?
     expires_at < Time.current
+  end
+
+  # Store cost calculation breakdown
+  #
+  # Stores calculation results from CostCalculationService with timestamp
+  # for audit trail and historical reference.
+  #
+  # @param breakdown [Hash] Cost breakdown from CostCalculationService
+  # @return [Boolean] true if save successful
+  #
+  # @example
+  #   session.store_cost_breakdown(
+  #     gross_cost: 150.00,
+  #     net_cost: 135.00,
+  #     adjustments: [...]
+  #   )
+  def store_cost_breakdown(breakdown)
+    self.cost_estimate = breakdown.merge(
+      stored_at: Time.current.iso8601
+    )
+    save
+  end
+
+  # Retrieve cost calculation breakdown
+  #
+  # @return [Hash, nil] The stored cost breakdown or nil if not calculated
+  def cost_breakdown
+    return nil if cost_estimate.blank?
+
+    cost_estimate.with_indifferent_access
+  end
+
+  # Check if cost has been calculated
+  #
+  # @return [Boolean] true if cost breakdown exists
+  def cost_calculated?
+    cost_estimate.present? && cost_estimate['calculated_at'].present?
   end
 
   # Extend session expiration by specified duration from current time (default 1 hour)

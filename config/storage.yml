@@ -6,7 +6,9 @@ local:
   service: Disk
   root: <%= Rails.root.join("storage") %>
 
-# HIPAA-compliant S3 storage with SSE-KMS encryption for insurance card images
+# HIPAA-compliant S3 storage for insurance card images
+# Bucket has server-side encryption enabled at bucket level (AES-256)
+# For production with KMS, set AWS_KMS_KEY_ID and uncomment ssekms_key_id
 amazon:
   service: S3
   access_key_id: <%= ENV['AWS_ACCESS_KEY_ID'] %>
@@ -14,8 +16,10 @@ amazon:
   region: <%= ENV['AWS_REGION'] || 'us-east-1' %>
   bucket: <%= ENV['S3_BUCKET'] %>
   upload:
-    server_side_encryption: "aws:kms"
-    ssekms_key_id: <%= ENV['AWS_KMS_KEY_ID'] %>
+    server_side_encryption: "AES256"
+    # For KMS encryption (production), uncomment below:
+    # server_side_encryption: "aws:kms"
+    # ssekms_key_id: <%= ENV['AWS_KMS_KEY_ID'] %>
 
 # Remember not to checkin your GCS keyfile to a repository
 # google:

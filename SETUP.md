@@ -41,6 +41,18 @@ Before you can run this application, you need to install:
    redis-cli ping  # Should return PONG
    ```
 
+4. **AWS CLI** (required for Epic 4: Insurance Verification)
+   ```bash
+   # macOS
+   brew install awscli
+
+   # Or via pip
+   pip install awscli
+
+   # Verify installation
+   aws --version
+   ```
+
 ## Installation Steps
 
 ### 1. Clone and Install Dependencies
@@ -73,7 +85,45 @@ rails db:create
 rails db:migrate
 ```
 
-### 4. Enable Development Caching
+### 4. Configure AWS Services (Epic 4: Insurance Verification)
+
+AWS S3 and Textract are required for insurance card upload and OCR extraction.
+
+**Development bucket already created:** `daybreak-insurance-cards-dev`
+- Region: us-east-1
+- Encryption: AES-256 (server-side)
+- Public access: Blocked
+- CORS: Configured for localhost:3000, localhost:3001
+
+**Configure AWS credentials:**
+
+```bash
+# Option 1: Use existing AWS credentials (if you have AWS CLI configured)
+aws configure
+# Enter your Access Key ID, Secret Access Key, and region (us-east-1)
+
+# Option 2: Set environment variables in .env
+AWS_ACCESS_KEY_ID=your-access-key-id
+AWS_SECRET_ACCESS_KEY=your-secret-access-key
+AWS_REGION=us-east-1
+S3_BUCKET=daybreak-insurance-cards-dev
+```
+
+**Verify AWS setup:**
+
+```bash
+# Test S3 access
+aws s3 ls s3://daybreak-insurance-cards-dev/
+
+# Test Textract access (requires an image file)
+# aws textract detect-document-text --document '{"S3Object":{"Bucket":"daybreak-insurance-cards-dev","Name":"test.jpg"}}'
+```
+
+**Required IAM permissions:**
+- `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on bucket
+- `textract:AnalyzeDocument`, `textract:DetectDocumentText`
+
+### 5. Enable Development Caching
 
 The application uses Redis caching for session data. Enable caching in development:
 
@@ -93,7 +143,7 @@ rails dev:cache
 
 **Note:** Redis caching is required for session progress updates and multi-device sync features.
 
-### 5. Start the Development Server
+### 6. Start the Development Server
 
 ```bash
 # Start Rails server on port 3000
@@ -108,7 +158,7 @@ The server should start successfully and be accessible at:
 - Health check: http://localhost:3000/health
 - GraphiQL IDE: http://localhost:3000/graphiql
 
-### 6. Verify Installation
+### 7. Verify Installation
 
 Run the test suite to verify everything is working:
 

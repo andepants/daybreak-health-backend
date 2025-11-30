@@ -22,8 +22,8 @@ class Insurance < ApplicationRecord
   belongs_to :onboarding_session
 
   # Scopes for OCR status filtering
-  scope :ocr_pending, -> { where(verification_status: [:pending, :in_progress]) }
-  scope :ocr_completed, -> { where(verification_status: [:ocr_complete, :ocr_needs_review]) }
+  scope :ocr_pending, -> { where(verification_status: [ :pending, :in_progress ]) }
+  scope :ocr_completed, -> { where(verification_status: [ :ocr_complete, :ocr_needs_review ]) }
   scope :needs_ocr_review, -> { where(verification_status: :ocr_needs_review) }
 
   # Active Storage attachments for insurance card images
@@ -386,8 +386,118 @@ class Insurance < ApplicationRecord
     verification_result&.dig("api_response_id")
   end
 
+  # Story 6.4: Out-of-pocket maximum helper methods (AC2)
+
+  # Get out-of-pocket maximum amount
+  #
+  # @return [Float, nil] OOP max amount in dollars
+  def out_of_pocket_max_amount
+    # Check for manual override first
+    override = verification_result&.dig("deductible_override", "oop_max_amount")
+    return override if override.present?
+
+    # Check family plan OOP max
+    family_oop = verification_result&.dig("coverage", "family_out_of_pocket_max", "amount")
+    return family_oop if is_family_plan? && family_oop.present?
+
+    # Check individual OOP max
+    verification_result&.dig("coverage", "out_of_pocket_max", "amount")
+  end
+
+  # Get out-of-pocket amount already met
+  #
+  # @return [Float, nil] OOP amount met in dollars
+  def out_of_pocket_met
+    # Check for manual override first
+    override = verification_result&.dig("deductible_override", "oop_met")
+    return override if override.present?
+
+    # Check family plan OOP met
+    family_oop_met = verification_result&.dig("coverage", "family_out_of_pocket_max", "met")
+    return family_oop_met if is_family_plan? && family_oop_met.present?
+
+    # Check individual OOP met
+    verification_result&.dig("coverage", "out_of_pocket_max", "met")
+  end
+
+  # Calculate out-of-pocket amount remaining
+  #
+  # @return [Float, nil] OOP amount remaining in dollars
+  def out_of_pocket_remaining
+    max_amount = out_of_pocket_max_amount
+    met_amount = out_of_pocket_met
+
+    return nil if max_amount.nil?
+
+    met_amount ||= 0
+    remaining = max_amount - met_amount
+    [ remaining, 0 ].max # Ensure non-negative
+  end
+
+  # Story 6.4: Family plan detection (AC3)
+
+  # Check if this is a family plan
+  #
+  # @return [Boolean] True if family plan, false if individual
+  def is_family_plan?
+    # Check for explicit family deductible field
+    family_deductible = verification_result&.dig("coverage", "family_deductible")
+    return true if family_deductible.present?
+
+    # Check for family OOP max
+    family_oop = verification_result&.dig("coverage", "family_out_of_pocket_max")
+    return true if family_oop.present?
+
+    # Check for member count indicator
+    member_count = verification_result&.dig("coverage", "member_count")
+    return true if member_count.present? && member_count.to_i > 1
+
+    # Check for dependents flag
+    has_dependents = verification_result&.dig("coverage", "has_dependents")
+    return true if has_dependents == true
+
+    # Check plan type field
+    plan_type = verification_result&.dig("coverage", "plan_type")
+    return true if plan_type&.downcase&.include?("family")
+
+    # Default to individual if no family indicators
+    false
+  end
+
+  # Story 6.4: Plan year reset date (AC5)
+
+  # Get the plan year reset date
+  #
+  # @return [Date, nil] Next plan year reset date
+  def plan_year_reset_date
+    # Try to get plan year start from verification result
+    plan_year_start = verification_result&.dig("coverage", "plan_year_start")
+
+    if plan_year_start.present?
+      begin
+        start_date = Date.parse(plan_year_start)
+        return calculate_next_reset_from_start(start_date)
+      rescue Date::Error
+        # Invalid date, continue to fallback
+      end
+    end
+
+    # Try to infer from effective date (policy anniversary)
+    effective_date = coverage_effective_date
+    if effective_date.present?
+      return calculate_next_reset_from_start(effective_date)
+    end
+
+    # Default to calendar year (January 1)
+    today = Date.current
+    next_jan_1 = Date.new(today.year + 1, 1, 1)
+
+    # If we're already in the year, return next year's Jan 1
+    next_jan_1
+  end
+
   # Scopes for eligibility status filtering
-  scope :pending_eligibility, -> { where(verification_status: [:pending, :in_progress]) }
+  scope :pending_eligibility, -> { where(verification_status: [ :pending, :in_progress ]) }
   scope :eligibility_verified, -> { where(verification_status: :verified) }
   scope :eligibility_failed, -> { where(verification_status: :failed) }
   scope :needs_eligibility_review, -> { where(verification_status: :manual_review) }
@@ -426,5 +536,25 @@ class Insurance < ApplicationRecord
     rescue Date::Error, ArgumentError
       errors.add(:subscriber_dob, "must be a valid date")
     end
+  end
+
+  # Story 6.4: Calculate next reset date from plan year start date
+  #
+  # @param start_date [Date] Plan year start date (e.g., Jan 1, policy anniversary)
+  # @return [Date] Next reset date
+  def calculate_next_reset_from_start(start_date)
+    today = Date.current
+
+    # Calculate the anniversary date for current year
+    current_year_anniversary = Date.new(today.year, start_date.month, start_date.day)
+
+    # If the anniversary hasn't passed yet this year, return it
+    return current_year_anniversary if current_year_anniversary > today
+
+    # Otherwise, return next year's anniversary
+    Date.new(today.year + 1, start_date.month, start_date.day)
+  rescue ArgumentError
+    # Handle invalid dates (e.g., Feb 29 on non-leap year)
+    Date.new(today.year + 1, start_date.month, 1)
   end
 end

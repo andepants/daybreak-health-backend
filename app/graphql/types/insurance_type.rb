@@ -194,6 +194,26 @@ module Types
       formatter.format_all
     end
 
+    # Story 6.2: Cost estimate field
+    field :cost_estimate, Types::CostEstimateType, null: true,
+          description: "Estimated cost breakdown for therapy session (only available if verified)" do
+      argument :service_type, String, required: false, description: "Type of service (default: individual_therapy)"
+    end
+
+    def cost_estimate(service_type: "individual_therapy")
+      return nil unless object.eligibility_verified?
+
+      begin
+        Billing::InsuranceEstimateService.call(
+          insurance: object,
+          service_type: service_type
+        )
+      rescue ArgumentError, StandardError => e
+        Rails.logger.error("Failed to calculate cost estimate: #{e.message}")
+        nil
+      end
+    end
+
     private
 
     # Memoize status service for efficiency

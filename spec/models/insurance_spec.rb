@@ -826,3 +826,178 @@ RSpec.describe Insurance, type: :model do
     end
   end
 end
+
+# Story 6.4: Deductible and OOP tracking methods
+describe 'deductible and OOP tracking' do
+  let(:insurance) { create(:insurance, :verified) }
+
+  describe '#out_of_pocket_max_amount' do
+    context 'with OOP max in verification result' do
+      before do
+        insurance.verification_result = {
+          "coverage" => {
+            "out_of_pocket_max" => { "amount" => 3000.0 }
+          }
+        }
+      end
+
+      it 'returns OOP max amount' do
+        expect(insurance.out_of_pocket_max_amount).to eq(3000.0)
+      end
+    end
+
+    context 'with family plan' do
+      before do
+        insurance.verification_result = {
+          "coverage" => {
+            "family_deductible" => { "amount" => 1000.0 },
+            "family_out_of_pocket_max" => { "amount" => 5000.0 }
+          }
+        }
+      end
+
+      it 'returns family OOP max' do
+        expect(insurance.out_of_pocket_max_amount).to eq(5000.0)
+      end
+    end
+
+    context 'with manual override' do
+      before do
+        insurance.verification_result = {
+          "coverage" => {
+            "out_of_pocket_max" => { "amount" => 3000.0 }
+          },
+          "deductible_override" => {
+            "oop_max_amount" => 3500.0
+          }
+        }
+      end
+
+      it 'prioritizes manual override' do
+        expect(insurance.out_of_pocket_max_amount).to eq(3500.0)
+      end
+    end
+  end
+
+  describe '#out_of_pocket_met' do
+    before do
+      insurance.verification_result = {
+        "coverage" => {
+          "out_of_pocket_max" => { "met" => 500.0 }
+        }
+      }
+    end
+
+    it 'returns OOP met amount' do
+      expect(insurance.out_of_pocket_met).to eq(500.0)
+    end
+  end
+
+  describe '#out_of_pocket_remaining' do
+    before do
+      insurance.verification_result = {
+        "coverage" => {
+          "out_of_pocket_max" => {
+            "amount" => 3000.0,
+            "met" => 500.0
+          }
+        }
+      }
+    end
+
+    it 'calculates OOP remaining' do
+      expect(insurance.out_of_pocket_remaining).to eq(2500.0)
+    end
+
+    it 'returns zero if OOP max is met' do
+      insurance.verification_result["coverage"]["out_of_pocket_max"]["met"] = 3000.0
+      expect(insurance.out_of_pocket_remaining).to eq(0.0)
+    end
+
+    it 'does not return negative values' do
+      insurance.verification_result["coverage"]["out_of_pocket_max"]["met"] = 3500.0
+      expect(insurance.out_of_pocket_remaining).to eq(0.0)
+    end
+  end
+
+  describe '#is_family_plan?' do
+    it 'returns true for family deductible' do
+      insurance.verification_result = {
+        "coverage" => {
+          "family_deductible" => { "amount" => 1000.0 }
+        }
+      }
+      expect(insurance.is_family_plan?).to be true
+    end
+
+    it 'returns true for family OOP max' do
+      insurance.verification_result = {
+        "coverage" => {
+          "family_out_of_pocket_max" => { "amount" => 5000.0 }
+        }
+      }
+      expect(insurance.is_family_plan?).to be true
+    end
+
+    it 'returns true for member_count > 1' do
+      insurance.verification_result = {
+        "coverage" => {
+          "member_count" => 3
+        }
+      }
+      expect(insurance.is_family_plan?).to be true
+    end
+
+    it 'returns true for has_dependents flag' do
+      insurance.verification_result = {
+        "coverage" => {
+          "has_dependents" => true
+        }
+      }
+      expect(insurance.is_family_plan?).to be true
+    end
+
+    it 'returns false for individual plan' do
+      insurance.verification_result = {
+        "coverage" => {
+          "deductible" => { "amount" => 500.0 }
+        }
+      }
+      expect(insurance.is_family_plan?).to be false
+    end
+  end
+
+  describe '#plan_year_reset_date' do
+    it 'returns next reset date from plan year start' do
+      insurance.verification_result = {
+        "coverage" => {
+          "plan_year_start" => "2025-07-01"
+        }
+      }
+
+      travel_to Date.new(2025, 11, 30) do
+        expect(insurance.plan_year_reset_date).to eq(Date.new(2026, 7, 1))
+      end
+    end
+
+    it 'returns current year anniversary if not passed' do
+      insurance.verification_result = {
+        "coverage" => {
+          "plan_year_start" => "2025-12-15"
+        }
+      }
+
+      travel_to Date.new(2025, 11, 30) do
+        expect(insurance.plan_year_reset_date).to eq(Date.new(2025, 12, 15))
+      end
+    end
+
+    it 'defaults to next January 1' do
+      insurance.verification_result = { "coverage" => {} }
+
+      travel_to Date.new(2025, 11, 30) do
+        expect(insurance.plan_year_reset_date).to eq(Date.new(2026, 1, 1))
+      end
+    end
+  end
+end

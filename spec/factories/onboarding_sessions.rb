@@ -25,5 +25,23 @@ FactoryBot.define do
         }
       end
     end
+
+    trait :with_child do
+      after(:create) do |session|
+        create(:child, onboarding_session: session)
+      end
+    end
+
+    trait :with_insurance do
+      after(:create) do |session|
+        create(:insurance, onboarding_session: session)
+      end
+    end
+
+    trait :with_assessment do
+      after(:create) do |session|
+        create(:assessment, onboarding_session: session)
+      end
+    end
   end
 end

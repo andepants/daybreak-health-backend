@@ -34,6 +34,7 @@ module Mutations
       # Return fields
       field :user_message, Types::MessageType, null: true, description: "The user's message"
       field :assistant_message, Types::MessageType, null: true, description: "The AI assistant's response"
+      field :assessment_complete, Boolean, null: false, description: "Whether the assessment chat is complete and user can proceed"
       field :errors, [String], null: false, description: "Errors if mutation failed"
 
       def resolve(session_id:, content:)
@@ -113,21 +114,27 @@ module Mutations
         # Create audit logs (Task 8)
         log_message_activity(session, user_message, assistant_message)
 
+        # Check if assessment is complete based on AI response and progress
+        is_complete = assessment_complete?(ai_response[:content], context_manager)
+
         {
           user_message: user_message,
           assistant_message: assistant_message,
+          assessment_complete: is_complete,
           errors: []
         }
       rescue ActiveRecord::RecordNotFound
         {
           user_message: nil,
           assistant_message: nil,
+          assessment_complete: false,
           errors: ["Session not found"]
         }
       rescue GraphQL::ExecutionError => e
         {
           user_message: nil,
           assistant_message: nil,
+          assessment_complete: false,
           errors: [e.message]
         }
       rescue StandardError => e
@@ -140,6 +147,7 @@ module Mutations
         {
           user_message: nil,
           assistant_message: nil,
+          assessment_complete: false,
           errors: ["An error occurred while processing your message. Please try again."]
         }
       end
@@ -559,6 +567,47 @@ module Mutations
         )
       rescue StandardError => e
         Rails.logger.warn("Assessment subscription trigger failed: #{e.message}")
+      end
+
+      # Detect if assessment chat is complete based on AI response and context
+      # Returns true when AI indicates the conversation is wrapping up
+      #
+      # @param ai_content [String] AI response content
+      # @param context_manager [Ai::ContextManager, nil] Context manager instance
+      # @return [Boolean] True if assessment is complete
+      def assessment_complete?(ai_content, context_manager = nil)
+        return false if ai_content.blank?
+
+        content_lower = ai_content.downcase
+
+        # Farewell phrases that indicate the assessment is complete
+        farewell_phrases = [
+          'goodbye',
+          'take care',
+          'we\'re here for you',
+          'we are here for you',
+          'care coordinator',
+          'next steps',
+          'thank you for sharing',
+          'will be in touch',
+          'reach out to us',
+          'contact you soon',
+          'information to our team',
+          'passed on to our',
+          'important step toward'
+        ]
+
+        # Check if AI response contains farewell phrases
+        has_farewell = farewell_phrases.any? { |phrase| content_lower.include?(phrase) }
+        return true if has_farewell
+
+        # Also check if context manager indicates high progress (90%+)
+        if context_manager&.respond_to?(:calculate_progress_percentage)
+          progress = context_manager.calculate_progress_percentage
+          return true if progress >= 90
+        end
+
+        false
       end
     end
   end

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SYSTEM BREACH DETECTED</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      color: #00ff00;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      position: fixed;
+      top: 0;
+      left: 0;
+      cursor: none;
+    }
+
+    #terminal {
+      padding: 20px;
+      height: 100vh;
+      overflow-y: auto;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .line {
+      margin-bottom: 10px;
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background: #00ff00;
+      animation: blink 1s infinite;
+      margin-left: 2px;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    .error {
+      color: #ff0000;
+    }
+
+    .warning {
+      color: #ffff00;
+    }
+
+    .glitch {
+      animation: glitch 0.3s infinite;
+    }
+
+    @keyframes glitch {
+      0% { transform: translate(0); }
+      20% { transform: translate(-2px, 2px); }
+      40% { transform: translate(-2px, -2px); }
+      60% { transform: translate(2px, 2px); }
+      80% { transform: translate(2px, -2px); }
+      100% { transform: translate(0); }
+    }
+
+    .scan-line {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: rgba(0, 255, 0, 0.3);
+      animation: scan 3s linear infinite;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    @keyframes scan {
+      0% { top: 0; }
+      100% { top: 100vh; }
+    }
+
+    .matrix-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.1;
+      z-index: -1;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas class="matrix-bg" id="matrix"></canvas>
+  <div class="scan-line"></div>
+  <div id="terminal"></div>
+
+  <script>
+    const terminal = document.getElementById('terminal');
+    const messages = [
+      { text: '> INITIATING SYSTEM BREACH...', delay: 500 },
+      { text: '> CONNECTING TO MAINFRAME...', delay: 1000 },
+      { text: '> BYPASSING SECURITY PROTOCOLS...', delay: 1500 },
+      { text: '> ACCESS GRANTED', delay: 2000, class: 'error' },
+      { text: '', delay: 2200 },
+      { text: 'WARNING: UNAUTHORIZED ACCESS DETECTED', delay: 2500, class: 'warning' },
+      { text: '> EXTRACTING USER DATA...', delay: 3000 },
+      { text: '> SCANNING FILESYSTEM...', delay: 3500 },
+      { text: '> FOUND 1,247 SENSITIVE FILES', delay: 4000, class: 'error' },
+      { text: '', delay: 4200 },
+      { text: '> INSTALLING BACKDOOR...', delay: 4500 },
+      { text: '> BACKDOOR INSTALLED SUCCESSFULLY', delay: 5000, class: 'error' },
+      { text: '', delay: 5200 },
+      { text: '> ENCRYPTING FILES...', delay: 5500 },
+      { text: '> ENCRYPTION 23% COMPLETE...', delay: 6000 },
+      { text: '> ENCRYPTION 47% COMPLETE...', delay: 6500 },
+      { text: '> ENCRYPTION 71% COMPLETE...', delay: 7000 },
+      { text: '> ENCRYPTION 95% COMPLETE...', delay: 7500 },
+      { text: '> ENCRYPTION 100% COMPLETE', delay: 8000, class: 'error' },
+      { text: '', delay: 8200 },
+      { text: '> YOUR SYSTEM HAS BEEN COMPROMISED', delay: 8500, class: 'error glitch' },
+      { text: '> ALL FILES HAVE BEEN ENCRYPTED', delay: 9000, class: 'error' },
+      { text: '> PAY 0.5 BTC TO UNLOCK', delay: 9500, class: 'warning' },
+      { text: '', delay: 9700 },
+      { text: '> SYSTEM LOCKED', delay: 10000, class: 'error' },
+      { text: '> CONTACT ADMINISTRATOR', delay: 10500, class: 'warning' },
+    ];
+
+    let messageIndex = 0;
+
+    function addLine(text, className = '') {
+      const line = document.createElement('div');
+      line.className = `line ${className}`;
+      line.textContent = text;
+      terminal.appendChild(line);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function showNextMessage() {
+      if (messageIndex < messages.length) {
+        const msg = messages[messageIndex];
+        setTimeout(() => {
+          addLine(msg.text, msg.class || '');
+          messageIndex++;
+          showNextMessage();
+        }, msg.delay - (messageIndex > 0 ? messages[messageIndex - 1].delay : 0));
+      } else {
+        // Add blinking cursor at the end
+        const cursor = document.createElement('span');
+        cursor.className = 'cursor';
+        terminal.appendChild(cursor);
+
+        // Add random fake activity
+        setInterval(() => {
+          const fakeMessages = [
+            '> SCANNING PORT 8080...',
+            '> ACCESSING DATABASE...',
+            '> EXTRACTING CREDENTIALS...',
+            '> MONITORING ACTIVITY...',
+          ];
+          const randomMsg = fakeMessages[Math.floor(Math.random() * fakeMessages.length)];
+          addLine(randomMsg);
+        }, 5000);
+      }
+    }
+
+    // Matrix background effect
+    const canvas = document.getElementById('matrix');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const chars = '01';
+    const charArray = chars.split('');
+    const fontSize = 14;
+    const columns = canvas.width / fontSize;
+    const drops = [];
+
+    for (let x = 0; x < columns; x++) {
+      drops[x] = 1;
+    }
+
+    function drawMatrix() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#00ff00';
+      ctx.font = fontSize + 'px monospace';
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = charArray[Math.floor(Math.random() * charArray.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+        drops[i]++;
+      }
+    }
+
+    setInterval(drawMatrix, 35);
+
+    // Prevent right-click and common keyboard shortcuts
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => {
+      if (e.key === 'F12' ||
+          (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+          (e.ctrlKey && e.shiftKey && e.key === 'C') ||
+          (e.ctrlKey && e.key === 'U')) {
+        e.preventDefault();
+      }
+    });
+
+    // Start showing messages
+    showNextMessage();
+
+    // Resize canvas on window resize
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+  </script>
+</body>
+</html>
+
+

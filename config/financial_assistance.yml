@@ -1,0 +1,135 @@
+# Financial Assistance Configuration
+#
+# This file defines eligibility criteria and program information for
+# financial assistance and hardship consideration.
+#
+# Used by FinancialAssistanceType GraphQL type to provide information
+# to parents about available financial assistance programs.
+#
+# Configuration:
+# - eligibility_criteria: Requirements for financial assistance
+# - income_thresholds: Income limits by household size for hardship consideration
+# - sliding_scale_discounts: Discount percentages by income bracket
+# - application_url: URL for hardship consideration application
+# - program_description: Human-readable program information
+#
+# Environment Variables:
+# - FINANCIAL_ASSISTANCE_APPLICATION_URL: Override application URL (optional)
+
+# Development environment
+development:
+  # Program availability
+  available: true
+
+  # Eligibility criteria for financial assistance
+  eligibility_criteria:
+    - "Annual household income below threshold for family size"
+    - "Active participation in therapy sessions"
+    - "No outstanding payment obligations"
+    - "Completion of financial assistance application"
+
+  # Income thresholds for hardship consideration (annual income in USD)
+  # Based on Federal Poverty Level (FPL) multiples
+  income_thresholds:
+    household_size_1: 35000  # ~250% FPL
+    household_size_2: 47500
+    household_size_3: 60000
+    household_size_4: 72500
+    household_size_5: 85000
+    additional_per_person: 12500
+
+  # Sliding scale discount percentages by income bracket
+  # Format: "income_percentage_fpl" => discount_percentage
+  sliding_scale_discounts:
+    0-100: 75   # 0-100% FPL: 75% discount
+    100-150: 50 # 100-150% FPL: 50% discount
+    150-200: 35 # 150-200% FPL: 35% discount
+    200-250: 20 # 200-250% FPL: 20% discount
+
+  # Application URL for hardship consideration
+  # Can be overridden with FINANCIAL_ASSISTANCE_APPLICATION_URL env var
+  application_url: "http://localhost:3000/financial-assistance/apply"
+
+  # Program description
+  program_description: >
+    Daybreak Health is committed to making mental healthcare accessible to all families.
+    Our financial assistance program provides sliding scale discounts based on household
+    income and family size. No child should go without care due to financial barriers.
+
+  # Additional information
+  additional_info:
+    - "Applications reviewed within 5 business days"
+    - "Confidential review process"
+    - "Assistance renewable annually"
+    - "No impact on quality of care"
+
+# Test environment
+test:
+  available: true
+
+  eligibility_criteria:
+    - "Annual household income below threshold for family size"
+    - "Active participation in therapy sessions"
+    - "No outstanding payment obligations"
+    - "Completion of financial assistance application"
+
+  income_thresholds:
+    household_size_1: 35000
+    household_size_2: 47500
+    household_size_3: 60000
+    household_size_4: 72500
+    household_size_5: 85000
+    additional_per_person: 12500
+
+  sliding_scale_discounts:
+    0-100: 75
+    100-150: 50
+    150-200: 35
+    200-250: 20
+
+  application_url: "http://test.example.com/financial-assistance/apply"
+
+  program_description: "Test financial assistance program description"
+
+  additional_info:
+    - "Applications reviewed within 5 business days"
+    - "Confidential review process"
+    - "Assistance renewable annually"
+    - "No impact on quality of care"
+
+# Production environment
+production:
+  available: true
+
+  eligibility_criteria:
+    - "Annual household income below threshold for family size"
+    - "Active participation in therapy sessions"
+    - "No outstanding payment obligations"
+    - "Completion of financial assistance application"
+
+  income_thresholds:
+    household_size_1: 35000
+    household_size_2: 47500
+    household_size_3: 60000
+    household_size_4: 72500
+    household_size_5: 85000
+    additional_per_person: 12500
+
+  sliding_scale_discounts:
+    0-100: 75
+    100-150: 50
+    150-200: 35
+    200-250: 20
+
+  application_url: <%= ENV.fetch('FINANCIAL_ASSISTANCE_APPLICATION_URL', 'https://daybreakhealth.com/financial-assistance/apply') %>
+
+  program_description: >
+    Daybreak Health is committed to making mental healthcare accessible to all families.
+    Our financial assistance program provides sliding scale discounts based on household
+    income and family size. No child should go without care due to financial barriers.
+
+  additional_info:
+    - "Applications reviewed within 5 business days"
+    - "Confidential review process"
+    - "Assistance renewable annually"
+    - "No impact on quality of care"

@@ -13,9 +13,13 @@
 # - insurance_pending -> assessment_complete (manual)
 # - insurance_pending -> abandoned (explicit)
 # - insurance_pending -> expired (system)
+# - assessment_complete -> appointment_booked (auto after appointment creation)
 # - assessment_complete -> submitted (manual)
 # - assessment_complete -> abandoned (explicit)
 # - assessment_complete -> expired (system)
+# - appointment_booked -> submitted (manual)
+# - appointment_booked -> abandoned (explicit)
+# - appointment_booked -> expired (system)
 # - ANY -> abandoned (exception to forward-only rule)
 # - ANY -> expired (exception to forward-only rule)
 # - Terminal states (abandoned, expired, submitted) -> NO transitions
@@ -33,7 +37,8 @@ module SessionStateMachine
     'started' => ['in_progress', 'abandoned', 'expired'],
     'in_progress' => ['insurance_pending', 'abandoned', 'expired'],
     'insurance_pending' => ['assessment_complete', 'abandoned', 'expired'],
-    'assessment_complete' => ['submitted', 'abandoned', 'expired'],
+    'assessment_complete' => ['appointment_booked', 'submitted', 'abandoned', 'expired'],
+    'appointment_booked' => ['submitted', 'abandoned', 'expired'],
     'abandoned' => [],
     'expired' => [],
     'submitted' => []

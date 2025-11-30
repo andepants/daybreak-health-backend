@@ -16,5 +16,13 @@ module Types
 
     field :preview_rate, String, null: true,
           description: "Preview of self-pay rates"
+
+    def preview_rate
+      # Get current rate for individual therapy
+      rate = SelfPayRate.get_rate_for("individual_therapy")
+      return nil unless rate
+
+      "$#{rate.base_rate.to_f.round(2)} per session"
+    end
   end
 end

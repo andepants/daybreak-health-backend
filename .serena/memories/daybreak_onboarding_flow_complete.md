@@ -1,7 +1,7 @@
 # Daybreak Health - Complete Onboarding Flow Analysis
 
-**Generated:** 2025-11-30  
-**Scope:** Full onboarding flow from session creation through insurance submission
+**Generated:** 2025-11-30 (Updated: 2025-11-30)  
+**Scope:** Full onboarding flow from session creation through insurance verification & clinical assessment
 
 ---
 
@@ -899,66 +899,164 @@ Session Expiration: Extended by 1 hour on confirmation
 
 ---
 
-## 14. OPEN QUESTIONS & TODO ITEMS
+## 14. CURRENT IMPLEMENTATION STATUS
 
-### Backend TODO
-- [ ] Assessment summary storage location (Assessment table vs separate Summary table)
-- [ ] Complete assessment completeness logic (exact AI prompt for determination)
-- [ ] Insurance eligibility API integration details (which provider, rate limits, error handling)
-- [ ] OCR provider integration (Textract, etc.)
-- [ ] Email delivery service (SendGrid, AWS SES, etc.)
-- [ ] Care team notification system (Epic 6 integration)
-- [ ] Therapist matching algorithm
-- [ ] Appointment booking system
-- [ ] Cost estimation logic
+### Completed (Epics 1-3 + Epic 4 In Progress)
 
-### Frontend TODO
-- [ ] Insurance form implementation (upload, manual entry, OCR display, verification polling)
-- [ ] Match page (therapist search, filtering, selection)
-- [ ] Book page (calendar, time slot selection, confirmation)
-- [ ] Session recovery page (login with recovery token)
-- [ ] User account creation (post-onboarding)
-- [ ] Session abandonment UI + recovery email sending
-- [ ] Cost estimation display + approval flow
+**Epic 1: Foundation & Infrastructure** ✅
+- Rails 7 API project with GraphQL
+- PostgreSQL with UUID primary keys
+- All core models implemented
+- Docker configuration complete
+- JWT authentication working
 
-### Integration TODO
-- [ ] GraphQL schema finalization (currently basic MVP types)
-- [ ] Code generation setup (GraphQL-codegen)
-- [ ] Apollo Client configuration testing
-- [ ] WebSocket subscription testing
-- [ ] End-to-end flow testing (all 5 steps)
-- [ ] HIPAA compliance verification
-- [ ] PII/PHI handling audit
-- [ ] Load testing (concurrent sessions)
+**Epic 2: Session Lifecycle & Auth** ✅
+- Session creation with CUID IDs
+- Progress tracking with state machine
+- Session recovery via email tokens
+- Session expiration & cleanup jobs
+- Abandonment with audit logging
+
+**Epic 3: Conversational AI Intake** ✅
+- AI service with Anthropic/OpenAI providers
+- Intent classification (answer, question, help_request, off_topic, clarification)
+- Escalation detection with crisis keywords
+- Parent & child information collection
+- Context manager for conversation flow
+
+**Epic 4: Insurance Verification** 🔄 In Progress
+- Card upload with Active Storage + S3
+- OCR processing job (AWS Textract integration)
+- Manual entry form with validation
+- Eligibility verification with EDI adapter
+- Status message service with user-friendly error handling
+- Retry logic with severity-based decisions
+
+### Key Services Implemented
+
+**AI Services** (`app/services/ai/`)
+- `Client` - Provider-agnostic AI client
+- `IntentClassifier` - Classifies user message intents
+- `EscalationDetector` - Detects crisis/escalation phrases
+- `ContextManager` - Manages conversation context
+- `HelpAnalytics` - Tracks help request patterns
+- Prompts: `IntakePrompt`, `AssessmentPrompt`, `ChildInfoPrompt`, `HelpResponses`, `EscalationResponse`
+
+**Assessment Services** (`app/services/assessments/`)
+- `QuestionSets` - PHQ-A and GAD-7 standardized screening questions
+  - Age-appropriate versions (5-12 simplified, 13-18 standard)
+  - Likert scale with natural language mappings
+  - Severity scoring for both instruments
+- `Scorer` - Calculates assessment scores
+- `ResponseParser` - Parses natural language responses to Likert values
+- `ContextManager` - Tracks assessment progress
+
+**Insurance Services** (`app/services/insurance_services/`)
+- `StatusMessageService` - User-friendly status messages and next steps
+- `CoverageFormatter` - Formats coverage details for display
+- `CardParser` - Extracts data from OCR results
+
+**Eligibility Services** (`app/services/eligibility/`)
+- `BaseAdapter` - Abstract eligibility adapter
+- `EdiAdapter` - EDI 270/271 transaction adapter
+- `AdapterFactory` - Creates appropriate adapter per payer
+
+### Background Jobs
+
+- `SessionCleanupJob` - Marks expired sessions
+- `SessionRetentionCleanupJob` - 90-day data retention
+- `SessionRecoveryEmailJob` - Sends recovery links
+- `EscalationNotificationJob` - Notifies care team
+- `OcrProcessingJob` - Processes insurance card images
+- `EligibilityVerificationJob` - Async eligibility checks
+
+### GraphQL API Summary
+
+**Mutations:**
+- Session: `createSession`, `updateSessionProgress`, `requestSessionRecovery`, `abandonSession`, `requestHumanContact`
+- Auth: `refreshToken`
+- Conversation: `sendMessage`
+- Intake: `submitParentInfo`, `submitChildInfo`
+- Insurance: `uploadInsuranceCard`, `submitInsuranceInfo`, `verifyEligibility`
+- Assessment: `submitAssessmentResponse`
+
+**Queries:**
+- `session(id)` - Get session by ID
+- `sessionByRecoveryToken` - Recover session
+- `contactOptions` - Support contact info
+- `assessment(sessionId)` - Get assessment data
+- `assessmentQuestions(childAge, instrument)` - Get screening questions
+
+**Subscriptions:**
+- `sessionUpdated` - Session status changes
+- `messageReceived` - Real-time message delivery
+- `progressUpdated` - Progress tracking updates
+- `insuranceStatusChanged` - Verification status changes
+- `assessmentUpdated` - Assessment progress updates
+
+## 15. REMAINING WORK
+
+### Epic 4 Completion (Insurance)
+- [ ] Complete eligibility API integration with real provider
+- [ ] Implement self-pay selection mutation
+- [ ] End-to-end testing of OCR → verification flow
+
+### Future Epics (per epics.md)
+
+**Epic 5: Enhanced Scheduling Module** (P0)
+- Therapist data model & profiles
+- Availability management
+- AI matching algorithm
+- Recommendations API
+- Booking & confirmation
+
+**Epic 6: Cost Estimation Tool** (P1)
+- Cost calculation engine
+- Insurance cost estimation
+- Self-pay rates & comparison
+- Deductible tracking
+- Payment plan options
+
+**Epic 7: Support Interface** (P1)
+- Intercom widget integration
+- Session context passing
+- Support request tracking
+
+### Test Data Available
+- `docs/test-cases/clinicians_anonymized.csv` - Therapist profiles
+- `docs/test-cases/clinician_availabilities.csv` - Availability slots
+- `docs/test-cases/clinician_credentialed_insurances.csv` - Insurance acceptance
+- `docs/test-cases/contracts.csv` - Service pricing
+- `docs/test-cases/insurance_coverages.csv` - Coverage details
 
 ---
 
-## 15. SUMMARY
+## 16. SUMMARY
 
 The Daybreak Health onboarding is a sophisticated, HIPAA-compliant, multi-step flow:
 
-1. **Assessment Chat** - AI-guided conversation with intent classification + escalation detection
-2. **Demographics** - 3-part form collection (parent, child, clinical) with validation + pre-population
-3. **Insurance** - OCR + manual entry + eligibility verification with retry logic
-4. **Matching** - (TODO) Therapist search + filtering + matching algorithm
-5. **Booking** - (TODO) Calendar + appointment scheduling
+1. **Assessment Chat** - AI-guided conversation with intent classification + escalation detection ✅
+2. **Demographics** - 3-part form collection (parent, child, clinical) with validation + pre-population ✅
+3. **Insurance** - OCR + manual entry + eligibility verification with retry logic 🔄
+4. **Clinical Screening** - PHQ-A and GAD-7 standardized assessments with age-appropriate questions ✅
+5. **Matching** - (Future: Epic 5) Therapist search + AI matching algorithm
+6. **Booking** - (Future: Epic 5) Calendar + appointment scheduling
 
 **Key Technologies:**
-- Frontend: Next.js 15, React 19, TypeScript, Apollo Client, Tailwind CSS, shadcn/ui
-- Backend: Rails 7, PostgreSQL, GraphQL, Sidekiq (async jobs)
-- Infrastructure: AWS (S3, KMS, Secrets Manager, RDS)
+- Backend: Rails 7, PostgreSQL, GraphQL (graphql-ruby), Sidekiq (async jobs)
+- AI: Anthropic Claude + OpenAI via provider-agnostic client
+- Storage: AWS S3 with Active Storage, SSE-KMS encryption
+- Infrastructure: Docker, Redis, AWS (S3, KMS, Secrets Manager, RDS)
 
 **Core Patterns:**
 - State machine for session lifecycle + insurance workflow
-- Optimistic UI updates for chat + forms
-- Auto-saving to backend + localStorage
-- Async job processing (emails, OCR, notifications)
-- Immutable audit logging
-- Encrypted PHI at rest + in transit
+- Provider pattern for AI services (Anthropic/OpenAI)
+- Adapter pattern for eligibility verification (EDI 270/271)
+- Async job processing (emails, OCR, notifications, eligibility)
+- Immutable audit logging with PHI-safe details
+- Encrypted PHI at rest (Rails 7 encryption)
 
-**Next Steps:**
-- Complete insurance form UI
-- Implement insurance eligibility API integration
-- Build therapist matching + booking
-- Add user account creation (post-onboarding)
-- Full end-to-end testing
+**Implementation Progress:**
+- Epics 1-3: ✅ Complete
+- Epic 4: 🔄 In Progress (Insurance Verification)
+- Epics 5-7: ⏸️ Future (Scheduling, Cost Estimation, Support)
