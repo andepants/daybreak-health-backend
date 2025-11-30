@@ -277,6 +277,142 @@ module Types
       []
     end
 
+    # Story 5.1: Therapist profile query (frontend integration)
+    # Returns detailed therapist profile with session-specific match data
+    field :therapist_profile, Types::TherapistProfileType, null: true,
+          description: "Get detailed therapist profile with match-specific data" do
+      argument :therapist_id, ID, required: true, description: "Therapist ID"
+      argument :session_id, ID, required: true, description: "Session ID for match-specific data"
+    end
+
+    def therapist_profile(therapist_id:, session_id:)
+      # Load therapist
+      therapist = Therapist.find(therapist_id)
+
+      # Normalize session ID
+      actual_session_id = normalize_session_id(session_id)
+      session = OnboardingSession.find(actual_session_id)
+
+      # Verify user has access to this session
+      unless current_session && current_session.id == session.id
+        raise GraphQL::ExecutionError.new(
+          'Access denied',
+          extensions: {
+            code: 'UNAUTHENTICATED',
+            timestamp: Time.current.iso8601
+          }
+        )
+      end
+
+      # Try to get match data if session has matching results
+      match_data = nil
+      if session.child && session.insurance && session.assessment&.status == "complete"
+        begin
+          matching_service = Scheduling::MatchingService.new(session_id: session.id)
+          matches = matching_service.match
+
+          # Find match data for this specific therapist
+          match = matches.find { |m| m.therapist.id == therapist.id }
+          if match
+            match_data = {
+              score: match.score,
+              component_scores: match.component_scores,
+              reasoning: match.reasoning,
+              next_availability: match.next_availability
+            }
+          end
+        rescue StandardError => e
+          Rails.logger.warn("Failed to get match data for therapist profile: #{e.message}")
+        end
+      end
+
+      {
+        therapist: therapist,
+        match_data: match_data
+      }
+    rescue ActiveRecord::RecordNotFound => e
+      raise GraphQL::ExecutionError.new(
+        "#{e.model} not found",
+        extensions: {
+          code: 'NOT_FOUND',
+          timestamp: Time.current.iso8601
+        }
+      )
+    end
+
+    # Story 5.2: Therapist availability query (frontend integration)
+    # Returns availability grouped by date for the scheduling calendar
+    field :therapist_availability, Types::TherapistAvailabilityResultType, null: false,
+          description: "Get therapist availability grouped by date for scheduling calendar" do
+      argument :therapist_id, ID, required: true, description: "Therapist ID"
+      argument :start_date, GraphQL::Types::ISO8601DateTime, required: true, description: "Start date of the range"
+      argument :end_date, GraphQL::Types::ISO8601DateTime, required: true, description: "End date of the range"
+      argument :timezone, String, required: false, default_value: 'UTC', description: "Timezone for results"
+    end
+
+    def therapist_availability(therapist_id:, start_date:, end_date:, timezone: 'UTC')
+      # Load therapist
+      therapist = Therapist.find(therapist_id)
+
+      # Convert DateTime to Date for the service
+      start_date_only = start_date.to_date
+      end_date_only = end_date.to_date
+
+      # Get all available slots
+      slots = Scheduling::AvailabilityService.available_slots(
+        therapist_id: therapist_id,
+        start_date: start_date_only,
+        end_date: end_date_only,
+        timezone: timezone
+      )
+
+      # Group slots by date
+      slots_by_date = slots.group_by { |slot| slot[:start_time].to_date }
+
+      # Build available dates structure
+      available_dates = (start_date_only..end_date_only).map do |date|
+        date_slots = slots_by_date[date] || []
+
+        {
+          date: date,
+          has_availability: date_slots.any?,
+          slots: date_slots.map do |slot|
+            {
+              id: "#{therapist_id}-#{slot[:start_time].iso8601}",
+              start_time: slot[:start_time],
+              end_time: slot[:end_time],
+              is_available: true,
+              timezone: timezone
+            }
+          end
+        }
+      end
+
+      {
+        therapist_id: therapist.id,
+        therapist_name: therapist.full_name,
+        therapist_photo_url: therapist.photo_url,
+        timezone: timezone,
+        available_dates: available_dates
+      }
+    rescue ActiveRecord::RecordNotFound
+      raise GraphQL::ExecutionError.new(
+        'Therapist not found',
+        extensions: {
+          code: 'NOT_FOUND',
+          timestamp: Time.current.iso8601
+        }
+      )
+    rescue ArgumentError => e
+      raise GraphQL::ExecutionError.new(
+        "Invalid timezone: #{e.message}",
+        extensions: {
+          code: 'INVALID_INPUT',
+          timestamp: Time.current.iso8601
+        }
+      )
+    end
+
     # Story 5.2: Available slots query
     # AC 5.2.6: Query available appointment slots for a therapist
     field :available_slots, [Types::TimeSlotType], null: false,
