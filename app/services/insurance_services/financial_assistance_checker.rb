@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Insurance
+module InsuranceServices
   # Checks eligibility for financial assistance programs
   # MVP: Shows financial assistance info to everyone, let assistance team determine final eligibility
   class FinancialAssistanceChecker
