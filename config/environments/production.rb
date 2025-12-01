@@ -30,7 +30,8 @@ Rails.application.configure do
   # config.action_dispatch.x_sendfile_header = "X-Accel-Redirect" # for NGINX
 
   # Store uploaded files on S3 with SSE-KMS encryption for HIPAA compliance.
-  config.active_storage.service = :amazon
+  # Falls back to local storage if S3 is not configured (S3_BUCKET not set)
+  config.active_storage.service = ENV['S3_BUCKET'].present? ? :amazon : :local
 
   # Mount Action Cable outside main process or domain.
   # config.action_cable.mount_path = nil
