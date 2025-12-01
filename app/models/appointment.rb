@@ -23,7 +23,6 @@ class Appointment < ApplicationRecord
   validate :scheduled_at_in_future, on: :create
   validate :no_double_booking
   validate :therapist_must_be_active
-  validate :session_must_be_assessment_complete
 
   # Scopes
   scope :upcoming, -> { where('scheduled_at >= ?', Time.current).where.not(status: [:cancelled, :completed]) }
@@ -160,15 +159,6 @@ class Appointment < ApplicationRecord
 
     unless therapist.active?
       errors.add(:therapist, 'must be active')
-    end
-  end
-
-  # Validate session is in assessment_complete status
-  def session_must_be_assessment_complete
-    return unless onboarding_session
-
-    unless onboarding_session.assessment_complete?
-      errors.add(:onboarding_session, 'must be in assessment_complete status before booking')
     end
   end
 

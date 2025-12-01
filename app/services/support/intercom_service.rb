@@ -41,22 +41,22 @@ module Support
     # Generate Intercom identity verification data
     #
     # Returns all data needed by the frontend to initialize Intercom widget
-    # with secure identity verification enabled.
+    # with secure JWT-based identity verification.
     #
     # @return [Hash] Identity verification data
     #   - app_id [String] Intercom app ID
-    #   - user_hash [String] HMAC-SHA256 hash of user_id
+    #   - user_jwt [String] JWT token for identity verification
     #   - user_id [String] The session ID (used as Intercom user identifier)
     #   - enabled [Boolean] Whether Intercom is enabled
     #
     # @example
     #   service = Support::IntercomService.new(session_id: 'abc-123')
     #   identity = service.generate_identity
-    #   # => { app_id: '...', user_hash: '...', user_id: 'abc-123', enabled: true }
+    #   # => { app_id: '...', user_jwt: '...', user_id: 'abc-123', enabled: true }
     def call
       {
         app_id: app_id,
-        user_hash: generate_user_hash,
+        user_jwt: generate_user_jwt,
         user_id: session_id,
         enabled: intercom_enabled?
       }
@@ -75,24 +75,25 @@ module Support
 
     private
 
-    # Generate HMAC-SHA256 hash for identity verification
+    # Generate JWT for Intercom identity verification
     #
-    # Uses Intercom secret key to create a hash of the user ID.
-    # This prevents user impersonation by ensuring only the server
-    # can generate valid identity hashes.
+    # Creates a signed JWT containing the user ID for secure identity verification.
+    # This prevents user impersonation by ensuring only the server can generate valid tokens.
     #
-    # @return [String, nil] Hexadecimal HMAC-SHA256 hash or nil if not enabled
-    def generate_user_hash
+    # @return [String, nil] Signed JWT token or nil if not enabled
+    def generate_user_jwt
       return nil unless intercom_enabled?
 
       key = secret_key
       return nil if key.nil?
 
-      OpenSSL::HMAC.hexdigest(
-        OpenSSL::Digest.new('sha256'),
-        key,
-        session_id
-      )
+      payload = {
+        user_id: session_id,
+        iat: Time.now.to_i,
+        exp: 1.hour.from_now.to_i
+      }
+
+      JWT.encode(payload, key, 'HS256')
     end
 
     # Get Intercom app ID from environment

@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+# Ensure GraphQL error classes are loaded before schema initialization
+require_relative "graphql_errors/error_codes"
+require_relative "graphql_errors/base_error"
+
 class DaybreakHealthBackendSchema < GraphQL::Schema
   mutation(Types::MutationType)
   query(Types::QueryType)

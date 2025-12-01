@@ -8,6 +8,7 @@ module Types
     field :request_session_recovery, mutation: Mutations::Sessions::RequestRecovery
     field :abandon_session, mutation: Mutations::Sessions::AbandonSession
     field :request_human_contact, mutation: Mutations::Sessions::RequestHumanContact
+    field :complete_assessment, mutation: Mutations::Sessions::CompleteAssessment
 
     # Auth mutations
     field :refresh_token, mutation: Mutations::Auth::RefreshToken

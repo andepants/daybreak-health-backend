@@ -61,11 +61,6 @@ module Scheduling
           raise ActiveRecord::Rollback
         end
 
-        unless session.assessment_complete?
-          errors << 'Session must be in assessment_complete status before booking'
-          raise ActiveRecord::Rollback
-        end
-
         # Use therapist's default duration if not provided
         duration = duration_minutes || therapist.appointment_duration_minutes
 

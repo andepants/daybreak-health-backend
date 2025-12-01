@@ -34,9 +34,9 @@ module SessionStateMachine
 
   # Valid state transitions map
   VALID_TRANSITIONS = {
-    'started' => ['in_progress', 'abandoned', 'expired'],
-    'in_progress' => ['insurance_pending', 'abandoned', 'expired'],
-    'insurance_pending' => ['assessment_complete', 'abandoned', 'expired'],
+    'started' => ['in_progress', 'appointment_booked', 'abandoned', 'expired'],
+    'in_progress' => ['insurance_pending', 'appointment_booked', 'abandoned', 'expired'],
+    'insurance_pending' => ['assessment_complete', 'appointment_booked', 'abandoned', 'expired'],
     'assessment_complete' => ['appointment_booked', 'submitted', 'abandoned', 'expired'],
     'appointment_booked' => ['submitted', 'abandoned', 'expired'],
     'abandoned' => [],

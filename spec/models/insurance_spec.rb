@@ -89,7 +89,7 @@ RSpec.describe Insurance, type: :model do
         url = insurance.front_image_url
 
         expect(url).to be_a(String)
-        expect(url).to include("localhost")
+        expect(url).to match(%r{/rails/active_storage/blobs})
       end
     end
 
@@ -114,7 +114,7 @@ RSpec.describe Insurance, type: :model do
         url = insurance.back_image_url
 
         expect(url).to be_a(String)
-        expect(url).to include("localhost")
+        expect(url).to match(%r{/rails/active_storage/blobs})
       end
     end
 

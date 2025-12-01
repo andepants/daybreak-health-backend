@@ -66,7 +66,7 @@ class Insurance < ApplicationRecord
   def front_image_url(expires_in: 15.minutes)
     return nil unless card_image_front.attached?
 
-    card_image_front.url(expires_in: expires_in)
+    generate_blob_url(card_image_front, expires_in: expires_in)
   end
 
   # Generate presigned URL for back card image
@@ -76,7 +76,7 @@ class Insurance < ApplicationRecord
   def back_image_url(expires_in: 15.minutes)
     return nil unless card_image_back.attached?
 
-    card_image_back.url(expires_in: expires_in)
+    generate_blob_url(card_image_back, expires_in: expires_in)
   end
 
   # OCR Helper Methods (Story 4.2)
@@ -503,6 +503,33 @@ class Insurance < ApplicationRecord
   scope :needs_eligibility_review, -> { where(verification_status: :manual_review) }
 
   private
+
+  # Generate a URL for an ActiveStorage blob
+  # Handles both S3 (production) and Disk (development) services
+  #
+  # @param attachment [ActiveStorage::Attached] The attached file
+  # @param expires_in [ActiveSupport::Duration] URL expiry time
+  # @return [String, nil] URL or nil if generation fails
+  def generate_blob_url(attachment, expires_in:)
+    return nil unless attachment.attached?
+
+    # For S3 and other cloud services, use the standard url method
+    # For Disk service in development, we need to set url_options
+    if Rails.application.config.active_storage.service == :amazon
+      attachment.url(expires_in: expires_in)
+    else
+      # For Disk service, use Rails URL helpers with explicit host
+      Rails.application.routes.url_helpers.rails_blob_url(
+        attachment,
+        host: Rails.application.config.action_mailer.default_url_options&.fetch(:host, "localhost:3000"),
+        expires_in: expires_in
+      )
+    end
+  rescue ArgumentError, StandardError => e
+    # Log error but don't fail - return nil instead
+    Rails.logger.warn("Insurance #{id}: Failed to generate blob URL - #{e.message}")
+    nil
+  end
 
   def verification_complete?
     saved_change_to_verification_status? &&

@@ -70,17 +70,34 @@ module InsuranceServices
     # @return [Aws::Textract::Types::AnalyzeDocumentResponse] Textract response
     def analyze_image(attachment)
       blob = attachment.blob
-      bucket = s3_bucket_name
+
+      # Determine document source based on Active Storage service
+      document = if using_s3_storage?
+                   # For S3 storage, reference the object directly (more efficient)
+                   {
+                     s3_object: {
+                       bucket: s3_bucket_name,
+                       name: blob.key
+                     }
+                   }
+                 else
+                   # For local/disk storage, download and send bytes
+                   # AWS SDK handles base64 encoding automatically
+                   { bytes: blob.download }
+                 end
 
       @textract.analyze_document({
-        document: {
-          s3_object: {
-            bucket: bucket,
-            name: blob.key
-          }
-        },
+        document: document,
         feature_types: ["FORMS"]
       })
+    end
+
+    # Check if Active Storage is configured to use S3
+    #
+    # @return [Boolean] true if using S3/amazon service
+    def using_s3_storage?
+      service_name = Rails.configuration.active_storage.service
+      service_name.to_s == "amazon"
     end
 
     # Get S3 bucket name from Active Storage configuration

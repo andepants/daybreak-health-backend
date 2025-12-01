@@ -44,6 +44,9 @@ Rails.application.configure do
 
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
 
+  # Default URL options for ActiveStorage and routes (used for blob URL generation)
+  Rails.application.routes.default_url_options = { host: "localhost", port: 3000 }
+
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
 

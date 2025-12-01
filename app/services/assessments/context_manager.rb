@@ -35,8 +35,9 @@ module Assessments
       insurance = session.insurance
       return false unless insurance&.verification_status
 
-      # Insurance must be verified or self-pay selected
-      %w[verified self_pay].include?(insurance.verification_status)
+      # Insurance must be verified, self-pay selected, or manual entry complete
+      # manual_entry_complete is accepted for development/testing flows
+      %w[verified self_pay manual_entry_complete].include?(insurance.verification_status)
     end
 
     # Get current phase of assessment

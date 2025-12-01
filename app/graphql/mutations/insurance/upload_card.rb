@@ -78,10 +78,27 @@ module Mutations
       rescue GraphQL::ExecutionError => e
         # Re-raise GraphQL execution errors (validation errors from FileValidator)
         raise e
-      rescue StandardError => e
-        Rails.logger.error("Error in UploadCard mutation: #{e.message}")
+      rescue Vips::Error => e
+        # libvips processing error (HEIC conversion, metadata stripping)
+        Rails.logger.error("UploadCard Vips error: #{e.message}")
         Rails.logger.error(e.backtrace.first(10).join("\n"))
-        { insurance: nil, errors: ["An error occurred while uploading images"] }
+        { insurance: nil, errors: ["Image processing failed. Please try a different image format (JPEG or PNG)."] }
+      rescue ActiveStorage::FileNotFoundError => e
+        Rails.logger.error("UploadCard storage error: #{e.message}")
+        { insurance: nil, errors: ["Failed to store uploaded file. Please try again."] }
+      rescue ActiveRecord::RecordInvalid => e
+        Rails.logger.error("UploadCard validation error: #{e.message}")
+        { insurance: nil, errors: [e.record.errors.full_messages.join(", ")] }
+      rescue StandardError => e
+        Rails.logger.error("Error in UploadCard mutation: #{e.class.name} - #{e.message}")
+        Rails.logger.error(e.backtrace.first(10).join("\n"))
+        # In development, expose the actual error for debugging
+        error_message = if Rails.env.development?
+                          "Upload error: #{e.class.name} - #{e.message}"
+                        else
+                          "An error occurred while uploading images"
+                        end
+        { insurance: nil, errors: [error_message] }
       end
 
       private
