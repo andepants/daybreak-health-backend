@@ -14,18 +14,34 @@
 class OcrProcessingJob < ApplicationJob
   queue_as :insurance
 
-  # Retry up to 3 times with exponential backoff for transient failures
-  retry_on StandardError, wait: :exponentially_longer, attempts: 3
+  # Retry up to 3 times for transient failures
+  # Note: Using fixed wait time as :exponentially_longer doesn't work with async adapter
   retry_on Aws::Textract::Errors::ProvisionedThroughputExceededException, wait: 5.seconds, attempts: 5
   retry_on Aws::Textract::Errors::ThrottlingException, wait: 5.seconds, attempts: 5
 
   # Discard if record is deleted
   discard_on ActiveRecord::RecordNotFound
 
-  # Don't retry on permanent failures
-  discard_on Aws::Textract::Errors::InvalidParameterException
-  discard_on Aws::Textract::Errors::InvalidS3ObjectException
-  discard_on Aws::Textract::Errors::UnsupportedDocumentException
+  # Don't retry on permanent failures - record failure and notify
+  discard_on Aws::Textract::Errors::InvalidParameterException do |job, error|
+    handle_permanent_failure(job.arguments.first, "INVALID_PARAMETER", error.message)
+  end
+  discard_on Aws::Textract::Errors::InvalidS3ObjectException do |job, error|
+    handle_permanent_failure(job.arguments.first, "INVALID_S3_OBJECT", error.message)
+  end
+  discard_on Aws::Textract::Errors::UnsupportedDocumentException do |job, error|
+    handle_permanent_failure(job.arguments.first, "UNSUPPORTED_DOCUMENT", error.message)
+  end
+
+  # Handle network/SSL errors (common in local dev)
+  discard_on Seahorse::Client::NetworkingError do |job, error|
+    handle_permanent_failure(job.arguments.first, "NETWORK_ERROR", error.message)
+  end
+
+  # Catch-all for other errors - record failure after all retries exhausted
+  retry_on StandardError, wait: 3.seconds, attempts: 3 do |job, error|
+    handle_permanent_failure(job.arguments.first, "UNKNOWN_ERROR", error.message)
+  end
 
   # Timeout for Textract processing
   OCR_TIMEOUT = 30.seconds
@@ -227,5 +243,47 @@ class OcrProcessingJob < ApplicationJob
     end
   rescue StandardError => e
     Rails.logger.error("OcrProcessingJob: Failed to record failure - #{e.message}")
+  end
+
+  # Class method to handle permanent failures from discard_on/retry_on callbacks
+  # These run in class context, so we need a class method
+  def self.handle_permanent_failure(insurance_id, code, message)
+    Rails.logger.error("OcrProcessingJob: Permanent failure for insurance #{insurance_id} - #{code}: #{message}")
+
+    insurance = Insurance.find_by(id: insurance_id)
+    return unless insurance
+
+    verification_result = (insurance.verification_result || {}).merge(
+      "error" => {
+        "code" => code,
+        "message" => message,
+        "occurred_at" => Time.current.iso8601
+      }
+    )
+
+    insurance.update!(
+      verification_status: :failed,
+      verification_result: verification_result
+    )
+
+    # Trigger subscription for failure notification
+    DaybreakHealthBackendSchema.subscriptions.trigger(
+      :insurance_status_changed,
+      { session_id: insurance.onboarding_session_id },
+      insurance
+    )
+
+    # Audit log for failure
+    if defined?(AuditLog)
+      AuditLog.create!(
+        action: "OCR_PROCESSING_FAILED",
+        resource: "Insurance",
+        resource_id: insurance.id,
+        onboarding_session_id: insurance.onboarding_session_id,
+        details: { error_code: code }
+      )
+    end
+  rescue StandardError => e
+    Rails.logger.error("OcrProcessingJob.handle_permanent_failure: #{e.message}")
   end
 end
