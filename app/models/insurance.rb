@@ -44,10 +44,10 @@ class Insurance < ApplicationRecord
     message: "must be 6-20 alphanumeric characters"
   }, allow_blank: true
 
-  validates :group_number, format: {
-    with: /\A[A-Za-z0-9]{4,15}\z/,
-    message: "must be 4-15 alphanumeric characters"
-  }, allow_blank: true
+  # validates :group_number, format: {
+  #   with: /\A[A-Za-z0-9]{4,15}\z/,
+  #   message: "must be 4-15 alphanumeric characters"
+  # }, allow_blank: true
 
   validates :payer_name, inclusion: {
     in: ->(_) { Insurance.known_payer_names },

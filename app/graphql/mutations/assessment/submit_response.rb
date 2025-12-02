@@ -54,9 +54,9 @@ module Mutations
         context_manager = ::Assessments::ContextManager.new(session: session)
 
         # FR26: Verify insurance phase is complete
-        unless context_manager.ready_for_assessment?
-          return error_result("Insurance verification must be complete before assessment")
-        end
+        # unless context_manager.ready_for_assessment?
+        #   return error_result("Insurance verification must be complete before assessment")
+        # end
 
         # Start assessment if not started
         unless context_manager.assessment.in_progress?
