@@ -10,7 +10,7 @@ class CreateTherapistMatches < ActiveRecord::Migration[7.2]
       t.timestamps
     end
 
-    add_index :therapist_matches, :onboarding_session_id
+    # Note: index already created by t.references above
     add_index :therapist_matches, :selected_therapist_id
     add_index :therapist_matches, :created_at
   end
