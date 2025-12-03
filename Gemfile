@@ -47,7 +47,7 @@ gem "bootsnap", require: false
 gem "image_processing", "~> 1.2"
 
 # Active Storage S3 backend for HIPAA-compliant image storage
-gem "aws-sdk-s3", "~> 1.140"
+gem "aws-sdk-s3", "~> 1.206"
 
 # AWS Textract for OCR insurance card extraction (Story 4.2)
 gem "aws-sdk-textract", "~> 1.50"
