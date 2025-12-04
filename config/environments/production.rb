@@ -36,7 +36,14 @@ Rails.application.configure do
   # Mount Action Cable outside main process or domain.
   # config.action_cable.mount_path = nil
   # config.action_cable.url = "wss://example.com/cable"
-  # config.action_cable.allowed_request_origins = [ "http://example.com", /http:\/\/example.*/ ]
+
+  # ActionCable allowed origins - REQUIRED for WebSocket connections from frontend
+  # Uses FRONTEND_URL env var (same as CORS config) to allow cross-origin WebSocket connections
+  config.action_cable.allowed_request_origins = [
+    ENV.fetch("FRONTEND_URL", "").split(","),
+    # Also allow Aptible default domains
+    /https:\/\/.*\.on-aptible\.com/
+  ].flatten.reject(&:blank?)
 
   # Assume all access to the app is happening through a SSL-terminating reverse proxy.
   # Can be used together with config.force_ssl for Strict-Transport-Security and secure cookies.
