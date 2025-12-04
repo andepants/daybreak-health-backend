@@ -59,7 +59,7 @@ gem "ruby-vips"
 gem "marcel", "~> 1.0"
 
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
-gem "rack-cors", "~> 2.0"
+gem "rack-cors", "~> 3.0"
 
 group :development, :test do
   # Load environment variables from .env
