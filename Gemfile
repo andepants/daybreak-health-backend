@@ -35,7 +35,7 @@ gem "phonelib", "~> 0.8"
 
 # AI Providers
 gem "ruby-anthropic", "~> 0.4.2"  # Primary AI provider (Anthropic Claude) - renamed from 'anthropic'
-gem "ruby-openai", "~> 6.0"  # Backup AI provider (OpenAI)
+gem "ruby-openai", "~> 8.3"  # Backup AI provider (OpenAI)
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
