@@ -33,7 +33,7 @@ module Scheduling
     # AI timeout for semantic matching (2 seconds)
     AI_TIMEOUT_SECONDS = 2
 
-    attr_reader :session_id, :session, :child, :insurance, :assessment
+    attr_reader :session_id, :session, :child, :insurance, :assessment, :patient_availabilities
 
     # Initialize matching service
     #
@@ -89,7 +89,8 @@ module Scheduling
       @session = OnboardingSession.includes(
         :child,
         :insurance,
-        :assessment
+        :assessment,
+        :patient_availabilities
       ).find_by(id: session_id)
 
       raise ArgumentError, "Session not found: #{session_id}" unless @session
@@ -97,6 +98,7 @@ module Scheduling
       @child = @session.child
       @insurance = @session.insurance
       @assessment = @session.assessment
+      @patient_availabilities = @session.patient_availabilities.to_a
     end
 
     # Validate session has required data for matching
@@ -452,20 +454,25 @@ module Scheduling
     end
 
     # Calculate availability score
-    # AC2: Availability within 2 weeks (preferred)
+    # AC2: Availability based on overlap with patient availability
+    #
+    # If patient has submitted availability, scores based on overlap count.
+    # Otherwise, falls back to basic availability check.
     #
     # @param therapist [Therapist] Therapist to score
     # @return [Float] Score 0.0-1.0
     def availability_score(therapist)
+      # If patient has submitted availability, use overlap scoring
+      if patient_availabilities.any?
+        return availability_overlap_score(therapist)
+      end
+
+      # Fallback: Score based on how soon therapist is available
       next_availability = calculate_next_availability(therapist)
       return 0.0 unless next_availability
 
       days_until_available = (next_availability - Date.today).to_i
 
-      # Score based on how soon therapist is available
-      # 1.0 = within 7 days
-      # 0.5 = 14 days
-      # 0.0 = 30+ days
       if days_until_available <= 7
         1.0
       elsif days_until_available <= 14
@@ -474,6 +481,35 @@ module Scheduling
         0.5 * (30 - days_until_available) / 16.0
       else
         0.0
+      end
+    end
+
+    # Calculate availability overlap score with patient availability
+    # Scores therapists based on how many overlapping time slots they have
+    #
+    # @param therapist [Therapist] Therapist to score
+    # @return [Float] Score 0.0-1.0
+    def availability_overlap_score(therapist)
+      therapist_slots = therapist.therapist_availabilities.repeating
+      return 0.0 if therapist_slots.empty?
+
+      # Count overlapping time slots
+      overlapping_count = 0
+
+      patient_availabilities.each do |patient_slot|
+        therapist_slots.each do |therapist_slot|
+          overlapping_count += 1 if patient_slot.overlaps_with?(therapist_slot)
+        end
+      end
+
+      # Score based on number of overlapping slots
+      # More overlap = higher score
+      case overlapping_count
+      when 0 then 0.0       # No overlap - very low score (may filter out)
+      when 1..2 then 0.4    # Few options
+      when 3..5 then 0.6    # Reasonable options
+      when 6..10 then 0.8   # Good options
+      else 1.0              # Excellent options
       end
     end
 
@@ -557,10 +593,22 @@ module Scheduling
       end
 
       # Availability reasoning
-      if component_scores[:availability] >= 0.7
-        reasons << "Available for appointments soon"
-      elsif component_scores[:availability] >= 0.4
-        reasons << "Available within 2 weeks"
+      if patient_availabilities.any?
+        # Enhanced reasoning when patient availability is known
+        if component_scores[:availability] >= 0.8
+          reasons << "Has many times that match your schedule"
+        elsif component_scores[:availability] >= 0.6
+          reasons << "Has times that match your schedule"
+        elsif component_scores[:availability] >= 0.4
+          reasons << "Has some times that match your schedule"
+        end
+      else
+        # Fallback reasoning when no patient availability
+        if component_scores[:availability] >= 0.7
+          reasons << "Available for appointments soon"
+        elsif component_scores[:availability] >= 0.4
+          reasons << "Available within 2 weeks"
+        end
       end
 
       # Insurance reasoning

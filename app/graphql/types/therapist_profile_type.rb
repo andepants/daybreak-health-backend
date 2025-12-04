@@ -94,39 +94,37 @@ module Types
       therapist.specializations
     end
 
-    # Resolve years of experience (placeholder)
+    # Resolve years of experience from model
     def years_of_experience
-      # TODO: Add years_of_experience to Therapist model
-      nil
+      therapist.years_of_experience
     end
 
-    # Resolve therapeutic approach (placeholder)
+    # Resolve therapeutic approach from model profile_data
     def approach
-      # Could be added as a field on Therapist model
-      "I use an integrative approach tailored to each client's unique needs, " \
-      "combining evidence-based techniques with a warm, supportive therapeutic relationship."
+      therapist.approach
     end
 
-    # Resolve languages
+    # Resolve languages from model
     def languages
       therapist.languages.presence || ["English"]
     end
 
-    # Resolve education (placeholder structure)
+    # Resolve education from model profile_data
+    # Returns array of education entries with degree, institution, year
     def education
-      # Could be stored in a separate table or JSON field
-      [
+      therapist.education.map do |edu|
         {
-          degree: "Master of Science in Clinical Psychology",
-          institution: "Example University",
-          year: 2015
+          degree: edu["degree"] || edu[:degree] || "Degree",
+          institution: edu["institution"] || edu[:institution] || "Institution",
+          year: edu["year"] || edu[:year]
         }
-      ]
+      end
     end
 
-    # Resolve certifications
+    # Resolve certifications from model profile_data
+    # Falls back to treatment_modalities if no certifications
     def certifications
-      therapist.treatment_modalities.presence || []
+      therapist.certifications
     end
 
     # Resolve match reasons for a specific session

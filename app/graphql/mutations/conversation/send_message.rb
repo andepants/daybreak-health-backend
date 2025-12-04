@@ -570,13 +570,17 @@ module Mutations
       end
 
       # Detect if assessment chat is complete based on AI response and context
-      # Returns true when AI indicates the conversation is wrapping up
+      # Returns true only when all required fields are collected AND AI indicates completion
       #
       # @param ai_content [String] AI response content
       # @param context_manager [Ai::ContextManager, nil] Context manager instance
       # @return [Boolean] True if assessment is complete
       def assessment_complete?(ai_content, context_manager = nil)
         return false if ai_content.blank?
+        return false unless context_manager
+
+        # Must have collected all required assessment fields before allowing completion
+        return false unless has_required_assessment_fields?(context_manager)
 
         content_lower = ai_content.downcase
 
@@ -588,7 +592,6 @@ module Mutations
           'we are here for you',
           'care coordinator',
           'next steps',
-          'thank you for sharing',
           'will be in touch',
           'reach out to us',
           'contact you soon',
@@ -601,13 +604,28 @@ module Mutations
         has_farewell = farewell_phrases.any? { |phrase| content_lower.include?(phrase) }
         return true if has_farewell
 
-        # Also check if context manager indicates high progress (90%+)
-        if context_manager&.respond_to?(:calculate_progress_percentage)
-          progress = context_manager.calculate_progress_percentage
-          return true if progress >= 90
+        # Higher threshold (95%) to ensure thorough assessment
+        if context_manager.respond_to?(:calculate_progress_percentage)
+          progress = context_manager.calculate_progress_percentage rescue 0
+          return true if progress >= 95
         end
 
         false
+      end
+
+      # Check if all required assessment fields have been collected
+      #
+      # @param context_manager [Ai::ContextManager] Context manager instance
+      # @return [Boolean] True if all required fields are present
+      def has_required_assessment_fields?(context_manager)
+        required_fields = %w[
+          parent_first_name parent_email
+          child_first_name child_last_name child_date_of_birth
+          primary_concern concern_severity concern_duration
+        ]
+
+        collected = context_manager.collected_fields rescue []
+        required_fields.all? { |field| collected.include?(field) }
       end
     end
   end

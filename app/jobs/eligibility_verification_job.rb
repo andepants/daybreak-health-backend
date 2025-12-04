@@ -12,6 +12,8 @@
 # @see Eligibility::AdapterFactory
 # @see Subscriptions::InsuranceStatusChanged
 class EligibilityVerificationJob < ApplicationJob
+  include GraphqlConcerns::SessionIdParser
+
   # Use the insurance queue configured in sidekiq.yml
   queue_as :insurance
 
@@ -134,9 +136,10 @@ class EligibilityVerificationJob < ApplicationJob
     progress = PROGRESS_STAGES[stage]
     return unless progress
 
+    formatted_session_id = format_session_id(insurance.onboarding_session_id)
     DaybreakHealthBackendSchema.subscriptions.trigger(
       :insurance_status_changed,
-      { session_id: insurance.onboarding_session_id },
+      { session_id: formatted_session_id },
       {
         insurance: insurance,
         progress: {
@@ -154,9 +157,10 @@ class EligibilityVerificationJob < ApplicationJob
   #
   # @param insurance [Insurance] The insurance record
   def trigger_subscription(insurance)
+    formatted_session_id = format_session_id(insurance.onboarding_session_id)
     DaybreakHealthBackendSchema.subscriptions.trigger(
       :insurance_status_changed,
-      { session_id: insurance.onboarding_session_id },
+      { session_id: formatted_session_id },
       { insurance: insurance.reload }
     )
   rescue StandardError => e
@@ -267,9 +271,10 @@ class EligibilityVerificationJob < ApplicationJob
     )
 
     # Trigger subscription with manual review status
+    formatted_session_id = GraphqlConcerns::SessionIdParser.format_session_id(insurance.onboarding_session_id)
     DaybreakHealthBackendSchema.subscriptions.trigger(
       :insurance_status_changed,
-      { session_id: insurance.onboarding_session_id },
+      { session_id: formatted_session_id },
       { insurance: insurance.reload }
     )
   rescue StandardError => e

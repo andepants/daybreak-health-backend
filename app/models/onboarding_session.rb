@@ -44,6 +44,7 @@ class OnboardingSession < ApplicationRecord
   has_one :booked_appointment, -> { where.not(status: [:cancelled]).order(scheduled_at: :asc) },
           class_name: 'Appointment', inverse_of: :onboarding_session
   has_one :payment_plan, dependent: :destroy
+  has_many :patient_availabilities, dependent: :destroy
 
   # Validations
   validates :status, presence: true
@@ -104,6 +105,13 @@ class OnboardingSession < ApplicationRecord
   # @return [Boolean] true if cost breakdown exists
   def cost_calculated?
     cost_estimate.present? && cost_estimate['calculated_at'].present?
+  end
+
+  # Check if patient has submitted availability
+  #
+  # @return [Boolean] true if at least one availability slot exists
+  def has_availability?
+    patient_availabilities.exists?
   end
 
   # Extend session expiration by specified duration from current time (default 1 hour)

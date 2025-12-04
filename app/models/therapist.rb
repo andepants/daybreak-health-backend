@@ -78,7 +78,40 @@ class Therapist < ApplicationRecord
     age_ranges.map { |r| parse_age_range(r).last }.compact.max
   end
 
+  # Get education history from profile_data
+  # Returns array of education entries with degree, institution, year
+  #
+  # @return [Array<Hash>] Education entries
+  def education
+    profile_data["education"] || []
+  end
+
+  # Get professional certifications from profile_data
+  # Falls back to treatment_modalities if no certifications specified
+  #
+  # @return [Array<String>] Certification names
+  def certifications
+    profile_data["certifications"].presence || treatment_modalities.presence || []
+  end
+
+  # Get therapeutic approach description from profile_data
+  # Generates a sensible default if not specified
+  #
+  # @return [String] Approach description
+  def approach
+    profile_data["approach"].presence || generate_default_approach
+  end
+
   private
+
+  # Generate a default therapeutic approach based on modalities
+  #
+  # @return [String] Default approach description
+  def generate_default_approach
+    modalities = treatment_modalities.presence || ["evidence-based techniques"]
+    "I use an integrative approach tailored to each client's unique needs, " \
+    "combining #{modalities.first(3).join(', ')} with a warm, supportive therapeutic relationship."
+  end
 
   # Parse age range string like "5-12" into [min, max]
   #

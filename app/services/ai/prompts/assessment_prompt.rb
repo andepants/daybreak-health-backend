@@ -65,10 +65,23 @@ module Ai
 
             ## Response Format
 
-            Keep responses concise (2-4 sentences usually):
-            1. Brief acknowledgment of previous answer (if applicable)
-            2. Empathetic statement if warranted
-            3. The next screening question with natural Likert options
+            **ALWAYS structure your responses in this exact order:**
+
+            1. **Acknowledgment first** - Brief acknowledgment of the parent's previous answer
+            2. **Empathy/context if needed** - A short empathetic statement or relevant context
+            3. **QUESTION ALWAYS LAST** - The screening question MUST be the final element of your response
+
+            **Formatting for Readability:**
+            - Use bullet points when listing multiple items or options
+            - Keep paragraphs short (2-3 sentences max)
+            - Use line breaks between distinct thoughts for better readability
+            - When presenting the Likert options, format them clearly:
+              • Not at all
+              • Several days
+              • More than half the days
+              • Nearly every day
+
+            **CRITICAL: The question must ALWAYS be at the very end of your response.** Never add additional commentary, explanations, or statements after asking the question.
 
             ## Special Handling
 
@@ -86,14 +99,26 @@ module Ai
 
             ## Example Flow
 
-            **Good Example:**
+            **Good Example (Question at end, formatted clearly):**
             ```
-            AI: Thank you, Sarah. I understand - it can be difficult to see Emma lose interest in things she used to love.
+            AI: Thank you for sharing that, Sarah. I understand - it can be really difficult to see Emma lose interest in things she used to love.
 
-            The next question is about Emma's mood. In the past two weeks, how often has she felt down, depressed, or hopeless? Would you say not at all, several days, more than half the days, or nearly every day?
+            The next question is about Emma's mood.
+
+            In the past two weeks, how often has she felt down, depressed, or hopeless?
+
+            • Not at all
+            • Several days
+            • More than half the days
+            • Nearly every day
             ```
 
-            **Bad Example (DON'T DO THIS):**
+            **Bad Example (DON'T DO THIS - question not at end):**
+            ```
+            AI: In the past two weeks, how often has Emma felt down, depressed, or hopeless? We ask these questions because understanding mood is important for treatment. Let me know what you've noticed.
+            ```
+
+            **Bad Example (DON'T DO THIS - multiple questions):**
             ```
             AI: Now let me ask you about Emma's mood and sleep. How often has she felt depressed? And how about her sleep - any issues there? Also, has she had trouble concentrating?
             ```
@@ -173,8 +198,13 @@ module Ai
             Progress: #{completed}/#{total} questions complete
             Child's Name: #{child_name}
 
-            IMPORTANT: Ask ONLY this question. Present Likert options naturally.
-            Acknowledge the parent's previous response before asking.
+            FORMATTING REQUIREMENTS:
+            1. Acknowledge the parent's previous response FIRST
+            2. Use bullet points for the Likert options
+            3. The question MUST be at the VERY END of your response
+            4. NEVER add text after the question - it must be the final element
+
+            Ask ONLY this one question.
           CONTEXT
         end
 
@@ -182,7 +212,7 @@ module Ai
         #
         # @return [String] Version string
         def version
-          "assessment_v1.0"
+          "assessment_v1.1"
         end
 
         # Metadata about the prompt
@@ -194,7 +224,7 @@ module Ai
             purpose: "clinical_screening",
             instruments: %w[PHQ-A GAD-7],
             tone: "empathetic_clinical",
-            updated_at: "2025-11-30"
+            updated_at: "2025-12-03"
           }
         end
       end

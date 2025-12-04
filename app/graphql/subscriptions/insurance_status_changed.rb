@@ -30,6 +30,8 @@ module Subscriptions
   # @see Story 4.2: OCR Insurance Card Extraction (AC7)
   # @see Story 4.4: Real-Time Eligibility Verification (AC9, AC10)
   class InsuranceStatusChanged < GraphQL::Schema::Subscription
+    include GraphqlConcerns::SessionIdParser
+
     description "Subscribe to insurance status changes for a session"
 
     argument :session_id, ID, required: true, description: "The session ID to subscribe to"
@@ -43,7 +45,7 @@ module Subscriptions
     # @param session_id [String] The session ID to subscribe to
     # @return [Hash] Initial subscription payload
     def subscribe(session_id:)
-      session = OnboardingSession.find(session_id)
+      session = OnboardingSession.find(parse_session_id(session_id))
       insurance = session.insurance
 
       if insurance

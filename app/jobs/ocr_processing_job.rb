@@ -1,17 +1,27 @@
 # frozen_string_literal: true
 
-# Job to process insurance card images with OCR using AWS Textract
+# Job to process insurance card images with OCR
+#
+# Supports multiple OCR providers:
+# - OpenAI Vision (default in development, fallback in production)
+# - AWS Textract (default in production)
 #
 # Extracts insurance information from uploaded card images:
 # - member_id, group_number, payer_name, subscriber_name
 # - Confidence scores for each extracted field
 # - Flags low-confidence extractions for manual review
 #
+# Configuration via environment:
+# - OCR_PROVIDER: 'openai' | 'textract' (default: 'openai')
+# - OpenAI Vision is the default due to better accuracy and simpler setup
+#
 # @example Queue the job
 #   OcrProcessingJob.perform_later(insurance.id)
 #
 # @see Story 4.2: OCR Insurance Card Extraction
 class OcrProcessingJob < ApplicationJob
+  include GraphqlConcerns::SessionIdParser
+
   queue_as :insurance
 
   # Retry up to 3 times for transient failures
@@ -33,18 +43,13 @@ class OcrProcessingJob < ApplicationJob
     handle_permanent_failure(job.arguments.first, "UNSUPPORTED_DOCUMENT", error.message)
   end
 
-  # Handle network/SSL errors (common in local dev)
-  discard_on Seahorse::Client::NetworkingError do |job, error|
-    handle_permanent_failure(job.arguments.first, "NETWORK_ERROR", error.message)
-  end
-
   # Catch-all for other errors - record failure after all retries exhausted
   retry_on StandardError, wait: 3.seconds, attempts: 3 do |job, error|
     handle_permanent_failure(job.arguments.first, "UNKNOWN_ERROR", error.message)
   end
 
-  # Timeout for Textract processing
-  OCR_TIMEOUT = 30.seconds
+  # Timeout for OCR processing
+  OCR_TIMEOUT = 60.seconds
 
   def perform(insurance_id)
     insurance = Insurance.find(insurance_id)
@@ -56,14 +61,13 @@ class OcrProcessingJob < ApplicationJob
       return
     end
 
-    Rails.logger.info("OcrProcessingJob: Processing insurance #{insurance_id}")
+    Rails.logger.info("OcrProcessingJob: Processing insurance #{insurance_id} with provider: #{ocr_provider}")
 
     # Update status to in_progress
     insurance.update!(verification_status: :in_progress)
 
-    # Parse card images with timeout
-    parser = ::InsuranceServices::CardParser.new(insurance)
-    result = Timeout.timeout(OCR_TIMEOUT) { parser.call }
+    # Parse card images with the configured provider
+    result = process_with_provider(insurance)
 
     # Update insurance with OCR results
     update_insurance_with_results(insurance, result)
@@ -82,6 +86,67 @@ class OcrProcessingJob < ApplicationJob
   end
 
   private
+
+  # Determine which OCR provider to use
+  #
+  # @return [Symbol] :openai or :textract
+  def ocr_provider
+    provider = ENV.fetch("OCR_PROVIDER", "openai").downcase
+    provider == "textract" ? :textract : :openai
+  end
+
+  # Process with the selected OCR provider, with fallback support
+  #
+  # @param insurance [Insurance] The insurance record
+  # @return [Hash] Parser result with :status, :data, :raw keys
+  def process_with_provider(insurance)
+    Timeout.timeout(OCR_TIMEOUT) do
+      if ocr_provider == :openai
+        process_with_openai(insurance)
+      else
+        process_with_textract_and_fallback(insurance)
+      end
+    end
+  end
+
+  # Process with OpenAI Vision
+  #
+  # @param insurance [Insurance] The insurance record
+  # @return [Hash] Parser result
+  def process_with_openai(insurance)
+    Rails.logger.info("OcrProcessingJob: Using OpenAI Vision for OCR")
+    parser = ::InsuranceServices::OpenaiCardParser.new(insurance)
+    result = parser.call
+    result[:raw][:provider] = "openai"
+    result
+  end
+
+  # Process with Textract, falling back to OpenAI on network errors
+  #
+  # @param insurance [Insurance] The insurance record
+  # @return [Hash] Parser result
+  def process_with_textract_and_fallback(insurance)
+    Rails.logger.info("OcrProcessingJob: Using AWS Textract for OCR")
+    parser = ::InsuranceServices::CardParser.new(insurance)
+    result = parser.call
+    result[:raw][:provider] = "textract"
+    result
+  rescue Seahorse::Client::NetworkingError => e
+    # Fallback to OpenAI on network errors (common in local dev)
+    if openai_available?
+      Rails.logger.warn("OcrProcessingJob: Textract network error, falling back to OpenAI: #{e.message}")
+      process_with_openai(insurance)
+    else
+      raise
+    end
+  end
+
+  # Check if OpenAI is available as a fallback
+  #
+  # @return [Boolean]
+  def openai_available?
+    ENV["OPENAI_API_KEY"].present?
+  end
 
   # Update insurance record with OCR extraction results
   #
@@ -123,20 +188,45 @@ class OcrProcessingJob < ApplicationJob
     data[:extracted_fields].each do |field, value|
       confidence = data[:confidence_scores][field]
       if confidence && confidence >= 85.0 && value.present?
-        fields[field] = value
+        # For payer_name, do case-insensitive matching and use canonical name
+        if field == :payer_name
+          canonical_name = find_matching_payer_name(value)
+          if canonical_name.nil?
+            Rails.logger.info("OcrProcessingJob: Skipping payer_name '#{value}' - not in known payers list")
+            next
+          end
+          fields[field] = canonical_name
+        else
+          fields[field] = value
+        end
       end
     end
 
     fields
   end
 
+  # Find matching payer name with case-insensitive comparison
+  #
+  # @param ocr_value [String] The OCR-extracted payer name
+  # @return [String, nil] The canonical payer name if found, nil otherwise
+  def find_matching_payer_name(ocr_value)
+    return nil if ocr_value.blank?
+
+    normalized_value = ocr_value.downcase.strip
+    Insurance.known_payer_names.find do |known_name|
+      known_name.downcase == normalized_value
+    end
+  end
+
   # Trigger GraphQL subscription for OCR completion
   #
   # @param insurance [Insurance] The updated insurance record
   def trigger_status_subscription(insurance)
+    # Format session_id to match frontend subscription format (sess_ prefix)
+    formatted_session_id = format_session_id(insurance.onboarding_session_id)
     DaybreakHealthBackendSchema.subscriptions.trigger(
       :insurance_status_changed,
-      { session_id: insurance.onboarding_session_id },
+      { session_id: formatted_session_id },
       insurance
     )
   rescue StandardError => e
@@ -267,9 +357,10 @@ class OcrProcessingJob < ApplicationJob
     )
 
     # Trigger subscription for failure notification
+    formatted_session_id = GraphqlConcerns::SessionIdParser.format_session_id(insurance.onboarding_session_id)
     DaybreakHealthBackendSchema.subscriptions.trigger(
       :insurance_status_changed,
-      { session_id: insurance.onboarding_session_id },
+      { session_id: formatted_session_id },
       insurance
     )
 

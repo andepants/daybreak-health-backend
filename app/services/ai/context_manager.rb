@@ -40,7 +40,7 @@ module Ai
       'welcome' => [],
       'parent_info' => %w[parent_first_name parent_email],
       'child_info' => %w[child_first_name child_last_name child_date_of_birth],
-      'concerns' => %w[primary_concern]
+      'concerns' => %w[primary_concern concern_severity concern_duration]
     }.freeze
 
     # Service age range for children (5-18 years)

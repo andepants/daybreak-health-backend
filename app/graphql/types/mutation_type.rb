@@ -9,6 +9,7 @@ module Types
     field :abandon_session, mutation: Mutations::Sessions::AbandonSession
     field :request_human_contact, mutation: Mutations::Sessions::RequestHumanContact
     field :complete_assessment, mutation: Mutations::Sessions::CompleteAssessment
+    field :submit_patient_availability, mutation: Mutations::Sessions::SubmitPatientAvailability
 
     # Auth mutations
     field :refresh_token, mutation: Mutations::Auth::RefreshToken

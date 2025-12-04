@@ -4,7 +4,7 @@
 insurance_anthem:
   id: "991de33e-5c95-4845-9740-b9bf08d4d434"
   onboarding_session: session_two
-  payer_name: "Anthem BCBS CA"
+  payer_name: "Anthem Blue Cross"
   member_id: "MCA84103067D"
   group_number: "W3001103"
   card_image_front: ~

@@ -29,6 +29,10 @@ module Types
 
     field :session_by_recovery_token, resolver: Queries::Sessions::SessionByRecoveryToken
 
+    # Dynamic quick reply suggestions for chat interface
+    # Returns AI-generated contextual response options
+    field :suggested_replies, resolver: Queries::SuggestedReplies
+
     # Story 3.5: Contact options query
     # AC 3.5.4: Contact options provided to parent
     # AC 3.5.9: Option always visible/accessible
@@ -342,15 +346,17 @@ module Types
 
     # Story 5.2: Therapist availability query (frontend integration)
     # Returns availability grouped by date for the scheduling calendar
+    # When session_id is provided, filters to only show slots that overlap with patient availability
     field :therapist_availability, Types::TherapistAvailabilityResultType, null: false,
           description: "Get therapist availability grouped by date for scheduling calendar" do
       argument :therapist_id, ID, required: true, description: "Therapist ID"
       argument :start_date, GraphQL::Types::ISO8601DateTime, required: true, description: "Start date of the range"
       argument :end_date, GraphQL::Types::ISO8601DateTime, required: true, description: "End date of the range"
       argument :timezone, String, required: false, default_value: 'UTC', description: "Timezone for results"
+      argument :session_id, ID, required: false, description: "Optional session ID to filter by patient availability overlap"
     end
 
-    def therapist_availability(therapist_id:, start_date:, end_date:, timezone: 'UTC')
+    def therapist_availability(therapist_id:, start_date:, end_date:, timezone: 'UTC', session_id: nil)
       # Load therapist
       therapist = Therapist.find(therapist_id)
 
@@ -365,6 +371,17 @@ module Types
         end_date: end_date_only,
         timezone: timezone
       )
+
+      # Filter slots by patient availability if session_id is provided
+      patient_availabilities = nil
+      if session_id.present?
+        actual_session_id = normalize_session_id(session_id)
+        session = OnboardingSession.find_by(id: actual_session_id)
+        if session
+          patient_availabilities = session.patient_availabilities.to_a
+          slots = filter_slots_by_patient_availability(slots, patient_availabilities)
+        end
+      end
 
       # Group slots by date
       slots_by_date = slots.group_by { |slot| slot[:start_time].to_date }
@@ -411,6 +428,36 @@ module Types
           timestamp: Time.current.iso8601
         }
       )
+    end
+
+    # Filter therapist slots to only those overlapping with patient availability
+    #
+    # @param slots [Array<Hash>] Therapist availability slots
+    # @param patient_availabilities [Array<PatientAvailability>] Patient availability records
+    # @return [Array<Hash>] Filtered slots that overlap with patient availability
+    def filter_slots_by_patient_availability(slots, patient_availabilities)
+      return slots if patient_availabilities.blank?
+
+      slots.select do |slot|
+        slot_start = slot[:start_time]
+        slot_day_of_week = slot_start.wday
+        slot_start_time_only = slot_start.strftime("%H:%M")
+        slot_end_time = slot_start + slot[:duration_minutes].minutes
+
+        # Check if any patient availability overlaps with this slot
+        patient_availabilities.any? do |pa|
+          next false unless pa.day_of_week == slot_day_of_week
+
+          # Parse patient availability times for comparison
+          pa_start = Time.parse(pa.start_time.strftime("%H:%M"))
+          pa_end = pa_start + pa.duration_minutes.minutes
+          slot_start_parsed = Time.parse(slot_start_time_only)
+          slot_end_parsed = Time.parse(slot_end_time.strftime("%H:%M"))
+
+          # Check for overlap: slot_start < pa_end AND slot_end > pa_start
+          slot_start_parsed < pa_end && slot_end_parsed > pa_start
+        end
+      end
     end
 
     # Story 5.2: Available slots query
@@ -501,6 +548,39 @@ module Types
         matches: matches,
         criteria_description: nil # Will use default in type
       }
+    rescue ActiveRecord::RecordNotFound
+      raise GraphQL::ExecutionError.new(
+        'Session not found',
+        extensions: {
+          code: 'NOT_FOUND',
+          timestamp: Time.current.iso8601
+        }
+      )
+    end
+
+    # Patient availability query
+    # Returns patient availability blocks for a session
+    field :patient_availability, [Types::PatientAvailabilityType], null: false,
+          description: "Get patient availability time blocks for a session" do
+      argument :session_id, ID, required: true, description: "Session ID"
+    end
+
+    def patient_availability(session_id:)
+      actual_id = normalize_session_id(session_id)
+      session = OnboardingSession.find(actual_id)
+
+      # Verify user has access
+      unless current_session && current_session.id == session.id
+        raise GraphQL::ExecutionError.new(
+          'Access denied',
+          extensions: {
+            code: 'UNAUTHENTICATED',
+            timestamp: Time.current.iso8601
+          }
+        )
+      end
+
+      session.patient_availabilities.ordered
     rescue ActiveRecord::RecordNotFound
       raise GraphQL::ExecutionError.new(
         'Session not found',

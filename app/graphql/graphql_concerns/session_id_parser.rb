@@ -5,6 +5,8 @@ module GraphqlConcerns
   #
   # Handles conversion between sess_ prefixed hex format and UUID format
   module SessionIdParser
+    extend self
+
     # Parse session ID from various formats to UUID
     #
     # Supports:
@@ -27,6 +29,23 @@ module GraphqlConcerns
       else
         session_id
       end
+    end
+
+    # Format UUID session ID to sess_ prefixed hex format
+    #
+    # @param session_id [String] The session ID (UUID or already formatted)
+    # @return [String] The session ID in sess_ prefixed hex format
+    # @example
+    #   format_session_id("12345678-90ab-cdef-1234-567890abcdef")
+    #   # => "sess_1234567890abcdef1234567890abcdef"
+    #
+    #   format_session_id("sess_1234567890abcdef1234567890abcdef")
+    #   # => "sess_1234567890abcdef1234567890abcdef"
+    def format_session_id(session_id)
+      return session_id if session_id.start_with?("sess_")
+
+      hex = session_id.delete("-")
+      "sess_#{hex}"
     end
   end
 end

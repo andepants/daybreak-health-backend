@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_12_02_020000) do
+ActiveRecord::Schema[7.2].define(version: 2025_12_03_201219) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -175,6 +175,18 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_02_020000) do
     t.index ["onboarding_session_id"], name: "index_parents_on_onboarding_session_id", unique: true
   end
 
+  create_table "patient_availabilities", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "onboarding_session_id", null: false
+    t.integer "day_of_week", null: false
+    t.time "start_time", null: false
+    t.integer "duration_minutes", default: 60, null: false
+    t.string "timezone", default: "America/Los_Angeles", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["onboarding_session_id", "day_of_week"], name: "idx_patient_avail_session_day"
+    t.index ["onboarding_session_id"], name: "index_patient_availabilities_on_onboarding_session_id"
+  end
+
   create_table "payment_plans", force: :cascade do |t|
     t.uuid "onboarding_session_id", null: false
     t.integer "plan_duration_months", null: false, comment: "Payment plan duration in months (0 for upfront)"
@@ -330,11 +342,18 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_02_020000) do
     t.datetime "updated_at", null: false
     t.integer "appointment_duration_minutes", default: 50, null: false
     t.integer "buffer_time_minutes", default: 10, null: false
+    t.jsonb "profile_data", default: {}, null: false
+    t.string "gender"
+    t.string "ethnicity"
+    t.string "religion"
+    t.integer "years_of_experience"
     t.index ["active"], name: "index_therapists_on_active"
     t.index ["external_id"], name: "index_therapists_on_external_id", unique: true
+    t.index ["gender"], name: "index_therapists_on_gender"
     t.index ["license_number"], name: "index_therapists_on_license_number", unique: true
     t.index ["license_state"], name: "index_therapists_on_license_state"
     t.index ["npi_number"], name: "index_therapists_on_npi_number", unique: true
+    t.index ["profile_data"], name: "index_therapists_on_profile_data", using: :gin
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
@@ -347,6 +366,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_12_02_020000) do
   add_foreign_key "insurances", "onboarding_sessions"
   add_foreign_key "messages", "onboarding_sessions"
   add_foreign_key "parents", "onboarding_sessions"
+  add_foreign_key "patient_availabilities", "onboarding_sessions"
   add_foreign_key "payment_plans", "onboarding_sessions"
   add_foreign_key "refresh_tokens", "onboarding_sessions"
   add_foreign_key "support_requests", "onboarding_sessions"
