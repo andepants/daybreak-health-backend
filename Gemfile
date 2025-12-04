@@ -84,7 +84,7 @@ group :development, :test do
   gem "shoulda-matchers", "~> 6.0"
 
   # Pundit Matchers for authorization testing
-  gem "pundit-matchers", "~> 3.1"
+  gem "pundit-matchers", "~> 4.0"
 
   # VCR and WebMock for recording/replaying HTTP interactions (Textract API testing)
   gem "vcr", "~> 6.2"
