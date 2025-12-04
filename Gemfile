@@ -81,7 +81,7 @@ group :development, :test do
   gem "factory_bot_rails", "~> 6.4"
 
   # Shoulda Matchers for concise model testing
-  gem "shoulda-matchers", "~> 6.0"
+  gem "shoulda-matchers", "~> 7.0"
 
   # Pundit Matchers for authorization testing
   gem "pundit-matchers", "~> 3.1"
