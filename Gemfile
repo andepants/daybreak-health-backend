@@ -13,7 +13,7 @@ gem "redis", "~> 5.0"
 
 # Sidekiq for background job processing
 gem "sidekiq", "~> 7.2"
-gem "sidekiq-cron", "~> 1.9"
+gem "sidekiq-cron", "~> 2.3"
 
 # GraphQL
 gem "graphql", "~> 2.2"
