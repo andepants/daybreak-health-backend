@@ -12,7 +12,7 @@ gem "puma", ">= 5.0"
 gem "redis", "~> 5.0"
 
 # Sidekiq for background job processing
-gem "sidekiq", "~> 7.2"
+gem "sidekiq", "~> 8.0"
 gem "sidekiq-cron", "~> 1.9"
 
 # GraphQL
